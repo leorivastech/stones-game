@@ -151,3 +151,19 @@ comprar una licencia, armar su propia red) que da un final a la muestra.
 4. Refugios, gente que se deja y posada/establo.
 5. Encargos con nombre y meta final.
 6. En línea (más adelante).
+
+## 10. En discusión (ideas de Leo, 2026-09-23 — nada decidido)
+
+- **Mercado como bolsa:** cada pueblo con las 5 piedras; producción y consumo por día; el precio
+  sale de lo que hay contra lo que se necesita. Acaparar y guardar en refugios para vender cuando
+  suba, con riesgo (redada, escarcha que se derrite, competencia).
+- **Tiempo por días:** cruzar una ruta o tomar la barca pasa días; los pueblos siguen produciendo y
+  consumiendo. Los precios de otros pueblos se conocen "vistos hace N días".
+- **Mundo vivo:** sucesos que mueven oferta y demanda (helada, cargamento agarrado en la aduana,
+  nevada que cierra un paso, feria) y rumores con fuente más o menos confiable.
+- **¿IA?** Propuesta de Claude: un "director" de reglas (baraja de sucesos con condiciones,
+  probabilidad y duración, como el narrador de RimWorld) decide qué pasa; la IA sólo ayuda a
+  escribir variantes de rumores y noticias.
+- **En línea (después):** jugadores como parte de la oferta y la demanda, acaparar, grupos con
+  refugios compartidos. La meta en línea sería ser la red de comercio más fuerte.
+- **Meta para un jugador:** sin decidir (romper el monopolio de la Corona, pagar una deuda, armar tu red).
