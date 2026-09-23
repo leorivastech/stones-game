@@ -109,3 +109,13 @@ Regla: una línea por decisión, con fecha. No borrar: si se revierte, se agrega
 - **Sí** — Economía ajustada con simulación (`diseno-mundo.md` §3): existencias 8, pedido 6, compra +1 y venta −2 por unidad, calor por venta 5. Con las reglas viejas el caballo no se pagaba.
 - **Sí** — Cada ruta enseña algo: aduana y cornisa (2), selva cerrada vs. desierto abierto (3), puerta de la escarcha y lago helado para patinar (4). Enemigos nuevos: lobo y escorpión enterrado.
 - **Fuera de la muestra** — Atajo de montaña Ashfen ↔ Verdelume, encargos, música propia de los pueblos nuevos.
+
+## 2026-09-23 — refugios y gente
+
+- **Sí / Leo** — Sin menú al salir del pueblo. La gente se lleva y se deja **caminando**: refugio, establo (caballos) o posada (gente, cuesta). Los lugares se desbloquean poco a poco.
+- **Sí / Leo** — **Refugios secretos** tipo base secreta de Pokémon: cuartito al que se entra, con piedras y personas adentro. Cuestan: cueva forjada (herrero) y tierra escondida (campesino). Mejoras: estantes, catre, corral, cerrojo reforzado.
+- **Sí / Leo** — La Corona puede encontrar un refugio sin cerrojo reforzado si la ruta está muy caliente. En la muestra: 3 refugios (Ruta 2, Ruta 3, Ruta 4 junto al lago). Reemplazan a los alijos.
+- **Sí / Leo** — Máximo 2 personas y un caballo contigo; llevar mucha gente llama la atención de los guardias; hay caminos donde el caballo no pasa; el caballo sube a la barca pagando más.
+- **Sí / Leo** — Arreglar animaciones: personaje tieso, caballo que parece camello y sin vista de frente/espalda, arquera sin arco.
+- **Para después** — En línea sin juego simultáneo: mercado compartido y refugios donde otros dejan o salvan cosas.
+- **Propuesto, espera a Leo** — Economía con carácter de piedras, segunda demanda por pueblo, noticias, precio de la Corona y fama por encargos (`panorama.md` §8).
