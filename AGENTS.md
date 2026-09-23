@@ -24,7 +24,12 @@ Abre http://127.0.0.1:5181/
 | Pixel art hecho en código | `src/art/` — paleta en `palette.js`, catálogo en `index.js` |
 | Laboratorio de arte (sprites ampliados) | http://127.0.0.1:5181/lab.html?z=4 |
 | Números que se ajustan jugando | `src/config.js` |
-| Economía (precios, calor, carga) | `src/state.js` + `src/world.js` |
+| Economía: mercado vivo, días, piedras (lógica pura) | `src/economy.js` — simulación: `node studio/sim/mercado.mjs` |
+| Sucesos y rumores (lógica pura) | `src/director.js` |
+| Misiones (historia y pedidos) | `src/missions.js` |
+| Estado de la partida (guardar, deuda, fama, refugios, tu gente) | `src/state.js` + `src/world.js` |
+| Refugios (mapas chicos) | `src/maps/refugios.js` |
+| Qué está decidido / construido / pendiente | `studio/panorama.md` |
 | Trailer (grabar el juego + voz + HyperFrames) | `trailer/` — skill `trailer-juego` |
 | Historia, mecánicas, arte | `studio/` |
 | Guía viva (pestañas) | `docs/guides/stones-studio.html` |

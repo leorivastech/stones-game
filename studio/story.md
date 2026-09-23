@@ -42,6 +42,12 @@ Pueblos grandes, vista de arriba: hay que caminar para cruzarlos. La cámara sig
 
 Ilícito y chico. Eventos de ruta rápidos (retén, asalto, confiscación), no turnos.
 
+## Motivo (decidido por ahora)
+
+El padre del caminante le debía **500 al Gremio**. Murió el invierno pasado y la deuda es tuya.
+Cada diez días pasa un cobrador. Pagarla es la primera meta; después el mundo sigue (no hay final
+forzoso). Tomasa, en Ashfen, da el primer encargo: llevar ámbar a su sobrino Maese Ivo, en Valkeep.
+
 ## Pregunta dramática pendiente
 
 Todavía falta decidir por qué el caminante entra a la red. La recomendación actual es que

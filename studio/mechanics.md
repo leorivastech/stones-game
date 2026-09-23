@@ -1,13 +1,16 @@
 # Mecánicas — Stones
 
-Estado: **muestra completa del mundo** — 5 pueblos, 4 rutas y la barca que cierra el círculo.
-2026-09-23. El porqué de cada número está en `diseno-mundo.md`.
+Estado: **mundo completo y vivo** — 5 pueblos, 4 rutas, barca, 3 refugios, mercado de oferta y
+demanda, días, deuda, misiones y sucesos. 2026-09-23. El rumbo y lo pendiente están en
+`panorama.md`; los números del mundo, en `diseno-mundo.md`.
 
 ## Fantasía jugable
 
 Stones toma de Pokémon la estructura física (pueblo seguro → ruta con identidad → pueblo seguro) y
 de Zelda la acción: **los peligros se ven caminando por el mapa** y se resuelven en tiempo real,
-sin pantalla de batalla ni turnos. El negocio de contrabando obliga a ir y volver entre pueblos.
+sin pantalla de batalla ni turnos. Es un juego **sin final forzoso**: armas tu red de contrabando
+en un mundo que cambia día a día. Lo interesante es **prepararse**: qué llevas, a quién llevas,
+dónde dejas qué y por qué camino vas.
 
 ## Controles
 
@@ -17,160 +20,167 @@ sin pantalla de batalla ni turnos. El negocio de contrabando obliga a ir y volve
 | Golpear con el bastón (también corta pasto y arbustos) | J / ESPACIO | A |
 | Rodar (tocar) · correr (mantener) | K / SHIFT | B |
 | Agacharse · esconderse en el pasto alto | L / C | X |
-| Hablar · usar · comerciar · abrir alijo | E | Y |
+| Hablar · usar · comerciar · entrar | E | Y |
 | Beber tónico (2 corazones) | Q | LB |
-| Pausa (mapa, carga, mercados, controles) | ESC / ENTER | Start |
+| Pausa (mapa, carga, encargos, mercados, controles) | ESC / ENTER | Start |
 | Bajar un escalón | caminar hacia abajo contra el borde | — |
-| Depuración | F1 (luego 1-8; 7 = arquera + herrajes, 8 = tónicos) | — |
-
-Cerca de algo con lo que se puede interactuar aparece abajo un indicador `[E] Hablar / Leer /
-Abrir / Tirar / Beber / Comerciar`.
+| Depuración | F1, luego 1-8 (arriba o teclado numérico) | — |
 
 ## Jugador
 
 - **Vida en corazones** (empieza con 3). Cada golpe quita medio o un corazón.
-- **Golpe**: barrido de bastón de ~¼ s, daña todo lo que toque delante; empuja al enemigo.
-- **Rodar**: impulso corto con invulnerabilidad; mantener K después de rodar = correr.
-- **Agacharse**: más lento; los guardias ven la mitad de lejos. **En pasto alto y agachado nadie te ve.**
-- **Daño**: retroceso, destello blanco y un segundo de parpadeo invulnerable.
-- **K.O.** (0 corazones): despiertas en el último pueblo, pierdes la mitad de la carga (menos lo
-  que salven caballo y escolta) y el 20 % del oro.
-- La vida se recupera al entrar a un pueblo y bebiendo del pozo; en el mundo caen corazones del
-  pasto, arbustos y jabalíes. **Tónicos** (Verdelume): Q recupera 2 corazones donde sea.
-- **Hielo**: sobre el lago helado no hay pasos; al moverte **patinas en línea recta hasta chocar**
-  con un bloque o salir del hielo (sin golpe ni rodar mientras patinas).
+- **Golpe**, **rodar** (invulnerable), **correr** (mantener K), **agacharse** (en pasto alto nadie te ve).
+- **Animación**: paso de 4 cuadros con rebote y brazos, respira cuando está quieto.
+- **K.O.**: despiertas en el último pueblo, pierdes la mitad de la carga (menos lo que salve tu
+  gente) y el 20 % del oro.
+- **Tónicos** (Verdelume, 12 oro, máx. 3): Q recupera 2 corazones.
+- **Hielo**: en el lago helado patinas en línea recta hasta chocar. **La yegua no pisa el hielo.**
+
+## El tiempo: días
+
+- Cruzar una ruta de pueblo a pueblo: **2 días**. Barca: **3 días**. Volver al mismo pueblo: 1 día.
+  Dormir en el catre de un refugio: 1 día.
+- Cada día los pueblos producen y consumen, el calor baja y el director tira los dados de sucesos.
+- El día se ve en el HUD. Al llegar a un pueblo avisa cuántos días pasaron.
+
+## Las piedras
+
+| Piedra | La hace | Le falta a | Valor | Carácter |
+|---|---|---|---:|---|
+| Ámbar de sello | Ashfen | Valkeep | 14 | **Casi legal**: la Corona no la confisca, cobra 2 de impuesto por piedra |
+| Vidrio rúnico | Valkeep | Verdelume | 22 | **Frágil**: cada golpe que recibes tiene 30 % de romper una |
+| Perla de lluvia | Verdelume | Duneshade | 30 | **Pesada**: ocupa 2 lugares de carga |
+| Piedra solar | Duneshade | Frostholm | 36 | **Vigilada**: confiscarla sube 8 de calor por piedra; el soborno cuesta más; vender sube 7 de calor |
+| Cristal de escarcha | Frostholm | Ashfen | 44 | **Se derrite**: pierde 9 % de frío por día (3 % con hielera; la mitad por la Ruta 4); se paga en proporción; en 0 es agua |
+
+## Mercado (oferta y demanda)
+
+- **Todos los pueblos compran y venden las 5 piedras.** Cada uno produce mucho de la suya (sobra,
+  barata), consume mucho de la que le falta (cara) y poco de las demás.
+- El precio sale de **lo que hay contra lo que el pueblo quiere tener**. Comprar vacía, vender
+  llena; lo que vendes baja el precio para la siguiente.
+- **La Corona** vende a 1,6 × el valor. Un pueblo te paga como mucho el 90 % de eso: por eso te
+  compran a ti. El precio de la Corona se ve en la ventana.
+- El pueblo te vende 15 % más caro de lo que te compra. El calor del pueblo encarece y paga menos.
+- Ventana: 5 filas (llevas · comprar · vender · Corona · hay). ←→ comprar o vender, ↑↓ piedra.
+  "Hay" en rojo = falta (la pagan bien), en verde = sobra (barata).
+- **Lo que sabes de otros pueblos envejece**: la pausa muestra lo que pagaban "hace N días".
+- Simulación: `node studio/sim/mercado.mjs`. Ir en el sentido del círculo gana más; el contrario
+  también deja. El caballo da ~35 % más con más calor.
+
+## Deuda con el Gremio
+
+- Empiezas debiendo **500** (la deuda de tu padre). Cada **10 días** un cobrador te para al llegar
+  a un pueblo: pagas la cuota (40), todo, o "no tengo" (la deuda sube 25 y vuelve en 5 días).
+- Al pagarla toda: "Eres libre". Es la primera meta, no el final.
+
+## Fama y misiones
+
+- La fama **sólo sube con misiones**. Títulos (las "medallas"): Desconocido 0 · Mensajero 2 ·
+  Contrabandista 6 · Mercader de sombra 10 · Leyenda del golfo 16. Abren mejoras.
+- **Historia** (una por pueblo, en orden; cada una enseña una piedra):
+  1. Tomasa (Ashfen): 2 ámbar a Valkeep · 20 oro, +2.
+  2. Maese Ivo (Valkeep, fama 2): 3 vidrio a Verdelume · 45, +2.
+  3. Oruba (Verdelume, fama 4): 2 perlas a Duneshade · 55, +2.
+  4. Kader (Duneshade, fama 6): 2 solares a Frostholm · 75, +3.
+  5. Hilde (Frostholm, fama 9): 2 escarchas a Ashfen en 7 días · 95, +3.
+- **Pedidos**: los comerciantes piden llevar 2-3 piedras a donde faltan hoy (10 días, +1 fama).
+- Se cumplen vendiendo en el pueblo pedido; se cobran al cerrar la tienda o al llegar.
+
+## Sucesos y rumores (`src/director.js`)
+
+- Baraja chica (9): helada en Frostholm, sequía en Duneshade, feria en Verdelume, veta en Valkeep,
+  plaga en Ashfen, barco de la Corona, cargamento agarrado en la aduana, redadas en Duneshade,
+  tormenta en el Paso. Cada uno cambia producción, consumo o demanda unos días (y a veces el calor).
+  Como mucho 2 a la vez.
+- **Rumores**: la gente del pueblo los cuenta. Unos dicen más la verdad que otros; los posaderos
+  casi siempre. La pausa guarda los últimos que oíste.
+
+## Refugios secretos
+
+Cuartitos privados, como las bases secretas de Pokémon. Se entra caminando.
+
+| Refugio | Dónde | Cómo se consigue | Tiene |
+|---|---|---|---|
+| Cueva del Paso Alto | Ruta 2, junto a la cornisa | Herrajes de Oskar (fama 2, 40) | estante, mesa |
+| Tierra escondida | Ruta 3, en la selva | Aurelio te la vende (fama 3, 80) | estante, mesa, choza, **corral** |
+| Cueva del lago | Ruta 4, junto al lago helado | Herrajes de Oskar | estante, mesa; **la escarcha no se derrite** |
+
+- **Estante**: guardar y sacar piedras (6; 12 con estantes). Lo guardado no se pierde en K.O.,
+  robos ni revisiones.
+- **Mesa de trabajo**: mejoras — estantes (30), catre (20: dormir un día y curarte), corral (40),
+  cerrojo reforzado (60: la Corona no lo encuentra).
+- **Redada**: al entrar a la ruta con calor ≥ 60, cada refugio sin cerrojo tiene 50 % de ser
+  vaciado. Si dejaste a alguien cuidando, espanta a la patrulla.
+
+## Tu gente: se lleva y se deja caminando
+
+- **Yegua** (Nella, Valkeep, fama 3, 90): +2 lugares, 10 % más rápido en rutas, salva piedras.
+  **Sahra** (Duneshade, fama 6, 150): dispara a bandidos y bestias a la vista (1 daño, cada 1,3 s).
+- Te siguen en **todos** los mapas. Máximo 2 personas y un caballo.
+- **Dejarlos**: háblales en un pueblo o refugio.
+  - Refugio: "Quédate aquí" (la yegua sólo si hay corral). Se quedan parados adentro.
+  - Posada (hay posadero en cada pueblo): 3 oro por día, se paga al recogerla.
+  - Establo de Valkeep: la yegua, 2 oro por día.
+- **Recogerlos**: vuelve a donde los dejaste (háblales, o al posadero, o a Nella).
+- La yegua **espera afuera** de las cuevas sin corral y **no pisa el hielo**: para cruzar el lago
+  hay que dejarla (en la cueva del lago) o ir por el retén.
+- Mientras más gente llevas, **los guardias te ven de más lejos** (+20 % por acompañante).
+- La barca cobra el doble si llevas la yegua.
 
 ## Enemigos (se ven en el mapa)
 
 | Enemigo | Dónde | Comportamiento |
 |---|---|---|
-| **Jabalí** | pradera, desvío, montaña | Deambula. Si te ve: escarba (aviso) y **embiste en línea recta**. Si choca con roca o árbol queda aturdido: es el momento de pegarle. 2 golpes. |
-| **Bandido** | campamento del bosque, emboscado en pasto alto | Te persigue, se agacha (aviso rojo) y se lanza. **Si te pega con piedras encima, se te cae una**; él corre a levantarla y huye esquivando árboles. Mátalo antes de que salga de pantalla y la suelta. 3 golpes, suelta monedas. |
-| **Lobo** | Ruta 2 y bosque nevado de la Ruta 4 | Como el jabalí pero ve más lejos, avisa menos (0,38 s) y embiste más rápido. |
-| **Escorpión** | desierto de las Rutas 3 y 4 | **Enterrado**: sólo se ve una joroba de arena. Sale si pasas a 2,5 cuadros, persigue lento y pica. Si te alejas se vuelve a enterrar. |
-| **Guardia de la Corona** | retén y patrullas de la calzada | Patrulla con **cono de visión** dibujado en el suelo (crema tranquilo, amarillo sospecha, rojo alarma). Si te ve **con piedras a la vista**, se llena la sospecha (`?`) y luego alarma (`!`, cuerno): te persigue. Si te alcanza → **revisión**. Si le pegas se vuelve hostil y pelea en serio (1 corazón por golpe) y el calor sube mucho. |
+| **Jabalí** | pradera, montaña | Te ve, escarba y **embiste en línea recta**; si choca queda aturdido. 2 golpes. |
+| **Lobo** | Ruta 2, bosque nevado | Como el jabalí pero ve más lejos, avisa menos y embiste más rápido. |
+| **Escorpión** | desierto | **Enterrado**: sale si pasas cerca, persigue lento y pica. |
+| **Bandido** | campamentos, pasto alto | Te persigue y se lanza. Si te pega con carga, **se te cae una piedra** y huye con ella. 3 golpes. |
+| **Guardia de la Corona** | retenes y patrullas | **Cono de visión**. Con piedras a la vista sospecha (`?`), se alarma (`!`) y te persigue. Si te alcanza → **revisión**. Si le pegas, pelea en serio. |
 
 ### Revisión de la Corona
 
-Diálogo con tres salidas:
+- **Sólo ámbar a la vista**: impuesto de 2 por piedra y pasas (si no pagas, se quedan una).
+- Con otras piedras: **dejar revisar** (confiscan lo visible que no es ámbar; el fondo falso
+  esconde 2; con solar el calor sube), **sobornar** (`4 + calor/25×2 + piedras sin sello + 2 por
+  solar`) o, en el retén, **media vuelta**; en patrulla, **empujar y correr**.
 
-1. **Dejar que revisen**: confiscan las piedras a la vista (el fondo falso esconde 2). El calor baja.
-2. **Sobornar**: `4 + piedras a la vista + calor/25×2` oro. Pasas con todo por el resto del viaje.
-3. En el retén: **dar media vuelta** (buscar otro camino). En patrulla: **empujar y correr**
-   (el guardia queda aturdido un momento, sube el calor y te persigue).
+## Rutas
 
-Si vas **sin piedras**, el guardia del retén dice "Pasa." y levanta la barrera.
-
-## Rutas: se van abriendo
-
-**Ruta 1 · Calzada del Ámbar** (Ashfen ↔ Valkeep), 36×100 cuadros, de sur a norte:
-
-1. **Pradera**: sendero en curva, pasto alto con jabalíes, **bordes** que sólo se bajan de un salto
-   (atajos de regreso).
-2. **Río** con un solo puente.
-3. **Bifurcación**:
-   - la **calzada adoquinada** pasa por el **retén** (barrera, dos guardias de poste, patrulla);
-     cercada para que no se rodee por el pasto;
-   - el **sendero del bosque**, tapado por arbustos que hay que **cortar**, rodea por el
-     **campamento de bandidos** (tienda, fogata, cofre con 30 de oro). Un letrero rayado lo delata.
-4. **Farallón**: la **reja** del camino está cerrada. La primera vez se rodea por el **desvío del
-   este** (pasto alto, jabalí, cofre). Arriba hay una **palanca**: al tirarla la cámara muestra la
-   reja abrirse y queda **abierta para siempre** (atajo guardado).
-5. **Montaña**: paredes de peña con pinos, pasto alto con bandidos emboscados (uno sólo sale si
-   llevas 2+ piedras), y un **nicho** cerrado por un arbusto con un cofre de **corazón extra**.
-
-**Ruta 2 · Paso Alto** (Valkeep ↔ Verdelume), 36×80, sur→norte: montaña que se vuelve selva.
-**Aduana** en el paso (barrera y dos guardias); por el oeste una **cornisa** con bordes que sólo
-se bajan (vuelta sin guardias) y por el este una **vereda** tapada de arbustos y pasto. Lobos, río
-con puente, alijos en roca (fila 48) y tronco (fila 20).
-
-**Ruta 3 · Selva del Tránsito** (Verdelume ↔ Duneshade), 96×36, oeste→este: selva cerrada con río,
-**campamento de bandidos** y emboscadas; luego desierto abierto donde la vista de los guardias llega
-lejos, escorpiones enterrados y un oasis. Alijos en tronco y en el oasis.
-
-**Ruta 4 · Paso del Hielo** (Duneshade ↔ Frostholm), 36×90, norte→sur: cañón del desierto,
-tierras rotas, campo nevado con la **Puerta de la Escarcha** (retén) y bosque nevado con lobos.
-Al oeste, el **lago helado** rodea el retén: acertijo de patinar (solución desde la entrada de
-arriba: ↓ → ↓ ← ↓ → ↓, sale por abajo). Alijos en el cañón y en la nieve; cofre junto al lago.
-
-Con más calor aparecen más patrullas (una extra desde calor 20 y otra desde 45) y los guardias ven
-20 % más lejos desde calor 45.
+- **Ruta 1 · Calzada del Ámbar** (Ashfen ↔ Valkeep): retén en la calzada o sendero del bosque por
+  el campamento; reja con palanca (atajo para siempre); bordes de salto; cofre con corazón extra.
+- **Ruta 2 · Paso Alto** (Valkeep ↔ Verdelume): aduana; cornisa del oeste con la cueva-refugio;
+  vereda del este tapada; lobos; río.
+- **Ruta 3 · Selva del Tránsito** (Verdelume ↔ Duneshade): selva cerrada con campamento y la
+  tierra escondida de Aurelio; luego desierto abierto con escorpiones y oasis.
+- **Ruta 4 · Paso del Hielo** (Duneshade ↔ Frostholm): cañón, Puerta de la Escarcha (retén), lago
+  helado para patinar (solución: ↓ → ↓ ← ↓ → ↓) y la cueva del lago; bosque nevado con lobos.
+- Con más calor hay más patrullas y ven más lejos. Las salidas funcionan en los 4 bordes.
 
 ## Pueblos
 
-- **Ashfen**: mercado de ámbar (Brena), **herrero Oskar** (herrajes de alijo y fondo falso), pozo,
-  Tomasa (tutorial), guardia; muelle: la barca y Ceno aparecen **después de conocerlo en
-  Frostholm**. Paso de montaña del oeste cerrado (fuera de la muestra).
-- **Valkeep**: mercado de vidrio rúnico (Maese Ivo), pozo, **establo de Nella** (caballo); salida
-  norte a la Ruta 2.
-- **Verdelume**: selva con canal y dos puentes; mercado de perlas (Oruba), **curandera Ama**
-  (tónicos). Salidas: sur (Ruta 2) y este (Ruta 3).
-- **Duneshade**: desierto con oasis; mercado de piedra solar (Kader), **arquera Sahra** con sus
-  dianas. Salidas: oeste (Ruta 3) y sur (Ruta 4).
-- **Frostholm**: nieve, estanque helado y muelle; mercado de escarcha (Hilde), **barquero Ceno**.
-  Salida norte (Ruta 4) y la barca a Ashfen.
+| Pueblo | Mercado | Servicio | Posada |
+|---|---|---|---|
+| Ashfen | Brena | Oskar: herrajes de cueva (fama 2) y fondo falso (fama 10); Tomasa (primera misión); barca de Ceno tras conocerlo | Marta |
+| Valkeep | Maese Ivo | Nella: yegua y establo | Odo |
+| Verdelume | Oruba | Ama: tónicos | Iyá |
+| Duneshade | Kader | Sahra: arquera | Nasr |
+| Frostholm | Hilde (y la hielera, 25) | Ceno: barca a Ashfen | Sigrid |
 
-Las salidas funcionan en los cuatro bordes del mapa: basta caminar hacia el borde.
-
-Entrar a un pueblo **guarda la partida** y cura. Llegar a un pueblo distinto del anterior **cierra
-un viaje**: los mercados se recuperan y el calor se enfría (la barca también cuenta).
-
-## Mercado
-
-Ventana propia: comprar la piedra del pueblo, vender la que el pueblo pide, salir. Muestra precio,
-existencias, pedido, qué llevas y **dónde se paga** lo que compras. Cada operación suena, la gema
-vuela al HUD y el oro cambia. Reglas nuevas (ajustadas con simulación, `diseno-mundo.md` §3):
-existencias hasta 8 y pedido hasta 6; cada compra sube el precio 1 y cada venta baja el pago 2;
-comprar suma 1 de calor y vender 5; cada viaje recupera 2 de existencias y pedido.
-
-## Cadena de mercancías
-
-| Ciudad | Produce | Precio base | Necesita | Pago base |
-|---|---|---:|---|---:|
-| Ashfen | Ámbar de sello | 8 | Cristal de escarcha | 40 |
-| Valkeep | Vidrio rúnico | 12 | Ámbar de sello | 17 |
-| Verdelume | Perla de lluvia | 15 | Vidrio rúnico | 26 |
-| Duneshade | Piedra solar | 18 | Perla de lluvia | 32 |
-| Frostholm | Cristal de escarcha | 22 | Piedra solar | 39 |
-
-## Mejoras (preparación)
-
-| Mejora | Dónde | Fama | Costo | Efecto |
-|---|---|---:|---:|---|
-| Herrajes de alijo | Ashfen (Oskar) | 3 | 40 | abre los alijos de los caminos |
-| Caballo de carga | Valkeep (Nella) | 4 | 90 | +2 carga, 10 % más rápido en rutas, te sigue en el mapa, salva piedras de los bandidos |
-| Arquera escolta | Duneshade (Sahra) | 8 | 150 | te sigue en las rutas y dispara (1 daño, cada 1,3 s, 7,5 cuadros) a bandidos y bestias a la vista; a guardias sólo si ya son hostiles; salva piedras |
-| Fondo falso | Ashfen (Oskar) | 14 | 240 | 2 casillas ocultas a los guardias (se ven rayadas en el HUD) |
-
-Servicios que no son mejora: **tónicos** en Verdelume (12 oro, máximo 3) y **barca**
-Frostholm ↔ Ashfen (15 oro, cuenta como viaje: mueve los mercados y enfría el calor).
-
-## Alijos
-
-- Huecos marcados en las rutas (tronco, roca, grieta en la nieve), dos por ruta en las Rutas 2-4.
-- Sin herrajes: "aquí cabría un alijo". Con herrajes, la primera vez se clava la tapa (el sprite
-  cambia) y se abre la ventana: ↑↓ elige piedra, **→ guarda, ← saca**, hasta 6 por alijo.
-- Lo guardado no se pierde en K.O., robos ni revisiones y no ocupa carga.
-- **Redada**: al entrar a una ruta con calor ≥ 60, cada alijo con piedras tiene 50 % de ser
-  vaciado (se avisa con un letrero rojo; como mucho uno por entrada). La ventana del alijo avisa
-  cuando la ruta está caliente.
-- La pestaña Carga de la pausa lista los alijos con lo que guardan.
+Entrar a un pueblo **guarda la partida** y cura.
 
 ## Interfaz
 
-- **HUD**: corazones · oro · casillas de carga con la gema de cada piedra (las del fondo falso,
-  rayadas) · tónicos (sólo si llevas) · ojo de alerta con 5 marcas (calor del lugar) · fama.
-- **Cartel** con nombre y región al entrar a cada lugar.
-- **Diálogos** en pergamino con nombre, texto que se escribe y ▼ para seguir.
-- **Elecciones** con cursor, opciones grises si no alcanza y una nota bajo la elegida.
-- **Pausa** con pestañas: mapa del mundo (pueblos visitados, dónde estás, ruta de la barca si ya
-  la conoces), carga, tónicos, alijos y mejoras, mercados conocidos (precios, pedido, calor) y
-  controles.
-- **Alijo**: ventana con carga y alijo lado a lado por piedra.
-- **Título** con Ashfen de fondo, "Continuar" si hay partida guardada.
+- **HUD**: corazones · oro · casillas de carga (la perla ocupa dos; las del fondo falso, rayadas)
+  · tónicos · ojo de alerta · fama · **día**.
+- **Pausa**: MAPA (pueblos, barca) · CARGA (vida, oro, fama con título, tónicos, deuda, carga con
+  frío de la escarcha, refugios, mejoras) · ENCARGOS (misiones y lo que se dice) · MERCADOS (lo que
+  pagaban y hace cuántos días) · CONTROLES.
+- **Mercado**, **estante** y **mesa** con ventanas propias; diálogos y elecciones con nota.
 
 ## Pendiente
 
+- Lore completo y tono (falta decidir con Leo).
 - Atajo de montaña Ashfen ↔ Verdelume.
-- Encargos con nombre y motivo personal del caminante (ver `story.md`).
-- Música propia de Verdelume, Duneshade y Frostholm (hoy reusan los tres loops).
+- Música propia de Verdelume, Duneshade y Frostholm.
+- En línea (ver `panorama.md`).

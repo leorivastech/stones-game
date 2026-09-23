@@ -459,16 +459,19 @@
   <h2>Code status</h2>
   <p class="sub" style="margin-bottom:1rem;">Guide vs repository. Update when behavior changes.</p>
 
-  <h3><span class="tag tgr">Aligned</span> &nbsp;Matches code / intent today (mundo completo, 2026-09-23)</h3>
+  <h3><span class="tag tgr">Aligned</span> &nbsp;Matches code / intent today (mundo vivo, 2026-09-23)</h3>
   <div class="rblock" style="margin-top:0.5rem;">
     <div class="sbullet"><strong>Vite + Phaser 4.2.1, 480×270 con escala entera</strong> — <code>src/main.js</code>, <code>src/config.js</code></div>
     <div class="sbullet"><strong>Pixel art en código</strong> — <code>src/art/</code> (paleta, fuente, personajes, criaturas, terreno, objetos, casas, efectos, interfaz). Revisión en <code>lab.html</code>.</div>
     <div class="sbullet"><strong>Mapas caminables</strong> — <code>src/maps/</code>: los 5 pueblos (Ashfen, Valkeep, Verdelume, Duneshade, Frostholm) y 4 rutas: Ruta 1 (retén, campamento, reja con palanca), Ruta 2 (aduana, cornisa, lobos), Ruta 3 (selva → desierto, escorpiones, oasis), Ruta 4 (Puerta de la Escarcha, lago helado para patinar). Barca Frostholm ↔ Ashfen. Diseño en <code>studio/diseno-mundo.md</code>.</div>
     <div class="sbullet"><strong>Acción en tiempo real</strong> — <code>src/entities/player.js</code>: golpe, rodada, carrera, agacharse/esconderse, salto, daño, K.O.</div>
     <div class="sbullet"><strong>Enemigos visibles</strong> — <code>src/entities/enemies.js</code>: jabalí y lobo que embisten, escorpión enterrado, bandido que roba piedras, guardia con cono de visión, sospecha y revisión.</div>
-    <div class="sbullet"><strong>Mercado medible</strong> — reglas ajustadas con simulación en <code>src/state.js</code> (existencias 8, pedido 6, compra +1, venta −2, calor 5 por venta); ventana de mercado en <code>src/scenes/ui.js</code>.</div>
+    <div class="sbullet"><strong>Mercado vivo</strong> — <code>src/economy.js</code>: oferta y demanda con las 5 piedras en cada pueblo, días, tope de la Corona, carácter de cada piedra; <code>src/director.js</code>: sucesos y rumores; <code>src/missions.js</code>: misiones de historia y pedidos. Simulación: <code>studio/sim/mercado.mjs</code>.</div>
+    <div class="sbullet"><strong>Deuda y fama</strong> — 500 al Gremio con cobrador cada 10 días; fama sólo por misiones, con títulos que abren mejoras.</div>
+    <div class="sbullet"><strong>Refugios y tu gente</strong> — 3 refugios que se entran (<code>src/maps/refugios.js</code>); yegua y Sahra se llevan y se dejan caminando (refugio, posada, establo).</div>
     <div class="sbullet"><strong>Interfaz</strong> — HUD de corazones/oro/carga/alerta/fama, cartel de lugar, indicador <code>[E]</code>, diálogos, elecciones, pausa con mapa del mundo, título y guardado.</div>
-    <div class="sbullet"><strong>Preparación</strong> — herrajes de alijo (Ashfen): 8 escondites en las rutas, con redadas si hay calor; caballo (Valkeep); tónicos con Q (Verdelume); arquera Sahra que dispara (Duneshade, <code>src/entities/escort.js</code>); fondo falso (Ashfen).</div>
+    <div class="sbullet"><strong>Preparación</strong> — herrajes de cueva (Ashfen), yegua (Valkeep), tónicos (Verdelume), Sahra (Duneshade, <code>src/entities/escort.js</code>), hielera (Frostholm), fondo falso (Ashfen).</div>
+    <div class="sbullet"><strong>Animación</strong> — paso con rebote y brazos, respirar; yegua en 3 vistas; Sahra con arco (<code>POSE</code> en <code>src/art/actors.js</code>).</div>
     <div class="sbullet"><strong>Música por zona</strong> — tres loops CC0 en <code>src/music.js</code> + tonos 8 bits en <code>src/sfx.js</code>.</div>
     <div class="sbullet"><strong>Studio</strong> — <code>studio/</code> actualizado: <code>art.md</code>, <code>mechanics.md</code>, <code>decisions.md</code>, <code>diseno-mundo.md</code>, sesiones <code>2026-09-23-pixel-remake.md</code> y <code>2026-09-23-mundo-completo.md</code>.</div>
   </div>
@@ -482,7 +485,7 @@
 
   <h3><span class="tag ta">Changes</span> &nbsp;Planned follow-ups</h3>
   <div class="rblock" style="margin-top:0.5rem;">
-    <div class="sbullet">Leo juega la vuelta completa (Ashfen → Valkeep → Verdelume → Duneshade → Frostholm → barca) y ajusta ritmo de rutas y precios.</div>
+    <div class="sbullet">Leo juega la vuelta completa y dice si los números se sienten bien (días, deuda, fama por misión). Decide el tono del lore. Ver <code>studio/panorama.md</code>.</div>
     <div class="sbullet">Un encargo completo: cantera → 2 ámbar adelantados → comprador con nombre → pago o pérdida de confianza.</div>
   </div>
 </div>

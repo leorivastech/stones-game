@@ -18,9 +18,11 @@ function build() {
   g.forestEdges(3, 4, 31);
   // Terraza oeste: farallón bajo detrás de la primera casa.
   g.rect(4, 12, 8, 2, "#");
-  g.ellipse(9, 9, 3, 2, "g", ".", 5);
-  g.ellipse(31, 12, 3, 2.5, "g", ".", 6);
-  g.ellipse(8, 25, 2.5, 1.5, "g", ".", 7);
+  // Prados de flores de montaña y piedras sueltas (antes eran manchas de grava).
+  g.ellipse(9, 9, 3, 2, ",", ".", 5);
+  g.ellipse(31, 12, 3, 2.5, ",", ".", 6);
+  g.ellipse(8, 25, 2.5, 1.5, ",", ".", 7);
+  [[30, 11], [33, 13], [10, 8]].forEach(([x, y]) => g.set(x, y, "o"));
   // Camino sur → plaza → norte
   g.road([[19.5, 30], [19.5, 24], [20, 19]], 4, ":");
   g.road([[20, 11], [20, 5]], 3, ":");

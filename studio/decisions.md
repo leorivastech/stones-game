@@ -128,3 +128,12 @@ Regla: una línea por decisión, con fecha. No borrar: si se revierte, se agrega
 - **Sí / Leo (en principio)** — Mercado tipo bolsa con oferta y demanda, y mundo vivo con sucesos y rumores.
 - **No (recomendación aceptada sin objeción)** — Jev decidiendo sucesos; se usan reglas con azar.
 - Estado completo en `panorama.md`.
+
+## 2026-09-23 — construido el mundo vivo
+
+- **Sí / Leo** — Fama global (no por pueblo), sube sólo con misiones.
+- **Sí / Leo** — Sucesos con un sistema chico para validar, que crezca después. Rumores sí. Deuda como motivo inicial, por ahora.
+- **Sí / Leo** — "Haz lo que hablamos": animaciones, gráficos, mercado, refugios, gente. Construido (ver `panorama.md` §1).
+- **Hecho** — La escarcha se derrite con los días (no hay que romper hielo): 9 %/día, 3 % con hielera, 0 en la cueva del lago.
+- **Hecho** — Ámbar con sello paga impuesto en vez de confiscarse; la solar confiscada calienta la ruta.
+- **Hecho** — Valkeep: prados de flores y piedras en vez de manchas de grava.

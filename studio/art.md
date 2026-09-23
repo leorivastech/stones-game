@@ -46,7 +46,8 @@ queda en la historia de git (`be15c32`).
 | `palette.js` | La paleta maestra |
 | `font.js` | Fuente propia de ancho variable (7 px de alto, acentos y ñ). Variantes: crema con sombra, oscura, con contorno, oro, rojo, verde, azul, tenue |
 | `actors.js` | Personajes 16×24 armados por partes (cabeza + cuerpo + piernas) y paletas: caminante, guardia, bandido, aldeanos, mercader, herrero, caballeriza. Caminar en 4 cuadros, agachado, silueta blanca para el daño, rodada (una bola rotada ×4) y K.O. |
-| `creatures.js` | Jabalí (caminar, embestida, aturdido), lobo, escorpión (con cuadro enterrado) y caballo de carga con silla (trote de 4 cuadros) |
+| `creatures.js` | Jabalí (caminar, embestida, aturdido), lobo, escorpión (con cuadro enterrado) y **yegua de carga** 32×28 con 12 cuadros: de lado (cuello arqueado con crin, cabeza larga, manta y alforjas), de frente (con lucero) y de espalda (grupa y cola), 4 de trote cada una |
+| `refuge.js` | Refugios: entrada de cueva (boca oscura o con puerta, farol; versión con nieve), estante (vacío o con piedras), catre, mesa de trabajo |
 | `biomes.js` | Flora y rocas de selva, desierto y nieve (palmeras, árboles de selva, helechos, cactus, matorral, rocas de arena y de nieve, árbol pelado, bloque de hielo), huecos de alijo (tronco, roca, grieta; cerrado y con tapa), barca, diana |
 | `terrain.js` | El suelo de cada mapa pintado píxel a píxel: bordes orgánicos entre pasto/tierra/arena/agua, sombras del terreno alto, orilla con espuma y profundidad, adoquín con bordillo, surcos de cultivo, tablones de puente, farallón de peñas, flores |
 | `props.js` | Árboles (3 variantes + otoño), pinos (y nevados), arbustos, pasto alto (3 variantes, 2 cuadros de vaivén), rocas, peñascos, tocón, tronco, cercas, letrero, barril, caja, heno, farol, pozo, puestos de mercado a rayas, cofre, reja con postes de piedra, palanca, barrera del retén, tienda de campaña, fogata, derrumbe, yunque, fragua, estandarte de la Corona, barandas, borde de salto, humo. Casas en vista 3/4 con techo de paja/teja/pizarra/musgo, muros de revoque/madera/piedra, puerta, ventanas iluminadas con jardinera y chimenea |
@@ -71,3 +72,16 @@ queda en la historia de git (`be15c32`).
 - Muestras CC0 de encuentros: `public/assets/proto/sfx/`. Créditos en `CREDITS.md`.
 - **Nuevo**: tonitos sintetizados de 8 bits en `src/sfx.js` (`tone()`): golpe, impacto, daño, rodada,
   corte, recoger, corazón, menú, alerta, sospecha, salto, texto, cofre. No pesan nada.
+
+## Animación de personajes (2026-09-23)
+
+- Hoja de **8 cuadros por vista** (abajo, arriba, lado): quieto, respirar (cabeza baja 1 px),
+  4 de paso (pie apoyado = cuerpo 1 px abajo; brazos que se mueven al revés que las piernas),
+  agachado y acción. Índices en `POSE` (`src/art/actors.js`); nada de números sueltos.
+- Respirar: 700 ms quieto + 380 ms con la cabeza abajo. Paso a 9 cuadros/s, correr a 14.
+- **Sahra**: carcaj con plumas rojas y arco a la espalda; al disparar, arco tensado (de lado con
+  flecha horizontal; de frente, arco vertical en la mano; de espalda, sobre la cabeza). Madera
+  `o2`/`o4` para que no se pierda contra el contorno.
+- **Yegua**: voltea según hacia dónde camina (mira unos pasos adelante para no parpadear en diagonal).
+- Lección: un cuello hecho de bolitas en diagonal y una silla que sobresale del lomo = camello.
+  Cuello corto y arqueado, cabeza que baja hacia el hocico, manta pegada al lomo.

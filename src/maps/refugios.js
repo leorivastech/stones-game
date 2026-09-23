@@ -24,7 +24,7 @@ function caveR2() {
 }
 
 function caveR4() {
-  const g = cave(9, ":");
+  const g = cave(9, "s");
   // Cueva de hielo: bloques de hielo en las orillas.
   [[2, 4], [13, 3], [14, 6]].forEach(([x, y]) => g.set(x, y, "I"));
   g.set(3, 7, "o");
