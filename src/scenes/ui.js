@@ -465,22 +465,22 @@ export class UIScene extends Phaser.Scene {
   // ------------------------------------------------------------------ alijo
 
   /** Ventana del alijo: ↑↓ elige piedra, → guarda, ← saca. */
-  stash(id, def, heat) {
+  stash(id, def, heat, cap = STASH_CAPACITY, title = "ALIJO") {
     return new Promise((resolve) => {
       this.closeAll();
       this.mode = "stash";
-      const w = 260;
+      const w = 310;
       const rowsN = Object.keys(GOODS).length;
       const h = 58 + rowsN * 16 + 30;
       const x = VIEW_W / 2 - w / 2;
       const y = VIEW_H / 2 - h / 2 - 6;
       const box = this.add.container(0, 0).setDepth(D + 12);
       box.add(this.panel(x, y, "ui-dark", w, h).setOrigin(0, 0));
-      box.add(this.add.bitmapText(x + 10, y + 7, "font-gold", "ALIJO"));
+      box.add(this.add.bitmapText(x + 10, y + 7, "font-gold", title));
       const count = this.add.bitmapText(x + w - 10, y + 7, "font-dim", "").setOrigin(1, 0);
       box.add(count);
       box.add(this.add.bitmapText(x + 118, y + 24, "font-dim", "Carga"));
-      box.add(this.add.bitmapText(x + 196, y + 24, "font-dim", "Alijo"));
+      box.add(this.add.bitmapText(x + 196, y + 24, "font-dim", "Guardado"));
       const rows = Object.values(GOODS).map((g, i) => {
         const ry = y + 40 + i * 16;
         const r = {
@@ -501,7 +501,7 @@ export class UIScene extends Phaser.Scene {
       box.add([cursor, warn, hint]);
       box.setAlpha(0);
       this.tweens.add({ targets: box, alpha: 1, duration: 120 });
-      this.stashState = { id, box, rows, cursor, count, index: 0, resolve, y };
+      this.stashState = { id, box, rows, cursor, count, cap, index: 0, resolve, y };
       this.drawStash();
     });
   }
@@ -520,7 +520,7 @@ export class UIScene extends Phaser.Scene {
       r.label.setFont(a || b ? "font" : "font-dim");
     }
     s.cursor.setY(s.y + 40 + s.index * 16);
-    s.count.setText(`${stashCount(reg, s.id)}/${STASH_CAPACITY} · carga ${stones(reg)}/${capacity(reg)}`);
+    s.count.setText(`${stashCount(reg, s.id)}/${s.cap} · carga ${load(reg)}/${capacity(reg)}`);
   }
 
   updateStash() {

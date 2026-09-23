@@ -97,8 +97,8 @@ export default {
     { type: "sign", x: 21, y: 66.6, text: ["ADUANA DEL PASO", "Toda carga que baje a la selva paga a la Corona."] },
     { type: "sign", x: 25.6, y: 69.2, text: ["(Una marca de pastor en la roca.)", "\"Por el pasto se sube sin aduana. Cuidado con los lobos.\""] },
     { type: "barrier", id: "aduana2", x: 16.5, y: 59.3 },
-    { type: "stash", id: "r2-roca", kind: "rock", x: 11, y: 48.2 },
-    { type: "stash", id: "r2-tronco", kind: "tree", x: 27.5, y: 20.4 },
+    { type: "refuge", id: "refugio-r2", x: 11, y: 47.2 },
+    { type: "sign", x: 13.4, y: 48.6, text: ["Una cueva seca en la cornisa.", "Con puerta y cerrojo sería un buen escondite."] },
     { type: "bridge-rails", x0: 16, x1: 19, y0: 34, y1: 35 },
     { type: "chest", id: "r2-selva", x: 6.5, y: 27.6, loot: { gold: 25 } },
     // Enemigos
@@ -122,5 +122,6 @@ export default {
   entries: {
     south: { x: 18, y: 78.2, dir: "up" },
     north: { x: 17.5, y: 1.4, dir: "down" },
+    refugio: { x: 11, y: 48.8, dir: "down" },
   },
 };

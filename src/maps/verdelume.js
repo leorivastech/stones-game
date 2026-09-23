@@ -72,6 +72,7 @@ export default {
     },
     { type: "npc", cast: "villager2", name: "Teo", x: 30, y: 9, dir: "left", wander: 3, talk: ["El vidrio rúnico de Valkeep nos alumbra los canales.", "Si traes, aquí se vende rápido."] },
     { type: "npc", cast: "villager", name: "Nía", x: 16, y: 17, dir: "right", wander: 3, talk: ["En la selva del tránsito hay bandidos que duermen en el pasto.", "Si ves que el pasto se mueve solo, aléjate."] },
+    { type: "npc", cast: "villager", name: "Iyá", x: 24.2, y: 10.6, dir: "down", role: "inn", talk: ["Posada del Canal. Se duerme con la lluvia."] },
     { type: "npc", cast: "guard", name: "Guardia", x: 14.2, y: 15.6, dir: "down", role: "townguard", talk: ["La Corona cobra la aduana del paso.", "Aquí sólo cuidamos que nadie se ahogue en el canal."] },
   ],
   exits: [

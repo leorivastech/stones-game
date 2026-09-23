@@ -13,7 +13,7 @@ export { GOODS, TOWNS } from "./world.js";
 export { STONE, TRAVEL_DAYS, GOOD_IDS } from "./economy.js";
 
 export const UPGRADES = {
-  stashKit: { id: "stashKit", name: "Herrajes de alijo", cost: 40, reputation: 2, effect: "abre los alijos de los caminos" },
+  stashKit: { id: "stashKit", name: "Herrajes de cueva", cost: 40, reputation: 2, effect: "puerta y cerrojo para las cuevas de los caminos" },
   horse: { id: "horse", name: "Caballo de carga", cost: 90, reputation: 3, effect: "+2 lugares · más rápido · salva piedras" },
   icebox: { id: "icebox", name: "Hielera de serrín", cost: 25, reputation: 0, effect: "la escarcha se derrite mucho más lento" },
   escort: { id: "escort", name: "Arquera escolta", cost: 150, reputation: 6, effect: "dispara a bandidos y bestias" },
@@ -30,6 +30,31 @@ export const FAME_TITLES = [
 ];
 
 export const STASH_CAPACITY = 6;
+
+/**
+ * Refugios secretos (tipo base secreta de Pokémon). Cada uno es un mapa chico al que se entra.
+ * Cueva: la abre el herrero (herrajes). Tierra escondida: se le compra a un campesino.
+ */
+export const REFUGES = {
+  "refugio-r2": { route: "ruta2", kind: "cave", name: "Cueva del Paso Alto", corral: false, cold: false },
+  "refugio-r3": { route: "ruta3", kind: "plot", name: "Tierra escondida", corral: true, cold: false, price: 80, fame: 3 },
+  "refugio-r4": { route: "ruta4", kind: "cave", name: "Cueva del lago", corral: false, cold: true },
+};
+
+export const REFUGE_UPGRADES = {
+  shelves: { name: "Estantes", cost: 30, effect: "+6 lugares para piedras" },
+  cot: { name: "Catre", cost: 20, effect: "descansar un día y curarte" },
+  corral: { name: "Corral", cost: 40, effect: "aquí se puede quedar el caballo" },
+  lock: { name: "Cerrojo reforzado", cost: 60, effect: "la Corona no lo encuentra" },
+};
+
+/** La gente (y animales) que te acompañan. Se llevan y se dejan caminando. */
+export const CREW = {
+  horse: { name: "la yegua", upgrade: "horse", animal: true },
+  sahra: { name: "Sahra", upgrade: "escort", animal: false },
+};
+/** Lo que cobran por día la posada (gente) y el establo (caballo). */
+export const LODGING = { inn: 3, stable: 2 };
 export const STASH_RAID_HEAT = 60;
 export const TONIC = { cost: 12, max: 3, heal: 4 };
 export const BOAT_FARE = 15;
@@ -65,6 +90,7 @@ export function freshRun() {
     missions: [],
     missionsDone: {},
     upgrades: { stashKit: false, horse: false, icebox: false, escort: false, hideout: false },
+    crew: {},
     // Vida en medios corazones.
     hp: 6,
     maxHp: 6,
@@ -158,7 +184,7 @@ export function hasUpgrade(registry, id) {
 }
 
 export function capacity(registry) {
-  return (registry.get("baseCapacity") ?? 4) + (hasUpgrade(registry, "horse") ? 2 : 0);
+  return (registry.get("baseCapacity") ?? 4) + (partyHas(registry, "horse") ? 2 : 0);
 }
 
 export function hiddenCapacity(registry) {
@@ -175,7 +201,64 @@ export function contrabandVisible(registry) {
 }
 
 export function ambushProtection(registry) {
-  return (hasUpgrade(registry, "horse") ? 1 : 0) + (hasUpgrade(registry, "escort") ? 1 : 0);
+  return (partyHas(registry, "horse") ? 1 : 0) + (partyHas(registry, "sahra") ? 1 : 0);
+}
+
+// ---------- Tripulación ----------
+
+/**
+ * Dónde está cada quien: "party" (contigo), "stable:<pueblo>", "inn:<pueblo>", "refuge:<id>",
+ * "wait:<mapa>" (el caballo esperando afuera de una cueva). Si lo tienes y no hay registro, va contigo.
+ */
+export function crewAt(registry, who) {
+  const rec = getRecord(registry, "crew", {})[who];
+  if (rec) return rec.at;
+  return hasUpgrade(registry, CREW[who].upgrade) ? "party" : null;
+}
+
+export function crewSince(registry, who) {
+  return getRecord(registry, "crew", {})[who]?.since ?? day(registry);
+}
+
+export function setCrewAt(registry, who, at) {
+  setRecordValue(registry, "crew", who, { at, since: day(registry) });
+}
+
+export function partyHas(registry, who) {
+  return crewAt(registry, who) === "party";
+}
+
+export function partySize(registry) {
+  return Object.keys(CREW).filter((w) => partyHas(registry, w)).length;
+}
+
+/** Lo que se debe por tener a alguien guardado en la posada o el establo. */
+export function lodgingFee(registry, who) {
+  const at = crewAt(registry, who) ?? "";
+  const days = Math.max(1, day(registry) - crewSince(registry, who));
+  if (at.startsWith("inn:")) return days * LODGING.inn;
+  if (at.startsWith("stable:")) return days * LODGING.stable;
+  return 0;
+}
+
+// ---------- Refugios ----------
+
+export function ownsRefuge(registry, id) {
+  return flag(registry, `refuge-${id}`);
+}
+
+export function refugeHas(registry, id, upgrade) {
+  if (upgrade === "corral" && REFUGES[id]?.corral) return true;
+  return flag(registry, `${id}-${upgrade}`);
+}
+
+export function stashCapacity(registry, id) {
+  return STASH_CAPACITY + (refugeHas(registry, id, "shelves") ? 6 : 0);
+}
+
+/** Quién se quedó en un refugio. */
+export function crewIn(registry, refugeId) {
+  return Object.keys(CREW).filter((w) => crewAt(registry, w) === `refuge:${refugeId}`);
 }
 
 export function chill(registry) {
@@ -225,7 +308,7 @@ export function moveStash(registry, id, good, dir) {
   const st = { ...stashOf(registry, id) };
   const c = { ...cargo(registry) };
   if (dir > 0) {
-    if (!(c[good] > 0) || stashCount(registry, id) >= STASH_CAPACITY) return false;
+    if (!(c[good] > 0) || stashCount(registry, id) >= stashCapacity(registry, id)) return false;
     if (good === "frost") st.chill = mixChill(st.frost ?? 0, st.chill ?? 100, 1, chill(registry));
     c[good] -= 1;
     st[good] = (st[good] ?? 0) + 1;
@@ -515,6 +598,8 @@ export function purchaseUpgrade(registry, id) {
   if (gold(registry) < item.cost) return { ok: false, reason: `${item.name}: faltan ${item.cost - gold(registry)} oro.` };
   registry.inc("gold", -item.cost);
   registry.set("upgrades", { ...getRecord(registry, "upgrades", {}), [id]: true });
+  // El caballo y la arquera se vienen contigo desde que los contratas.
+  for (const [who, c] of Object.entries(CREW)) if (c.upgrade === id) setCrewAt(registry, who, "party");
   return { ok: true, reason: `${item.name}: tuyo.` };
 }
 
@@ -564,7 +649,7 @@ const SAVE_KEY = "stones-save-v4";
 const SAVED = [
   "gold", "cargo", "chill", "baseCapacity", "reputation", "trips", "currentTown", "lastRoute", "day", "market", "mods",
   "heat", "seen", "rumors", "debt", "missions", "missionsDone", "missionsFailed", "upgrades", "hp", "maxHp", "tonics",
-  "stashes", "flags", "mapId",
+  "stashes", "flags", "mapId", "crew",
 ];
 
 export function saveGame(registry) {

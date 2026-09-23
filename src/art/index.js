@@ -5,6 +5,7 @@ import { paintGround, T } from "./terrain.js";
 import * as props from "./props.js";
 import * as creatures from "./creatures.js";
 import * as biomes from "./biomes.js";
+import * as refuge from "./refuge.js";
 import * as fx from "./fx.js";
 import * as ui from "./ui.js";
 import { fontPreview } from "./font.js";
@@ -106,6 +107,12 @@ export function buildArt() {
   add("boat", { buf: biomes.boat() });
   add("target", { buf: biomes.targetDummy() });
   add("horse", creatures.horseSheet());
+  // Refugios secretos.
+  add("cave-door", refuge.caveDoor());
+  add("cave-door-snow", refuge.caveDoor(true));
+  add("shelf", refuge.shelf());
+  add("cot", { buf: refuge.cot() });
+  add("workbench", { buf: refuge.workbench() });
 
   // Efectos: el barrido se dibuja a la derecha y se rota (abajo = 1 giro, izquierda = 2, arriba = 3).
   const slash = fx.slashSheet();

@@ -494,7 +494,8 @@ export class Guard extends Humanoid {
 
   sightRange() {
     const p = this.player();
-    const base = ENEMY.guard.sight * (this.scene.heatLevel() >= 2 ? 1.2 : 1);
+    // Una caravana grande se ve de más lejos.
+    const base = ENEMY.guard.sight * (this.scene.heatLevel() >= 2 ? 1.2 : 1) * (this.scene.groupSight?.() ?? 1);
     if (p.hidden) return 0;
     return p.crouching ? base * 0.55 : base;
   }
@@ -521,7 +522,7 @@ export class Guard extends Humanoid {
     const g = this.cone;
     g.clear();
     if (this.dead || this.state === "down") return;
-    const range = ENEMY.guard.sight * (this.scene.heatLevel() >= 2 ? 1.2 : 1);
+    const range = ENEMY.guard.sight * (this.scene.heatLevel() >= 2 ? 1.2 : 1) * (this.scene.groupSight?.() ?? 1);
     const f = DIRS[this.facing];
     const a0 = Math.atan2(f.y, f.x);
     const alert = this.state === "chase" || this.hostile;

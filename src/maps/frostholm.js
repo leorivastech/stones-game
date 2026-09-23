@@ -70,6 +70,7 @@ export default {
     },
     { type: "npc", cast: "snowfolk", name: "Björn", x: 16, y: 19, dir: "right", wander: 3, talk: ["La piedra solar de Duneshade nos calienta las casas.", "Sin ella, el invierno se lleva a los viejos."] },
     { type: "npc", cast: "snowfolk", name: "Ylva", x: 33, y: 13.6, dir: "left", wander: 2, talk: ["En el lago del paso te resbalas hasta chocar.", "Mira antes de moverte."] },
+    { type: "npc", cast: "villager", name: "Sigrid", x: 24.8, y: 11.2, dir: "down", role: "inn", talk: ["Posada del Muelle. Hay fuego toda la noche."] },
     { type: "npc", cast: "guard", name: "Guardia", x: 14.2, y: 16.6, dir: "down", role: "townguard", talk: ["La puerta de la escarcha la cuida la Corona.", "Aquí sólo cuidamos que el muelle no se congele."] },
   ],
   exits: [{ x: 17, y: 0, w: 6, h: 1, to: "ruta4", entry: "south" }],

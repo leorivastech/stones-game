@@ -76,6 +76,7 @@ export default {
     },
     { type: "npc", cast: "villager", name: "Anselmo", x: 11, y: 18.5, dir: "right", wander: 3, talk: ["Por el paso alto se baja a la selva.", "Dicen que Verdelume paga el vidrio rúnico a precio de oro."] },
     { type: "npc", cast: "villager2", name: "Pía", x: 26, y: 26, dir: "left", wander: 3, talk: ["Los jabalíes del farallón embisten en línea recta.", "Hazte a un lado y chocan contra la roca."] },
+    { type: "npc", cast: "villager", name: "Odo", x: 24.6, y: 13.8, dir: "down", role: "inn", talk: ["Posada de la Peña. Aquí duermen los arrieros."] },
     { type: "npc", cast: "guard", name: "Guardia", x: 15.2, y: 18.8, dir: "down", role: "townguard", talk: ["El retén de la calzada es del Gremio.", "Nosotros sólo cuidamos la plaza."] },
   ],
   exits: [

@@ -78,8 +78,11 @@ export default {
   objects: [
     { type: "sign", x: 4, y: 15.6, text: ["RUTA 3 · SELVA DEL TRÁNSITO", "← Verdelume   → Duneshade"] },
     { type: "sign", x: 49, y: 13.8, text: ["FIN DE LA SELVA", "La Corona patrulla el desierto: a pleno sol se ve todo."] },
-    { type: "stash", id: "r3-tronco", kind: "tree", x: 12.5, y: 20.6 },
-    { type: "stash", id: "r3-oasis", kind: "rock", x: 75.5, y: 12.6 },
+    { type: "refuge", id: "refugio-r3", x: 8, y: 23.3 },
+    {
+      type: "npc", cast: "villager3", name: "Aurelio", x: 10.6, y: 20.6, dir: "down", role: "landseller",
+      talk: ["Detrás de esa reja tengo un claro que nadie conoce.", "Ni la Corona. Ni los bandidos."],
+    },
     { type: "prop", art: "tent", x: 31.5, y: 5.2, solid: [2, 12, 30, 12] },
     { type: "prop", art: "campfire", x: 34.5, y: 8, anim: "campfire", solid: [2, 10, 12, 6] },
     { type: "chest", id: "r3-camp", x: 37.4, y: 8.4, loot: { gold: 35 } },
@@ -104,5 +107,6 @@ export default {
   entries: {
     west: { x: 1.4, y: 17.8, dir: "right" },
     east: { x: 94.4, y: 17.8, dir: "left" },
+    refugio: { x: 8, y: 21.8, dir: "up" },
   },
 };

@@ -100,8 +100,7 @@ export default {
     { type: "sign", x: 21.4, y: 54.6, text: ["PUERTA DE LA ESCARCHA", "Retén de la Corona. Toda piedra se declara."] },
     { type: "sign", x: 11.6, y: 43.4, text: ["LAGO HELADO", "En el hielo no se frena: resbalas hasta chocar.", "Si te pierdes, vuelve a salir por donde entraste."] },
     { type: "barrier", id: "escarcha", x: 16.5, y: 57.3 },
-    { type: "stash", id: "r4-cañon", kind: "rock", x: 8.5, y: 15.4 },
-    { type: "stash", id: "r4-nieve", kind: "snow", x: 27.5, y: 79.4 },
+    { type: "refuge", id: "refugio-r4", x: 4.4, y: 42.2, snow: true },
     { type: "chest", id: "r4-lago", x: 12.5, y: 67.4, loot: { gold: 40 } },
     { type: "enemy", kind: "scorpion", x: 12, y: 12 },
     { type: "enemy", kind: "scorpion", x: 23, y: 22 },
@@ -122,5 +121,6 @@ export default {
   entries: {
     north: { x: 18.5, y: 1.4, dir: "down" },
     south: { x: 18.5, y: 88.2, dir: "up" },
+    refugio: { x: 4.6, y: 43.8, dir: "down" },
   },
 };

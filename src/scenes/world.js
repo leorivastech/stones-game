@@ -12,7 +12,7 @@ import { Player, DIRS } from "../entities/player.js";
 import { Npc } from "../entities/npc.js";
 import { makeEnemy, Guard } from "../entities/enemies.js";
 import { Escort } from "../entities/escort.js";
-import { DEPTH, TILE } from "../config.js";
+import { DEPTH, TILE, VIEW_W, VIEW_H } from "../config.js";
 import { startMusic } from "../music.js";
 import { sfx, tone, duckTheme, restoreTheme } from "../sfx.js";
 import {
@@ -21,6 +21,8 @@ import {
   saveGame, setFlag, stones, visibleStones, contrabandVisible, confiscateVisible, capacity, fits, stashCount, emptyStash,
   STASH_RAID_HEAT, buyTonic, drinkTonic, tonics, TONIC, BOAT_FARE, passDays, recordSeen, maybeBreakRune, day, debt,
   debtDue, payDebt, missDebt, claimMissions, fameTitle, load, missions, acceptMission, hearRumor, econ, chill,
+  REFUGES, REFUGE_UPGRADES, CREW, LODGING, crewAt, setCrewAt, partyHas, partySize, lodgingFee, ownsRefuge, refugeHas,
+  stashCapacity, crewIn,
 } from "../state.js";
 import { storyFor, orderFor } from "../missions.js";
 
@@ -107,13 +109,18 @@ export class WorldScene extends Phaser.Scene {
     this.physics.add.collider(this.npcGroup, this.world.statics);
     this.physics.add.collider(this.player.sprite, this.npcGroup);
 
-    if (def.kind === "route" && hasUpgrade(reg, "horse")) this.addHorse();
-    this.escort = def.kind === "route" && hasUpgrade(reg, "escort") ? new Escort(this, this.player.x, this.player.y + 10) : null;
+    this.setupCrew();
     if (def.kind === "route") this.time.delayedCall(1200, () => this.checkRaids());
-    this.speedBonus = def.kind === "route" && hasUpgrade(reg, "horse") ? 1.1 : 1;
+    this.speedBonus = def.kind === "route" && partyHas(reg, "horse") ? 1.1 : 1;
+    // Cuevas: más oscuras que afuera.
+    if (def.dark) this.add.rectangle(0, 0, this.world.W, this.world.H, 0x0a0712, 0.3).setOrigin(0, 0).setDepth(DEPTH.fx - 1);
 
     const cam = this.cameras.main;
-    cam.setBounds(0, 0, this.world.W, this.world.H);
+    // Un mapa más chico que la pantalla (refugios) se centra, con fondo del color del lugar.
+    const bw = Math.max(this.world.W, VIEW_W);
+    const bh = Math.max(this.world.H, VIEW_H);
+    cam.setBounds(-(bw - this.world.W) / 2, -(bh - this.world.H) / 2, bw, bh);
+    if (bw > this.world.W || bh > this.world.H) cam.setBackgroundColor(def.dark ? 0x1b1422 : 0x16372a);
     cam.startFollow(this.player.sprite, true, 0.16, 0.16, 0, 12);
     cam.setRoundPixels(true);
     cam.fadeIn(260, 18, 14, 23);
@@ -146,6 +153,8 @@ export class WorldScene extends Phaser.Scene {
       switch (spec.type) {
         case "npc": {
           if (spec.onlyIf && !flag(reg, spec.onlyIf)) break;
+          // Sahra ya contratada no está en su puesto: anda contigo (o donde la dejaste).
+          if (spec.role === "escort" && hasUpgrade(reg, "escort")) break;
           const npc = new Npc(this, spec);
           this.npcs.push(npc);
           this.npcGroup.add(npc.sprite);
@@ -160,6 +169,43 @@ export class WorldScene extends Phaser.Scene {
           const it = { x: px, y: py, r: 20, label: "Alijo", act: () => this.useStash(spec, img) };
           this.interactables.push(it);
           this.stashes.push({ spec, img });
+          break;
+        }
+        case "refuge": {
+          const info = REFUGES[spec.id];
+          const owned = ownsRefuge(reg, spec.id);
+          let img;
+          if (info.kind === "cave") {
+            img = this.add.sprite(px, py, spec.snow ? "cave-door-snow" : "cave-door", owned ? 1 : 0).setOrigin(0.5, 1).setDepth(py);
+            this.world.addSolid(px - 16, py - 26, 32, 22);
+          } else {
+            img = this.add.sprite(px, py, "gate", owned ? 1 : 0).setOrigin(0.5, 1).setDepth(py);
+            this.world.addSolid(px - 24, py - 14, 8, 12);
+            this.world.addSolid(px + 16, py - 14, 8, 12);
+            spec.bar = this.world.addSolid(px - 16, py - 14, 32, 12);
+            if (owned) spec.bar.body.enable = false;
+          }
+          this.interactables.push({ x: px, y: py + 6, r: 22, get label() { return ownsRefuge(reg, spec.id) ? "Entrar" : "Mirar"; }, act: () => this.useRefugeDoor(spec, img) });
+          this.stashes.push({ spec, img, refuge: true });
+          break;
+        }
+        case "store": {
+          const img = this.add.sprite(px, py + 4, "shelf", stashCount(reg, spec.id) ? 1 : 0).setOrigin(0.5, 1).setDepth(py + 4);
+          this.world.addSolid(px - 11, py - 8, 22, 10);
+          this.interactables.push({ x: px, y: py + 4, r: 20, label: "Estante", act: () => this.useStore(spec, img) });
+          break;
+        }
+        case "bench": {
+          this.add.image(px, py + 4, "workbench").setOrigin(0.5, 1).setDepth(py + 4);
+          this.world.addSolid(px - 12, py - 6, 24, 8);
+          this.interactables.push({ x: px, y: py + 4, r: 20, label: "Mejoras", act: () => this.useBench(spec) });
+          break;
+        }
+        case "cot": {
+          if (!refugeHas(reg, spec.id, "cot")) break;
+          this.add.image(px, py + 4, "cot").setOrigin(0.5, 1).setDepth(py + 4);
+          this.world.addSolid(px - 12, py - 6, 24, 8);
+          this.interactables.push({ x: px, y: py + 2, r: 20, label: "Descansar", act: () => this.useCot(spec) });
           break;
         }
         case "sign": {
@@ -269,6 +315,7 @@ export class WorldScene extends Phaser.Scene {
     }
 
     if (this.controls.pressed("tonic")) this.useTonic();
+    this.keepHorseOffIce();
     this.player.update(dt, this.controls, this.world);
     this.escort?.update(dt);
     for (const e of this.enemies) if (!e.dead) e.update(dt);
@@ -347,7 +394,14 @@ export class WorldScene extends Phaser.Scene {
           await this.ferryTalk(npc);
           break;
         case "stable":
-          await this.upgradeTalk(npc, "horse", ["Mis caballos no cargan para cualquiera.", "Hazte un nombre en la calzada y hablamos."], "Tengo una yegua que carga sin quejarse. Más espacio y más paso en la ruta.");
+          if (hasUpgrade(reg, "horse")) await this.stableTalk(npc);
+          else await this.upgradeTalk(npc, "horse", ["Mis caballos no cargan para cualquiera.", "Hazte un nombre en la calzada y hablamos."], "Tengo una yegua que carga sin quejarse. Más espacio y más paso en la ruta.");
+          break;
+        case "inn":
+          await this.innTalk(npc);
+          break;
+        case "landseller":
+          await this.landTalk(npc);
           break;
         case "townguard": {
           const h = localHeat(reg, this.def);
@@ -826,7 +880,7 @@ export class WorldScene extends Phaser.Scene {
       return;
     }
     const options = [];
-    if (!hasUpgrade(reg, "stashKit")) options.push({ id: "stashKit", label: `Herrajes de alijo · ${kit.cost} oro`, disabled: gold(reg) < kit.cost, note: "Abren los huecos de los caminos para guardar piedras" });
+    if (!hasUpgrade(reg, "stashKit")) options.push({ id: "stashKit", label: `Herrajes de alijo · ${kit.cost} oro`, disabled: gold(reg) < kit.cost, note: "Puerta y cerrojo para las cuevas de los caminos" });
     if (!hasUpgrade(reg, "hideout")) {
       const locked = reputation(reg) < hide.reputation;
       options.push({ id: "hideout", label: locked ? `Fondo falso (fama ${hide.reputation})` : `Fondo falso · ${hide.cost} oro`, disabled: locked || gold(reg) < hide.cost, note: "Dos piedras que ningún guardia encuentra" });
@@ -835,7 +889,7 @@ export class WorldScene extends Phaser.Scene {
       await this.ui.say(["Ya tienes todo lo que sé hacer. Cuídalo."], { name });
       return;
     }
-    await this.ui.say(["Tu nombre ya suena en la calzada.", "Te puedo armar herrajes para esconder piedras en el camino. Y, más adelante, un fondo falso."], { name });
+    await this.ui.say(["Tu nombre ya suena en la calzada.", "Te puedo forjar herrajes para cerrar una cueva y hacerla tu refugio. Y, más adelante, un fondo falso."], { name });
     const pick = await this.ui.choose("Oskar, herrero", [...options, { label: "Nada por ahora" }], { name });
     const choice = options[pick];
     if (!choice) return;
@@ -843,7 +897,7 @@ export class WorldScene extends Phaser.Scene {
     tone(this, res.ok ? "chest" : "deny");
     if (res.ok) sfx(this, "coins");
     const extra = choice.id === "stashKit" && res.ok
-      ? ["En los caminos hay troncos huecos y rocas partidas. Con esto, cada uno es tu alijo.", "Lo que guardes ahí no te lo roba nadie. Pero si la Corona anda caliente en esa ruta, lo puede encontrar."]
+      ? ["En el Paso Alto y junto al lago del paso hay cuevas secas. Con esto, cada una es tu refugio.", "Adentro guardas piedras y hasta gente. Pero si la Corona anda caliente en esa ruta, sin buen cerrojo la encuentra."]
       : [];
     await this.ui.say([res.reason, ...extra], { name });
     saveGame(reg);
@@ -883,7 +937,7 @@ export class WorldScene extends Phaser.Scene {
       await this.ui.say(["¿Vienes a pie desde Duneshade? Qué valiente.", `Mi barca cruza el golfo hasta ${TOWNS[to].name} en una tarde. Desde hoy también paro en tu muelle.`], { name });
     }
     // Con caballo, la barca cobra el doble: ocupa lo que dos pasajeros.
-    const fare = BOAT_FARE * (hasUpgrade(reg, "horse") ? 2 : 1);
+    const fare = BOAT_FARE * (partyHas(reg, "horse") ? 2 : 1);
     const pick = await this.ui.choose(`Cruzar el golfo a ${TOWNS[to].name}`, [
       { label: `Subir a la barca · ${fare} oro`, disabled: gold(reg) < fare, note: `Sin retenes ni bandidos. Son ${TRAVEL_DAYS.boat} días de mar.` },
       { label: "Ahora no" },
@@ -1028,13 +1082,320 @@ export class WorldScene extends Phaser.Scene {
     if (h < STASH_RAID_HEAT) return;
     for (const { spec } of this.stashes) {
       if (!stashCount(reg, spec.id)) continue;
-      if (Math.random() < 0.5) {
-        const lost = emptyStash(reg, spec.id);
-        this.ui.toast(`Redada: la Corona encontró tu alijo (${lost} piedras)`, "font-red");
-        saveGame(reg);
+      if (refugeHas(reg, spec.id, "lock")) continue;
+      if (Math.random() >= 0.5) continue;
+      // Quien se quedó cuidando el refugio espanta a la patrulla.
+      const guard = crewIn(reg, spec.id).find((w) => !CREW[w].animal);
+      if (guard) {
+        this.ui.toast(`Una patrulla rondó tu refugio. ${CREW[guard].name} la espantó.`, "font-green");
         return;
       }
+      const lost = emptyStash(reg, spec.id);
+      this.ui.toast(`Redada: la Corona encontró tu refugio (${lost} piedras)`, "font-red");
+      saveGame(reg);
+      return;
     }
+  }
+
+  // ---------------------------------------------------------------- tripulación
+
+  /** Quién te sigue en este mapa, quién espera afuera y quién se quedó en este refugio. */
+  setupCrew() {
+    const reg = this.registry;
+    const def = this.def;
+    this.crewStatics = [];
+    // El caballo que esperaba afuera de la cueva se vuelve a juntar.
+    if (def.kind === "route" && crewAt(reg, "horse") === `wait:${this.mapId}`) setCrewAt(reg, "horse", "party");
+    if (def.kind === "refuge" && partyHas(reg, "horse") && !refugeHas(reg, def.refuge, "corral")) {
+      setCrewAt(reg, "horse", `wait:${REFUGES[def.refuge].route}`);
+      this.time.delayedCall(900, () => this.ui.toast("La yegua no cabe: espera afuera", "font-o"));
+    }
+    if (partyHas(reg, "horse")) this.addHorse();
+    this.escort = partyHas(reg, "sahra") ? new Escort(this, this.player.x, this.player.y + 10) : null;
+    // En pueblos y refugios se les puede hablar para dejarlos.
+    this.crewIts = {};
+    if (def.kind !== "route") {
+      if (this.escort) this.followerTalkable("sahra");
+      if (this.horse) this.followerTalkable("horse");
+    }
+    if (def.kind === "refuge") for (const who of crewIn(reg, def.refuge)) this.spawnCrewStatic(who);
+  }
+
+  /** Al que te sigue se le puede hablar (en pueblos y refugios) para dejarlo. */
+  followerTalkable(who) {
+    if (this.def.kind === "route") return;
+    const scene = this;
+    const it = {
+      get x() { return who === "horse" ? scene.horse?.x ?? -999 : scene.escort?.sprite.x ?? -999; },
+      get y() { return who === "horse" ? scene.horse?.y ?? -999 : scene.escort?.sprite.y ?? -999; },
+      r: who === "horse" ? 20 : 16,
+      label: who === "horse" ? "Yegua" : "Hablar",
+      act: () => this.crewTalk(who),
+    };
+    this.crewIts[who] = it;
+    this.interactables.push(it);
+  }
+
+  /** Alguien que se quedó en este refugio: está parado ahí hasta que vuelvas por él. */
+  spawnCrewStatic(who) {
+    const [cx, cy] = this.def.crewSpots?.[who] ?? [8, 6];
+    const x = cx * TILE;
+    const y = cy * TILE;
+    const sprite = who === "horse"
+      ? this.add.sprite(x, y, "horse", 4).setOrigin(0.5, 1)
+      : this.add.sprite(x, y, "cast-archer", 0).setOrigin(0.5, 1).play("archer-idle-down");
+    sprite.setDepth(y);
+    const shadow = this.add.image(x, y, who === "horse" ? "shadow-big" : "shadow").setOrigin(0.5, 0.6).setDepth(DEPTH.decal + 1);
+    this.world.addSolid(x - 6, y - 5, 12, 6);
+    const it = { x, y, r: 20, label: "Hablar", act: () => this.crewTalk(who, { sprite, shadow, it }) };
+    this.interactables.push(it);
+    this.crewStatics.push({ who, sprite, shadow, it });
+  }
+
+  /** Hablar con alguien de tu gente: dejarlo aquí o llevártelo. */
+  async crewTalk(who, still = null) {
+    const reg = this.registry;
+    const def = this.def;
+    const c = CREW[who];
+    const name = who === "horse" ? "Yegua" : "Sahra";
+    if (still) {
+      const pick = await this.ui.choose(who === "horse" ? "La yegua te mira" : "Sahra afila flechas", [
+        { label: "Vámonos", note: "Se viene contigo" },
+        { label: "Quédate", note: who === "horse" ? "" : "Cuida el refugio de redadas" },
+      ], { name });
+      if (pick !== 0) return;
+      setCrewAt(reg, who, "party");
+      still.sprite.destroy();
+      still.shadow.destroy();
+      still.it.hidden = true;
+      if (who === "horse") { this.addHorse(); this.horse.setPosition(still.sprite.x, still.sprite.y); }
+      else this.escort = new Escort(this, still.sprite.x, still.sprite.y);
+      this.followerTalkable(who);
+      tone(this, "confirm");
+      saveGame(reg);
+      return;
+    }
+    const options = [];
+    if (def.kind === "refuge") {
+      const canStay = !c.animal || refugeHas(reg, def.refuge, "corral");
+      options.push({ id: "stay", label: "Quédate aquí", disabled: !canStay, note: canStay ? (c.animal ? "En el corral" : "Cuida el refugio de redadas") : "Sin corral no cabe" });
+    } else if (def.kind === "town") {
+      if (c.animal) {
+        const stable = def.town === "valkeep";
+        options.push({ id: "stable", label: `Déjala en el establo · ${LODGING.stable}/día`, disabled: !stable, note: stable ? "Nella la cuida" : "Sólo hay establo en Valkeep" });
+      } else {
+        options.push({ id: "inn", label: `Espérame en la posada · ${LODGING.inn}/día`, note: "Se paga al recogerla" });
+      }
+    }
+    options.push({ id: "go", label: "Sigue conmigo" });
+    const pick = await this.ui.choose(who === "horse" ? "La yegua" : "Sahra", options, { name });
+    const opt = options[pick];
+    if (!opt || opt.id === "go") return;
+    if (opt.id === "stay") setCrewAt(reg, who, `refuge:${def.refuge}`);
+    if (opt.id === "stable") setCrewAt(reg, who, "stable:valkeep");
+    if (opt.id === "inn") setCrewAt(reg, who, `inn:${def.town}`);
+    // Se aparta: deja de seguirte.
+    if (who === "horse" && this.horse) {
+      const h = this.horse;
+      this.tweens.add({ targets: [h, this.horseShadow], alpha: opt.id === "stay" ? 1 : 0, duration: 400 });
+      if (opt.id === "stay") { this.horse.destroy(); this.horseShadow.destroy(); this.horse = null; this.spawnCrewStatic("horse"); }
+      else this.time.delayedCall(420, () => { h.destroy(); this.horseShadow?.destroy(); this.horse = null; });
+    }
+    if (who === "sahra" && this.escort) {
+      const e = this.escort;
+      this.escort = null;
+      e.sprite.destroy();
+      e.shadow.destroy();
+      if (opt.id === "stay") this.spawnCrewStatic("sahra");
+    }
+    if (this.crewIts?.[who]) this.crewIts[who].hidden = true;
+    if (who === "horse") this.speedBonus = 1;
+    tone(this, "confirm");
+    this.ui.toast(opt.id === "stay" ? `${c.name} se queda en el refugio` : opt.id === "stable" ? "La yegua se queda en el establo" : "Sahra te espera en la posada", "font-o");
+    saveGame(reg);
+  }
+
+  /** Posadero: aquí se queda tu gente (cobra por día) y se oyen los rumores más confiables. */
+  async innTalk(npc) {
+    const reg = this.registry;
+    const name = npc.spec.name;
+    const here = `inn:${this.def.town}`;
+    const guests = Object.keys(CREW).filter((w) => crewAt(reg, w) === here);
+    const r = hearRumor(reg, 0.95);
+    await this.ui.say([...(npc.spec.talk ?? []), r.text], { name });
+    for (const who of guests) {
+      const fee = lodgingFee(reg, who);
+      const pick = await this.ui.choose(`${CREW[who].name} está arriba`, [
+        { label: `Llamarla · ${fee} oro`, disabled: gold(reg) < fee, note: `${LODGING.inn} por día` },
+        { label: "Que se quede" },
+      ], { name });
+      if (pick !== 0) continue;
+      pay(reg, fee);
+      setCrewAt(reg, who, "party");
+      sfx(this, "coins");
+      this.escort = new Escort(this, npc.x, npc.y + 12);
+      this.followerTalkable(who);
+      saveGame(reg);
+    }
+  }
+
+  /** Nella: además de vender la yegua, la cuida en el establo. */
+  async stableTalk(npc) {
+    const reg = this.registry;
+    const name = npc.spec.name;
+    const at = crewAt(reg, "horse");
+    if (at === "stable:valkeep") {
+      const fee = lodgingFee(reg, "horse");
+      const pick = await this.ui.choose("Tu yegua está en el establo", [
+        { label: `Llevármela · ${fee} oro`, disabled: gold(reg) < fee, note: `${LODGING.stable} por día` },
+        { label: "Que se quede" },
+      ], { name });
+      if (pick !== 0) return;
+      pay(reg, fee);
+      setCrewAt(reg, "horse", "party");
+      sfx(this, "coins");
+      this.addHorse();
+      this.horse.setPosition(npc.x - 18, npc.y + 6);
+      this.followerTalkable("horse");
+      saveGame(reg);
+      return;
+    }
+    if (at === "party") {
+      await this.ui.say(["¿Cómo va la yegua? Si un día no la necesitas, déjamela aquí.", `(Háblale a la yegua para dejarla: ${LODGING.stable} oro por día.)`], { name });
+      return;
+    }
+    const where = at?.startsWith("refuge:") ? REFUGES[at.slice(7)]?.name : at?.startsWith("wait:") ? "afuera de una cueva" : "por ahí";
+    await this.ui.say([`¿Y la yegua? Me dicen que la dejaste en ${where}.`], { name });
+  }
+
+  /** Aurelio vende su claro escondido: un refugio con corral. */
+  async landTalk(npc) {
+    const reg = this.registry;
+    const name = npc.spec.name;
+    const info = REFUGES["refugio-r3"];
+    if (ownsRefuge(reg, "refugio-r3")) {
+      await this.ui.say(["El claro es tuyo. Nadie más sabe de la reja.", "Yo no he visto nada, como siempre."], { name });
+      return;
+    }
+    await this.ui.say(npc.spec.talk, { name });
+    if (reputation(reg) < info.fame) {
+      await this.ui.say(["Pero no se lo vendo a cualquiera.", `(Necesitas fama ${info.fame}. Tienes ${reputation(reg)}.)`], { name });
+      return;
+    }
+    const pick = await this.ui.choose(`${info.name} · ${info.price} oro`, [
+      { label: "Comprarla", disabled: gold(reg) < info.price, note: "Choza, corral y reja. Cabe el caballo." },
+      { label: "Ahora no" },
+    ], { name });
+    if (pick !== 0) return;
+    pay(reg, info.price);
+    setFlag(reg, "refuge-refugio-r3");
+    tone(this, "chest");
+    sfx(this, "coins");
+    const door = this.stashes.find((s) => s.spec.id === "refugio-r3");
+    if (door) { door.img.setFrame(1); if (door.spec.bar) door.spec.bar.body.enable = false; }
+    await this.ui.say(["Aquí tienes la llave de la reja.", "Lo que guardes ahí es tuyo. Hasta la yegua cabe."], { name });
+    saveGame(reg);
+  }
+
+  // ---------------------------------------------------------------- refugios
+
+  async useRefugeDoor(spec, img) {
+    const reg = this.registry;
+    const info = REFUGES[spec.id];
+    if (!ownsRefuge(reg, spec.id)) {
+      if (info.kind === "plot") {
+        await this.ui.say(["Una reja entre la selva. Del otro lado se ve un claro.", "Es de Aurelio, el campesino de aquí al lado."]);
+        return;
+      }
+      if (!hasUpgrade(reg, "stashKit")) {
+        await this.ui.say(["Una cueva seca y honda. Aquí adentro nadie te vería.", "Con puerta y cerrojo sería tu refugio. Oskar, el herrero de Ashfen, hace herrajes."]);
+        return;
+      }
+      setFlag(reg, `refuge-${spec.id}`);
+      if (info.cold) reg.set("stashes", { ...(reg.get("stashes") ?? {}), [spec.id]: { cold: true } });
+      img.setFrame(1);
+      tone(this, "chest");
+      sfx(this, "latch", { volume: 0.5 });
+      await this.ui.say(["Clavas los herrajes de Oskar: puerta, bisagras y un cerrojo.", `${info.name}: ahora es tuya.`]);
+      saveGame(reg);
+    }
+    this.enterMap(spec.id, "door");
+  }
+
+  /** Cambia de mapa con un fundido. */
+  enterMap(map, entry) {
+    this.leaving = true;
+    sfx(this, "latch", { volume: 0.3 });
+    this.cameras.main.fadeOut(220, 18, 14, 23);
+    this.cameras.main.once("camerafadeoutcomplete", () => this.scene.restart({ map, entry }));
+  }
+
+  async useStore(spec, img) {
+    const reg = this.registry;
+    await this.ui.stash(spec.id, this.def, localHeat(reg, this.def), stashCapacity(reg, spec.id), `ESTANTE · ${REFUGES[spec.id].name.toUpperCase()}`);
+    img.setFrame(stashCount(reg, spec.id) ? 1 : 0);
+    saveGame(reg);
+  }
+
+  /** Mesa de trabajo: mejoras del refugio. El herrero manda las piezas con un arriero. */
+  async useBench(spec) {
+    const reg = this.registry;
+    const info = REFUGES[spec.id];
+    const ids = Object.keys(REFUGE_UPGRADES).filter((u) => !(u === "corral" && info.corral));
+    const options = ids.map((u) => {
+      const up = REFUGE_UPGRADES[u];
+      const owned = refugeHas(reg, spec.id, u);
+      return { id: u, label: owned ? `${up.name} · listo` : `${up.name} · ${up.cost} oro`, disabled: owned || gold(reg) < up.cost, note: up.effect };
+    });
+    options.push({ label: "Nada" });
+    const pick = await this.ui.choose(`${info.name}: mejoras`, options);
+    const opt = options[pick];
+    if (!opt?.id) return;
+    pay(reg, REFUGE_UPGRADES[opt.id].cost);
+    setFlag(reg, `${spec.id}-${opt.id}`);
+    tone(this, "chest");
+    sfx(this, "chop", { volume: 0.4 });
+    await this.ui.say([`${REFUGE_UPGRADES[opt.id].name}: listo. ${REFUGE_UPGRADES[opt.id].effect}.`]);
+    saveGame(reg);
+    // Lo nuevo se ve: se vuelve a armar el cuarto.
+    if (opt.id === "cot" || opt.id === "corral") this.enterMap(this.mapId, "door");
+  }
+
+  async useCot() {
+    const reg = this.registry;
+    const pick = await this.ui.choose("Catre", [{ label: "Dormir un día", note: "Te curas; el mundo sigue" }, { label: "Ahora no" }]);
+    if (pick !== 0) return;
+    this.cameras.main.fadeOut(400, 0, 0, 0);
+    await new Promise((r) => this.time.delayedCall(450, r));
+    const report = passDays(reg, 1, { cold: this.def.cold ? 1 : 0 });
+    heal(reg);
+    this.cameras.main.fadeIn(500, 0, 0, 0);
+    this.ui.toast(`Dormiste. Día ${day(reg)}`, "font-gold");
+    if (report.melted) this.ui.toast("Se te derritió la escarcha", "font-red");
+    saveGame(reg);
+  }
+
+  /** La yegua no pisa el hielo: con ella no se cruza el lago. */
+  keepHorseOffIce() {
+    if (!this.horse) return;
+    const p = this.player;
+    const onIce = this.world.cellAt(p.x, p.y - 2) === "i";
+    if (!onIce) {
+      this.lastDry = { x: p.x, y: p.y };
+      return;
+    }
+    if (!this.lastDry) return;
+    p.body.reset(this.lastDry.x, this.lastDry.y);
+    if (p.state === "slide") p.setState("move");
+    if (!this.iceWarned || this.time.now - this.iceWarned > 4000) {
+      this.iceWarned = this.time.now;
+      this.ui.toast("La yegua no pisa el hielo: déjala en la cueva o ve por el retén", "font-o");
+    }
+  }
+
+  /** Mientras más gente llevas, de más lejos te ven los guardias. */
+  groupSight() {
+    return 1 + 0.2 * partySize(this.registry);
   }
 
   // ---------------------------------------------------------------- salidas

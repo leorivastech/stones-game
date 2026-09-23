@@ -78,6 +78,7 @@ export default {
     },
     { type: "npc", cast: "desertfolk", name: "Yusra", x: 17, y: 20, dir: "right", wander: 3, talk: ["Las perlas de lluvia llenan nuestros pozos.", "Si traes de Verdelume, se venden en un suspiro."] },
     { type: "npc", cast: "desertfolk", name: "Omar", x: 31, y: 13.6, dir: "down", wander: 2, talk: ["En la arena se esconden escorpiones.", "Si ves la arena temblar, no pises ahí."] },
+    { type: "npc", cast: "villager", name: "Nasr", x: 25.2, y: 12.2, dir: "down", role: "inn", talk: ["Posada del Oasis. Agua fresca para quien pague."] },
     { type: "npc", cast: "guard", name: "Guardia", x: 14.2, y: 16.6, dir: "down", role: "townguard", talk: ["En el desierto no hay dónde esconderse.", "Nuestras patrullas ven de lejos."] },
   ],
   exits: [

@@ -105,6 +105,7 @@ export default {
     },
     { type: "npc", cast: "villager", name: "Iván", x: 12, y: 16.5, dir: "right", wander: 3, talk: ["El calor de la Corona sube cada vez que alguien vende en la plaza.", "Si viajas a otros pueblos, se enfría."] },
     { type: "npc", cast: "villager3", name: "Rula", x: 26, y: 21, dir: "left", wander: 3, talk: ["Mi hermano cruzó el monte sin pasar el retén.", "Volvió sin botas, pero con toda la carga."] },
+    { type: "npc", cast: "villager", name: "Marta", x: 24.6, y: 13.4, dir: "down", role: "inn", talk: ["Posada del Ámbar. Cama y guiso, tres de oro la noche."] },
     { type: "npc", cast: "guard", name: "Guardia", x: 24.4, y: 17.6, dir: "down", role: "townguard", talk: ["En el pueblo no hay problema. En la calzada, sí.", "Quien lleva piedras a la vista, se revisa."] },
   ],
   exits: [{ x: 18, y: 0, w: 4, h: 1, to: "ruta1", entry: "south" }],
