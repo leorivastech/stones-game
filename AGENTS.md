@@ -41,7 +41,7 @@ Abre http://127.0.0.1:5181/
 - Un lugar nuevo = un archivo en `src/maps/` (y agregarlo a `src/maps/index.js`). No montes un editor, MCP ni Unity.
 - Arte: sólo pixel art con la paleta de `src/art/palette.js`. Nada de antialias ni formas vectoriales.
 - Revisar arte nuevo en `lab.html` antes de meterlo al juego. Verificar en WebGL y en Canvas (`?renderer=canvas`).
-- F1 en el juego: depuración (1 oro · 2 carga · 3 calor · 4 vida · 5 fama · 6 caballo).
+- F1 en el juego: depuración (1 oro · 2 carga · 3 calor · 4 vida · 5 fama · 6 caballo · 7 arquera y herrajes · 8 tónicos). Números de arriba o del teclado numérico; sigue prendido al cambiar de mapa.
 - Historia y plan viven en `studio/`, no solo en el chat. Actualizarlos después de cada plática.
 - Después de cambiar código, Leo recarga el navegador.
 

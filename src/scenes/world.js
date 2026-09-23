@@ -111,6 +111,9 @@ export class WorldScene extends Phaser.Scene {
     }
 
     this.debugOn = false;
+    this.input.keyboard.on("keydown", this.onDebugKey, this);
+    // El modo depuración sigue prendido al cambiar de mapa hasta que se apague con F1.
+    if (reg.get("debugMode")) this.toggleDebug(true);
     this.events.once("shutdown", () => this.ui.prompt(null));
     if (this.intro) this.time.delayedCall(900, () => this.runModal(() => this.ui.say(INTRO)));
     if (def.kind === "route" && !flag(reg, "hint-route")) {
@@ -231,7 +234,6 @@ export class WorldScene extends Phaser.Scene {
     const dt = Math.min(delta, 50);
     this.controls.update();
     if (this.controls.pressed("debug")) this.toggleDebug();
-    if (this.debugOn) this.debugKeys();
 
     if (this.modal || this.leaving) {
       this.player.body.setVelocity(0, 0);
@@ -899,35 +901,49 @@ export class WorldScene extends Phaser.Scene {
     });
   }
 
-  toggleDebug() {
+  toggleDebug(quiet = false) {
     this.debugOn = !this.debugOn;
+    this.registry.set("debugMode", this.debugOn);
     const w = this.physics.world;
     if (this.debugOn) {
       if (!w.debugGraphic) w.createDebugGraphic();
       w.drawDebug = true;
       w.debugGraphic.setVisible(true).setDepth(DEPTH.ui);
-      this.ui.toast("Depuración: 1 oro · 2 carga · 3 calor · 4 vida · 5 fama · 6 caballo", "font-blue");
+      if (!quiet) {
+        this.ui.toast("Depuración: 1 oro · 2 carga · 3 calor · 4 vida", "font-blue");
+        this.ui.toast("5 fama · 6 caballo · 7 arquera y alijos · 8 tónicos", "font-blue");
+      }
     } else if (w.debugGraphic) {
       w.drawDebug = false;
       w.debugGraphic.clear().setVisible(false);
     }
   }
 
-  debugKeys() {
+  /** Teclas de depuración por evento: un toque rápido no se pierde entre cuadros,
+   *  y sirven igual los números de arriba que los del teclado numérico. */
+  onDebugKey(event) {
+    if (!this.debugOn) return;
+    const m = /^(?:Digit|Numpad)([1-8])$/.exec(event.code);
+    if (!m) return;
     const reg = this.registry;
-    const kb = this.input.keyboard;
-    const k = (n) => Phaser.Input.Keyboard.JustDown(kb.addKey(n));
-    if (k("ONE")) reg.inc("gold", 50);
-    if (k("TWO")) {
-      const good = TOWNS[reg.get("currentTown") ?? "ashfen"].produce;
-      reg.set("cargo", { ...cargo(reg), [good]: (cargo(reg)[good] ?? 0) + Math.max(0, capacity(reg) - stones(reg)) });
+    const say = (t) => this.ui.toast(t, "font-blue");
+    switch (Number(m[1])) {
+      case 1: reg.inc("gold", 50); say("+50 oro"); break;
+      case 2: {
+        const good = TOWNS[reg.get("currentTown") ?? "ashfen"].produce;
+        reg.set("cargo", { ...cargo(reg), [good]: (cargo(reg)[good] ?? 0) + Math.max(0, capacity(reg) - stones(reg)) });
+        say(`Carga llena de ${GOODS[good].short}`);
+        break;
+      }
+      case 3: this.addRouteHeat(20); say("+20 calor"); break;
+      case 4: heal(reg); say("Vida llena"); break;
+      case 5: reg.inc("reputation", 5); say(`Fama ${reputation(reg)}`); break;
+      case 6: reg.set("upgrades", { ...reg.get("upgrades"), horse: true }); say("Caballo (sale al entrar a una ruta)"); break;
+      case 7: reg.set("upgrades", { ...reg.get("upgrades"), escort: true, stashKit: true }); say("Arquera y herrajes de alijo"); break;
+      case 8: reg.set("tonics", TONIC.max); say(`${TONIC.max} tónicos`); break;
+      default: break;
     }
-    if (k("THREE")) this.addRouteHeat(20);
-    if (k("FOUR")) heal(reg);
-    if (k("FIVE")) reg.inc("reputation", 5);
-    if (k("SIX")) reg.set("upgrades", { ...reg.get("upgrades"), horse: true });
-    if (k("SEVEN")) reg.set("upgrades", { ...reg.get("upgrades"), escort: true, stashKit: true });
-    if (k("EIGHT")) reg.set("tonics", TONIC.max);
+    tone(this, "pickup");
   }
 }
 
