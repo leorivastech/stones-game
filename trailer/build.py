@@ -41,7 +41,8 @@ def local_audio(src, sub="audio"):
     """Copia al proyecto el audio que vive en el juego (HyperFrames sólo sirve archivos de esta carpeta)."""
     s = (HERE / src).resolve()
     if not s.exists():
-        sys.exit(f"No existe el audio {src}")
+        warnings.append(f"no existe el audio {src}: se omite")
+        return None
     d = HERE / "assets" / sub / s.name
     d.parent.mkdir(parents=True, exist_ok=True)
     if not d.exists() or d.stat().st_size != s.stat().st_size:
@@ -126,10 +127,18 @@ title_html = ""
 tb = next((b for b in beats if b.get("type") == "title"), None)
 if tb:
     ts = tb["t"]
+    # Sin logo (o sin exportar todavía): el nombre del juego en texto grande.
+    logo = tb.get("logo")
+    if logo and (HERE / logo).exists():
+        logo_html = f'<img id="t-logo" class="logo" src="{logo}" alt="">'
+    else:
+        if logo:
+            warnings.append(f"no existe {logo}: el cierre usa el nombre en texto (exporta el logo con stills en shots.mjs)")
+        logo_html = f'<div id="t-logo" class="logo-text">{tb.get("name", G.get("title", "").split("—")[0].strip())}</div>'
     title_html = f'''      <div id="title" class="clip title" data-start="{r3(ts)}" data-duration="{r3(TOTAL - ts)}" data-track-index="40">
         <div id="t-box" class="t-box">
           <div class="veil"></div>
-          <img id="t-logo" class="logo" src="{tb["logo"]}" alt="">
+          {logo_html}
           <div id="t-tag" class="tagline">{tb.get("tagline", "")}</div>
           <div id="t-cta" class="cta">{tb.get("cta", "")}</div>
         </div>
@@ -167,6 +176,8 @@ for n, m in enumerate(AUDIO.get("music", [])):
     pts = sorted({round(p[0], 3): p for p in pts}.values())
     lane = ",".join(f'{{"t":{r3(max(0, pt))},"v":{r3(v)}}}' for pt, v in pts)
     src = local_audio(m["src"], "music")
+    if not src:
+        continue
     # Si la canción es más corta que su tramo, se repite con otra pista.
     audio_html.append(f'      <audio id="music-{n}" src="{src}" data-start="{r3(s)}" data-duration="{r3(d)}" data-media-start="{r3(m.get("mediaStart", 0))}" data-track-index="{10 + n % 2}" '
                       f"data-automation='{{\"version\":1,\"lanes\":[{{\"target\":\"volume\",\"points\":[{lane}]}}]}}'></audio>")
@@ -178,6 +189,8 @@ def sfx(name, at):
     if not sfx_dir:
         return
     src = local_audio(f"{sfx_dir}/{name}.mp3", "sfx")
+    if not src:
+        return
     audio_html.append(f'      <audio id="sfx-{sfx_n}" src="{src}" data-start="{r3(at)}" data-duration="{r3(media_len(HERE / src))}"data-volume="{AUDIO.get("sfxVolume", 0.5)}" data-track-index="{50 + sfx_n}"></audio>')
     sfx_n += 1
 

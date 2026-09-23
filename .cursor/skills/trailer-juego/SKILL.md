@@ -71,7 +71,9 @@ Ejemplo real y completo: `stones_Game/trailer/` (34 s, 11 tomas, 6 voces).
 - **Música**: la del propio juego primero (una tranquila para el gancho, la tensa para la acción).
   Si el juego no tiene, `/media-use` → `resolve --type bgm`.
 - Texto grande con fuente pixel del kit (Pixelify Sans, OFL) y contorno duro. Logo: se exporta del
-  juego con `stills` en `shots.mjs` (textura escalada sin suavizar).
+  juego con `stills` en `shots.mjs` (textura escalada sin suavizar). Sin logo, el cierre pone el
+  nombre en texto; sin música, `build.py` avisa y sigue (queda solo voz: conseguir música).
+- Render: si se queda sin memoria, `npx --yes hyperframes@<pin> render --workers 4`.
 
 ## Archivos del kit
 

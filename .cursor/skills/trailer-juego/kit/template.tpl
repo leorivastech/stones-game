@@ -35,6 +35,8 @@
       .t-box { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
       .title .veil { position: absolute; inset: 0; background: radial-gradient(ellipse 70% 60% at 50% 45%, rgba(18,14,23,0.35), rgba(18,14,23,0.85)); }
       .title .logo { position: relative; width: 1308px; image-rendering: pixelated; will-change: transform, opacity; }
+      .title .logo-text { position: relative; font-size: 190px; font-weight: 700; letter-spacing: 0.08em; color: #fff5c1; will-change: transform, opacity;
+        text-shadow: 8px 0 #1b1422, -8px 0 #1b1422, 0 8px #1b1422, 0 -8px #1b1422, 8px 8px #1b1422, -8px 8px #1b1422, 8px -8px #1b1422, -8px -8px #1b1422, 0 18px 0 rgba(27,20,34,0.6); }
       .title .tagline { position: relative; margin-top: 40px; font-size: 54px; color: #f7df6f;
         text-shadow: 4px 0 #1b1422, -4px 0 #1b1422, 0 4px #1b1422, 0 -4px #1b1422, 4px 4px #1b1422; }
       .title .cta { position: relative; margin-top: 70px; font-size: 64px; font-weight: 700; letter-spacing: 0.3em; color: #faf3e1;
