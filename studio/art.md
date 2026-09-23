@@ -1,121 +1,66 @@
-# Arte — qué puedo hacer yo y qué no
+# Arte — pixel art
 
-Estado: **regla de pipeline + tercera pasada visual (detalle y textura)**. 2026-09-19.
+Estado: **rehecho completo en pixel art**. 2026-09-23.
 
-Este proyecto es **Phaser 4, 2D**. No Three.js. Phaser ya dibuja en WebGL;
-Three.js sería otro motor y otro juego.
+Este proyecto es **Phaser 4, 2D**. No Three.js. Todo el arte es pixel art dibujado en código
+(`src/art/`), sin PNG externos. El arte vectorial anterior (formas suaves con antialias) se retiró;
+queda en la historia de git (`be15c32`).
+
+## Resolución
+
+- El juego vive en **480×270** píxeles, con cuadros (tiles) de **16 px**.
+- Se escala en **múltiplos enteros** (×2, ×3, ×4): en 1920×1080 cada píxel del juego mide 4×4.
+  Si el múltiplo entero deja mucho borde en pantallas chicas (<×3), estira un poco.
+- `pixelArt: true` + `roundPixels`: sin suavizado, sin medios píxeles.
 
 ## Pipeline
 
-1. **Proto en código** (`src/gfx/`): formas, piedras, tiles, UI. Se ve ya.
-2. **Proto imagen** (`public/assets/proto/`): mood / concepto si hace falta una imagen.
-3. **Final** (`public/assets/final/`): PNG/audio que Leo cierra. El juego los carga en `preload()`.
+1. **Pixel art en código** (`src/art/`): cada textura se pinta en un búfer de píxeles (`Buf`) y
+   se sube a Phaser al arrancar (`scenes/boot.js`). Rápido de iterar y sin archivos.
+2. **Laboratorio** (`lab.html?z=4&only=cast-&bg=%23417d3b`): muestra cada textura ampliada.
+   Todo arte nuevo se revisa ahí antes de entrar al juego.
+3. **Final** (`public/assets/final/`): si algún día Leo trae PNG cerrados, se cargan en `boot.js`
+   con la misma clave y reemplazan al dibujo en código sin tocar mecánicas.
 
-Nunca mezclar proto y final en la misma carpeta.
+## Reglas de dibujo
 
-## Qué puedo crear yo (rápido, barato, iterable)
+- **Una sola paleta** (`src/art/palette.js`): rampas de oscuro a claro por material (pasto, follaje,
+  tierra, piedra, agua, madera, teja, paja, piel, azul Corona, violeta rúnico, oro, rojo, tela,
+  olivo bandido, nieve). Si un color no está en la paleta, no se usa.
+- **Luz arriba-izquierda** siempre. Volúmenes redondos (copas, rocas) se sombrean como esferas y se
+  cuantizan a la rampa; por eso todos los árboles y piedras se ven del mismo mundo.
+- **Contorno oscuro** en personajes y objetos (`ink` o el tono más oscuro del material).
+  El suelo no lleva contorno.
+- **Texturas con manchas, no ruido**: pasto, tierra y arena usan manchas grandes con borde tramado
+  (Bayer) y matas/piedritas estampadas. Nunca sal y pimienta píxel por píxel.
+- **Sin medios píxeles**: textos centrados con `centerX()` y paneles de ancho par.
+- **Sin máscaras de geometría ni `nineslice`** (no se ven en Canvas). Los marcos son imágenes
+  a medida (`ninePatch`) cacheadas por tamaño.
+- Verificar en **WebGL y en Canvas** (`?renderer=canvas`). Deben verse iguales.
 
-| Cosa | Cómo | Calidad |
-|---|---|---|
-| Piedras, orbes, umbral | `Graphics` + `generateTexture` | Buena para proto y a veces para ship |
-| Tiles de piso, ruido, patrones | Canvas / Graphics | Buena para proto |
-| Jugador placeholder | Rectángulo o blob pixel | Solo proto |
-| UI (marcos, texto, barras) | `Text` + Graphics | Suficiente |
-| Polvo, brillo | Particles | Buena |
-| Pulso, flotar, shake | Tweens | Buena |
-| Beeps / pads simples | WebAudio más adelante | Placeholder |
+## Qué hay (`src/art/`)
 
-## Qué no debo fingir que “hago con Three.js”
+| Archivo | Qué dibuja |
+|---|---|
+| `pixel.js` | Búfer de píxeles, ruido determinista, tramas Bayer, contornos, rotación exacta de 90°, `ninePatch` |
+| `palette.js` | La paleta maestra |
+| `font.js` | Fuente propia de ancho variable (7 px de alto, acentos y ñ). Variantes: crema con sombra, oscura, con contorno, oro, rojo, verde, azul, tenue |
+| `actors.js` | Personajes 16×24 armados por partes (cabeza + cuerpo + piernas) y paletas: caminante, guardia, bandido, aldeanos, mercader, herrero, caballeriza. Caminar en 4 cuadros, agachado, silueta blanca para el daño, rodada (una bola rotada ×4) y K.O. |
+| `creatures.js` | Jabalí (caminar, embestida, aturdido) y caballo de carga con silla (trote de 4 cuadros) |
+| `terrain.js` | El suelo de cada mapa pintado píxel a píxel: bordes orgánicos entre pasto/tierra/arena/agua, sombras del terreno alto, orilla con espuma y profundidad, adoquín con bordillo, surcos de cultivo, tablones de puente, farallón de peñas, flores |
+| `props.js` | Árboles (3 variantes + otoño), pinos (y nevados), arbustos, pasto alto (3 variantes, 2 cuadros de vaivén), rocas, peñascos, tocón, tronco, cercas, letrero, barril, caja, heno, farol, pozo, puestos de mercado a rayas, cofre, reja con postes de piedra, palanca, barrera del retén, tienda de campaña, fogata, derrumbe, yunque, fragua, estandarte de la Corona, barandas, borde de salto, humo. Casas en vista 3/4 con techo de paja/teja/pizarra/musgo, muros de revoque/madera/piedra, puerta, ventanas iluminadas con jardinera y chimenea |
+| `fx.js` | Barrido del bastón (3 cuadros, rotado a las 4 direcciones), zarpazo rojo de enemigos, polvo, chispas, burbujas `!` `?` `…`, gemas de las 5 piedras, moneda que gira, corazones, pedacitos de pasto y hojas, brillo del agua |
+| `ui.js` | Marco oscuro con filo dorado, pergamino, placa, casillas de carga (y de fondo falso), ojo de alerta en 4 niveles, marcas, estrella, tecla, mapa del mundo en pergamino, logo STONES de piedra |
 
-- Personaje ilustrado con cara y ropa.
-- Fondo pintado tipo concepto art dentro del canvas del juego.
-- Cinemáticas 3D.
-- Música orquestal.
+## Paleta por lugar
 
-Eso entra por `public/assets/final/` cuando Leo lo tenga (o cuando pidamos una imagen de concepto y la bajemos a `proto/`).
-
-## Para este juego (contrabando)
-
-Pueblos = plazas. El caminante es un spritesheet 4 direcciones (`src/gfx/walker.js`).
-Pisos: tiles 96px con zacate, surcos en la tierra y adoquines irregulares.
-Encuentros de ruta: guardias, bandidos, caballos y carreta en `src/gfx/npcs.js` (proto, no ilustrados).
-El caballo propio usa esa silueta con silla y sólo se muestra en los caminos: acompaña al
-caminante de lado, con paso y polvo suaves. No aparece dentro de los pueblos.
-
-## Paleta (medieval suave)
-
-- Pasto: `#4a5c38`
-- Tierra: `#6b5340`
-- Cobble: `#6e6860`
-- Techo: `#8b3a2a`
-- Capa del caminante: `#6b3a28`
-- Ámbar: `#c45c20`
-- Oro / UI: `#c9a227` / `#f0e6d4`
-
-Todo sale de `src/gfx/bake.js` (Graphics → `generateTexture`). Sin PNG.
-Casas: silueta irregular, techo de paja asentado sobre el muro (no flotando). Pueblo: 1000×700,
-cámara 0.85 con 90 px de margen arriba para el HUD.
-
-## Reglas de dibujo (aprendidas a golpes)
-
-- **Sin máscaras de geometría.** Fallan en el navegador de Cursor. Recorte = matemática
-  (punto dentro de elipse/banda) y relleno por tramos (`fillBand`, `sprinkleBand`).
-- **Verificar en WebGL y en Canvas.** Si algo se ve distinto entre los dos, está mal hecho.
-- Un bioma se lee por **piso + props + landmark + luz**, no solo por el tinte del pasto.
-- Detalle en capas: relleno base → manchas grandes → grano fino → props con sombra → luz/velo.
-
-## Por pueblo
-
-| Pueblo | Piso / calle | Detalle de piso | Landmark | Luz |
-|---|---|---|---|---|
-| Ashfen | pasto / tierra | matas, flores, manchas de pasto | cerca, heno, arena con marea | velo ámbar 4 % |
-| Valkeep | highland / tierra | lajas, grava, matas pálidas | cordón de riscos, peñas, peñascos | velo gris 6 % |
-| Verdelume | selva / barro | charcos, hojarasca, raíces, helechos | doble fila de árboles, enredaderas en techos | velo verde 7 % |
-| Duneshade | arena / tierra | rizos de duna, grietas, matas secas | palmeras, juncos, cactus, huesos | velo cálido 8 % |
-| Frostholm | nieve / nieve pisada | montículos, hielo, huellas | banco de hielo, témpanos, nieve en techos, árboles secos | velo frío 10 % |
-
-Plaza común: adoquín con bordillo, puesto a rayas, dos puestos laterales, cuatro faroles con
-brillo, banderines, pozo con agua viva. Sobre todo: sombras de nubes que cruzan y viñeta.
-
-## Props horneados (`bake.js`)
-
-Árboles: `tree`, `tree-pine`, `tree-pine-snow`, `tree-palm`, `tree-bare`. Suelo: `bush`, `fern`,
-`bigleaf`, `flowers`, `tuft`, `reed`, `cactus`, `rock`, `boulder`, `cliff`, `ore-pile`, `bones`.
-Pueblo: `stall`, `stall-side`, `lantern`, `well`, `forge`, `fence`, `banner`, `post`, `gate`,
-`barrel`, `crate`, `hay`. Overlays de casa: `roof-snow`, `roof-vines`.
-
-## Segunda pasada visual
-
-- Suelos orgánicos de 96×96: se eliminó el tramado 2×2 que hacía visible una cuadrícula.
-- Adoquín irregular con mortero, luz de canto y filas alternadas.
-- Árboles, arbustos y casas con tres valores de luz, textura y sombras más legibles.
-- Props que cuentan oficio: mineral, barriles, cajas, heno y rocas.
-- Cinco regiones legibles con el mismo lenguaje visual: Ashfen verde y polvorienta, Valkeep
-  húmeda y arcana, Verdelume selvática, Duneshade arenosa y Frostholm nevada.
-- Mapa de prueba (`studio/maps/stones-mapa-atajo-13.png`): Valkeep es pueblo de montaña;
-  Verdelume es selva. El camino 2→3 está libre; el atajo de montañas es 1→3.
-- Se agregaron tiles generados de selva, arena y nieve; partículas de escarcha y motas rúnicas.
-- Profundidad por coordenada Y: el caminante pasa delante o detrás de casas, vegetación y NPCs.
-- Partículas discretas de polvo, hojas, humo de chimenea y pisadas.
-- HUD enmarcado con jerarquía: recursos a la izquierda, objetivo y riesgo a la derecha.
-- Mercado con teclas `E`/`Q` animadas al acercarse, piedra viajando entre puesto y caminante,
-  y texto flotante diferente para compra y venta.
-- Canvas 16:9 adaptable con `FIT`; conserva 800×450 internos y escala con la ventana.
-- Cada pueblo conserva la plaza y la silueta general, pero cambia suelo, tinte de casas,
-  vegetación, partículas y mercancía para que el bioma se lea sin cambiar el diseño base.
-
-Esto sigue siendo **arte proto producido en código**, no arte final. El siguiente salto real
-de calidad sería cerrar una hoja de personaje y una casa como PNG final, manteniendo la
-misma silueta y paleta para reemplazarlas sin tocar mecánicas.
+- **Ashfen** (templado): pasto `g`, casas de paja y teja roja, plaza de adoquín, cultivos, playa y golfo.
+- **Ruta 1**: pradera → río → bosque denso (follaje `f`) → farallón de peñas → subida de montaña con pinos.
+- **Valkeep** (montaña): pasto frío (rampa `f`), casas de piedra con pizarra, pinos, farallón, establo de techo de musgo.
 
 ## Música y SFX
 
-Tres identidades CC0 con fundido al cambiar escena:
-
-- **Ashfen:** *A Small Fire Will Do* — guitarra simple, pequeña y hogareña.
-- **Camino:** *Iremos Forest Theme Loop* — bosque corto, misterioso y más tenso.
-- **Valkeep:** *Mystical RPG Maker Town Theme* — pueblo arcano, más rico que Ashfen.
-
-Archivos en `public/assets/proto/music/`. *The Old Tower Inn* queda como referencia sin uso.
-
-SFX de encuentros (caballo, cuerno, carreta, monedas, cuchillo, metal): `public/assets/proto/sfx/`. Créditos en `CREDITS.md`.
+- Música CC0 (sin cambios): `public/assets/proto/music/` — Ashfen, camino, Valkeep.
+- Muestras CC0 de encuentros: `public/assets/proto/sfx/`. Créditos en `CREDITS.md`.
+- **Nuevo**: tonitos sintetizados de 8 bits en `src/sfx.js` (`tone()`): golpe, impacto, daño, rodada,
+  corte, recoger, corazón, menú, alerta, sospecha, salto, texto, cofre. No pesan nada.

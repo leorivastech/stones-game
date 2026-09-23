@@ -1,6 +1,6 @@
 # Historia — Stones
 
-Estado: **primera versión en código**. 2026-09-18.
+Estado: **muestra en pixel art jugable (Ashfen · Ruta 1 · Valkeep)**. 2026-09-23. Primera versión: 2026-09-18.
 
 ## Premisa
 

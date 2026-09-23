@@ -112,7 +112,7 @@ export function bush(berries = false) {
 }
 
 /** Pasto alto: dos cuadros de vaivén. Se ve a través de las puntas. */
-export function tallGrass() {
+export function tallGrass(variant = 0) {
   const frames = [0, 1].map((f) => {
     const b = new Buf(16, 18);
     // Base tupida, sin borde duro abajo: así las celdas vecinas se funden.
@@ -122,10 +122,10 @@ export function tallGrass() {
       if (y === 17 && (x * 7) % 4 === 0) continue;
       b.set(x, y, (x + y * 2) % 5 === 0 ? "g1" : y > 14 ? "g2" : (x + y) % 3 === 0 ? "g2" : "g3");
     }
-    // Hojas en tres matas; atrás oscuras, adelante claras.
-    const r = rng(77);
+    // Hojas en matas; atrás oscuras, adelante claras. Cada variante con otra semilla.
+    const r = rng(77 + variant * 131);
     const blades = [];
-    for (let k = 0; k < 18; k += 1) blades.push({ x: 1 + Math.floor(r() * 14), h: 8 + Math.floor(r() * 8), lean: r() < 0.5 ? -1 : 1, front: k > 9 });
+    for (let k = 0; k < 18; k += 1) blades.push({ x: 1 + Math.floor(r() * 14), h: 7 + Math.floor(r() * 10), lean: r() < 0.5 ? -1 : 1, front: k > 9 });
     blades.sort((a, c2) => Number(a.front) - Number(c2.front));
     for (const bl of blades) {
       for (let y = 0; y < bl.h; y += 1) {

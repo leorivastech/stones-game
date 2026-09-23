@@ -175,7 +175,7 @@ export class Player {
   rustle(world) {
     const key = `${Math.floor(this.sprite.x / TILE)},${Math.floor((this.sprite.y - 2) / TILE)}`;
     const g = world.tallGrass.get(key);
-    if (g && !g.cut) g.img.play("tallgrass", true);
+    if (g && !g.cut) g.img.play(g.anim, true);
   }
 
   startAttack(world) {

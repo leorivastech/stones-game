@@ -27,7 +27,7 @@ export function buildArt() {
   add("pine-snow", { buf: props.pine(true) });
   add("bush", { buf: props.bush() });
   add("bush-berries", { buf: props.bush(true) });
-  add("tallgrass", props.tallGrass());
+  [0, 1, 2].forEach((v) => add(`tallgrass-${v}`, props.tallGrass(v)));
   add("cutgrass", { buf: props.cutGrass() });
   add("rock", { buf: props.rock() });
   add("boulder", { buf: props.rock(true) });

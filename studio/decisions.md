@@ -76,3 +76,19 @@ Regla: una línea por decisión, con fecha. No borrar: si se revierte, se agrega
 - **Investigado / 2026-09-19** — Sirve como acelerador (MVP, scripts, playtest), no como piloto automático. Costo del puente = $0; se paga el LLM (Cursor Pro ~$20). Linux: Vinegar no oficial; `StudioMCP.exe` ya está en el prefix. Dual-boot Windows es el camino estable. Análisis: `studio/sessions/2026-09-19-roblox-analisis.md`.
 - **Probado / 2026-09-19** — Wrapper Wine + `~/.cursor/mcp.json` + handshake MCP OK en Linux. Studio 0.739 se actualizó y colgó (hang al startup). `list_roblox_studios` vacío. Falta una sesión de Studio usable. Sesión: `studio/sessions/2026-09-19-roblox-prueba-mcp.md`.
 - **Probado / 2026-09-19** — Reinstalación limpia (LIVE + Vulkan): otra 0.739, mismo hang a ~36 s. Forzar 0.732 (la de agosto) también se queda en el splash con D3D11 y con DXVK. No es instalación corrupta. En Linux hoy Studio no arranca.
+
+## 2026-09-23 — rehecho en pixel art
+
+- **Sí / Leo** — Rehacer el juego completo con gráficos nuevos en **pixel art** (480×270, cuadros de 16 px, escala entera), mejor interfaz y encuentros en el mapa estilo Zelda en vez de eventos que aparecen una vez. Leo: "hazlo tú".
+- **Sí / reemplaza "el protagonista no pelea" y "sin HP"** — El caminante tiene corazones y un bastón: golpea, rueda, corre y se esconde. Todo en tiempo real, sin turnos ni pantalla de batalla.
+- **Sí / reemplaza "rutas cortas ~3 s" (2026-09-19)** — Rutas largas tipo Pokémon (Ruta 1 = 36×100 cuadros) pero sin tramos vacíos: ramales, pasto alto, enemigos, cofres, bordes de salto, reja con palanca que abre un atajo para siempre.
+- **Sí** — A quién se le pega: bandidos y animales, sí. A los guardias conviene esquivarlos, esconderse o sobornarlos; si les pegas se vuelven hostiles y el calor se dispara.
+- **Sí** — Retén de la Corona físico en la calzada (barrera + guardias + cerco). Alternativa: sendero del bosque por el campamento de bandidos, tapado por arbustos que se cortan. Vuelve la elección calzada/monte, ahora caminable.
+- **Sí** — Revisión: dejar revisar (confiscan lo visible, baja el calor) · sobornar (4 + piedras + calor) · media vuelta o empujar y correr.
+- **Sí** — Robo de bandido: si te pega con carga, se te cae una piedra al piso; el bandido corre a levantarla y huye. Se recupera si lo alcanzas.
+- **Sí** — K.O.: despiertas en el último pueblo, pierdes la mitad de la carga (menos protección) y 20 % del oro. Entrar a un pueblo guarda y cura.
+- **Sí** — Controles: J/ESPACIO golpear · K/SHIFT rodar (mantener: correr) · L/C agacharse · E usar · ESC pausa. Control de consola también.
+- **Sí** — Arte: todo en código con una paleta maestra (`src/art/palette.js`) y revisión en `lab.html`. Se retiran `src/gfx/` y las escenas `town`/`road`/`play`.
+- **Sí** — Muestra primero (Ashfen · Ruta 1 · Valkeep). Verdelume, Duneshade y Frostholm quedan detrás del derrumbe de Valkeep hasta que Leo apruebe el estilo.
+- **Se mantiene** — Economía de `state.js` (precios, stock, pedido, calor, fama, mejoras) y música CC0.
+- **Pendiente de Leo** — Probar la muestra y decir si sigue el estilo para los otros tres pueblos.

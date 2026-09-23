@@ -1,126 +1,130 @@
 # Mecánicas — Stones
 
-Estado: **primera prueba de red comercial caminable**. 2026-09-18.
+Estado: **muestra jugable del rehecho** (Ashfen · Ruta 1 · Valkeep). 2026-09-23.
 
 ## Fantasía jugable
 
-Stones toma de Pokémon la estructura física: pueblo seguro → ruta → pueblo seguro. No toma
-su progresión lineal. El negocio obliga a volver porque los pedidos, precios y riesgos cambian.
-No hay selector de destinos ni viaje rápido.
-
-Recorrido en código hoy (línea):
-
-`Ashfen → Valkeep → Verdelume → Duneshade → Frostholm`
-
-Propuesta de mapa (no implementada): herradura de tierra y mar al sur.
-
-`Ashfen (campos, costa O) → Valkeep (montaña) → Verdelume (selva) → Duneshade (desierto) → Frostholm (hielo, costa E)`
-
-El golfo parte 1 de 5. Los caminos se recorren en curva (suben, bajan, rodean). El tramo 2→3 está libre. Atajos posteriores: barco 1↔5 y montañas 1↔3.
+Stones toma de Pokémon la estructura física (pueblo seguro → ruta con identidad → pueblo seguro) y
+de Zelda la acción: **los peligros se ven caminando por el mapa** y se resuelven en tiempo real,
+sin pantalla de batalla ni turnos. El negocio de contrabando obliga a ir y volver entre pueblos.
 
 ## Controles
 
-| Tecla | Acción |
-|---|---|
-| WASD / flechas | Caminar por pueblos y caminos. |
-| E | En pueblo: comprar o contratar. En un encuentro: revisar / entregar. |
-| Q | En pueblo: vender. En un encuentro: sobornar o pagar el paso. |
-| X | En un encuentro: huir a la ciudad de origen. |
-| Clic arriba | Forzar el próximo evento del camino; herramienta de pruebas. |
+| Acción | Teclado | Control |
+|---|---|---|
+| Caminar | WASD / flechas | palanca / cruceta |
+| Golpear con el bastón (también corta pasto y arbustos) | J / ESPACIO | A |
+| Rodar (tocar) · correr (mantener) | K / SHIFT | B |
+| Agacharse · esconderse en el pasto alto | L / C | X |
+| Hablar · usar · comerciar | E | Y |
+| Pausa (mapa, carga, mercados, controles) | ESC / ENTER | Start |
+| Bajar un escalón | caminar hacia abajo contra el borde | — |
+| Depuración | F1 (luego 1-6) | — |
 
-Al acercarse al puesto aparecen dos botones animados en la parte baja: `E` muestra qué se
-compra y su costo; `Q` muestra qué se vende y cuánto paga. Si una acción no está disponible,
-el mismo botón explica si falta oro, espacio, mercancía, stock o pedido. Al completar una
-operación, la piedra viaja visualmente entre el puesto y el personaje y aparece el cambio de
-carga/oro; una tecla inválida tiembla.
+Cerca de algo con lo que se puede interactuar aparece abajo un indicador `[E] Hablar / Leer /
+Abrir / Tirar / Beber / Comerciar`.
 
-En el camino, al alejarte un poco del inicio puedes **volver** a la ciudad de origen
-(poste `← ASHFEN`, etc.). Llegar al final sigue yendo al destino y ahí sí corre el mercado.
-El HUD muestra el riesgo de retén y confiscación antes de llegar al poste.
+## Jugador
 
-## Cadena de mercancías
+- **Vida en corazones** (empieza con 3). Cada golpe quita medio o un corazón.
+- **Golpe**: barrido de bastón de ~¼ s, daña todo lo que toque delante; empuja al enemigo.
+- **Rodar**: impulso corto con invulnerabilidad; mantener K después de rodar = correr.
+- **Agacharse**: más lento; los guardias ven la mitad de lejos. **En pasto alto y agachado nadie te ve.**
+- **Daño**: retroceso, destello blanco y un segundo de parpadeo invulnerable.
+- **K.O.** (0 corazones): despiertas en el último pueblo, pierdes la mitad de la carga (menos lo
+  que salven caballo y escolta) y el 20 % del oro.
+- La vida se recupera al entrar a un pueblo y bebiendo del pozo; en el mundo caen corazones del
+  pasto, arbustos y jabalíes.
 
-| Ciudad | Bioma | Produce | Precio base | Necesita | Pago base |
-|---|---|---|---:|---|---:|
-| Ashfen | Templado | Ámbar de sello | 8 | Cristal de escarcha | 40 |
-| Valkeep | Montaña | Vidrio rúnico | 12 | Ámbar de sello | 17 |
-| Verdelume | Tropical | Perla de lluvia | 15 | Vidrio rúnico | 26 |
-| Duneshade | Desierto | Piedra solar | 18 | Perla de lluvia | 32 |
-| Frostholm | Nieve | Cristal de escarcha | 22 | Piedra solar | 39 |
+## Enemigos (se ven en el mapa)
 
-Oro inicial: 40. Capacidad inicial: 4. Se usa una sola moneda común en esta prueba.
+| Enemigo | Dónde | Comportamiento |
+|---|---|---|
+| **Jabalí** | pradera, desvío, montaña | Deambula. Si te ve: escarba (aviso) y **embiste en línea recta**. Si choca con roca o árbol queda aturdido: es el momento de pegarle. 2 golpes. |
+| **Bandido** | campamento del bosque, emboscado en pasto alto | Te persigue, se agacha (aviso rojo) y se lanza. **Si te pega con piedras encima, se te cae una**; él corre a levantarla y huye esquivando árboles. Mátalo antes de que salga de pantalla y la suelta. 3 golpes, suelta monedas. |
+| **Guardia de la Corona** | retén y patrullas de la calzada | Patrulla con **cono de visión** dibujado en el suelo (crema tranquilo, amarillo sospecha, rojo alarma). Si te ve **con piedras a la vista**, se llena la sospecha (`?`) y luego alarma (`!`, cuerno): te persigue. Si te alcanza → **revisión**. Si le pegas se vuelve hostil y pelea en serio (1 corazón por golpe) y el calor sube mucho. |
 
-## Sistema medible de mercado
+### Revisión de la Corona
 
-Cada ciudad guarda cuatro números reales en el estado:
+Diálogo con tres salidas:
 
-- **Stock** de su producto: empieza en 5. Cada compra quita 1.
-- **Pedido** de la piedra que necesita: empieza en 4. Cada venta quita 1.
-- **Precio:** comprar unidades seguidas encarece el stock; vender unidades seguidas reduce el pago.
-- **Calor local:** comprar suma 2; vender suma 6. Afecta precios y riesgo de la ruta.
+1. **Dejar que revisen**: confiscan las piedras a la vista (el fondo falso esconde 2). El calor baja.
+2. **Sobornar**: `4 + piedras a la vista + calor/25×2` oro. Pasas con todo por el resto del viaje.
+3. En el retén: **dar media vuelta** (buscar otro camino). En patrulla: **empujar y correr**
+   (el guardia queda aturdido un momento, sube el calor y te persigue).
 
-Al completar un camino:
+Si vas **sin piedras**, el guardia del retén dice "Pasa." y levanta la barrera.
 
-- Las ciudades que no fueron el origen recuperan 1 stock.
-- Las ciudades que no fueron el destino recuperan 1 pedido.
-- Origen y destino pierden 1 calor; las demás pierden 8.
+## Rutas: se van abriendo
 
-Por eso repetir un solo trayecto satura al comprador y mantiene caliente la zona. Seguir
-viajando deja que otros mercados se recuperen. El HUD enseña **oro**, **piedras N de M**,
-**alerta** (5 estrellas = calor) y **fama** en chips sueltos, sin tapar el pueblo.
+**Ruta 1 · Calzada del Ámbar** (Ashfen ↔ Valkeep), 36×100 cuadros, de sur a norte:
 
-## Riesgo
+1. **Pradera**: sendero en curva, pasto alto con jabalíes, **bordes** que sólo se bajan de un salto
+   (atajos de regreso).
+2. **Río** con un solo puente.
+3. **Bifurcación**:
+   - la **calzada adoquinada** pasa por el **retén** (barrera, dos guardias de poste, patrulla);
+     cercada para que no se rodee por el pasto;
+   - el **sendero del bosque**, tapado por arbustos que hay que **cortar**, rodea por el
+     **campamento de bandidos** (tienda, fogata, cofre con 30 de oro). Un letrero rayado lo delata.
+4. **Farallón**: la **reja** del camino está cerrada. La primera vez se rodea por el **desvío del
+   este** (pasto alto, jabalí, cofre). Arriba hay una **palanca**: al tirarla la cámara muestra la
+   reja abrirse y queda **abierta para siempre** (atajo guardado).
+5. **Montaña**: paredes de peña con pinos, pasto alto con bandidos emboscados (uno sólo sale si
+   llevas 2+ piedras), y un **nicho** cerrado por un arbusto con un cofre de **corazón extra**.
 
-Las probabilidades usan carga visible y el calor promedio de origen/destino:
+Con más calor aparecen más patrullas (una extra desde calor 20 y otra desde 45) y los guardias ven
+20 % más lejos desde calor 45.
 
-- En la calzada, más carga y calor aumentan retén y confiscación.
-- En el monte, más carga y calor aumentan asalto.
-- Viajar vacío sigue pudiendo provocar una revisión o un asalto menor, pero no pierde carga.
+## Pueblos
 
-Los tres encuentros cortan el camino (flash, velo, NPCs) y esperan una respuesta.
-No hay HP ni turnos. Camino quieto sigue siendo una pasada automática.
+- **Ashfen**: plaza con mercado de ámbar (Brena), herrero Oskar (fondo falso con fama 14), pozo,
+  Tomasa (tutorial de controles), aldeanos, guardia; cultivos, playa y muelle sin barco; paso de
+  montaña del oeste cerrado por derrumbe.
+- **Valkeep**: plaza con mercado de vidrio rúnico (Maese Ivo), pozo, establo de Nella (caballo con
+  fama 4), aldeanos con pistas; paso norte a Verdelume cerrado por derrumbe.
 
-- **Retén** — `E` pierde 1 visible o pasa con fondo falso. `Q` paga 8+calor y enfría.
-  `X` vuelve al origen y sube calor.
-- **Asalto** — `E` entrega la mitad de la carga, menos caballo/escolta. `Q` paga el
-  paso (6 + lo amenazado × 2) y conservás todo. `X` huye con menos calor que el retén.
-- **Confiscación** — el carro llega primero y después pregunta. `E` entrega lo visible
-  (el fondo falso oculta 2). `Q` es un soborno más caro (12+calor) y enfría más.
-  `X` huye y calienta más: te viste de la requisa.
+Entrar a un pueblo **guarda la partida** y cura. Llegar a un pueblo distinto del anterior **cierra
+un viaje**: los mercados se recuperan y el calor se enfría (reglas de `state.js`, sin cambios).
 
-## “Combate” por preparación
+## Mercado
 
-El protagonista no pelea. Cambia sus probabilidades y pérdidas antes del viaje:
+Ventana propia: comprar la piedra del pueblo, vender la que el pueblo pide, salir. Muestra precio,
+existencias, pedido, qué llevas y **dónde se paga** lo que compras. Cada operación suena, la gema
+vuela al HUD y el oro cambia. Precios, stock, pedido, calor y fama: mismas reglas de antes.
 
-| Mejora | Lugar | Requisito | Costo | Efecto actual |
+## Cadena de mercancías (sin cambios)
+
+| Ciudad | Produce | Precio base | Necesita | Pago base |
+|---|---|---:|---|---:|
+| Ashfen | Ámbar de sello | 8 | Cristal de escarcha | 40 |
+| Valkeep | Vidrio rúnico | 12 | Ámbar de sello | 17 |
+| Verdelume | Perla de lluvia | 15 | Vidrio rúnico | 26 |
+| Duneshade | Piedra solar | 18 | Perla de lluvia | 32 |
+| Frostholm | Cristal de escarcha | 22 | Piedra solar | 39 |
+
+## Mejoras (preparación)
+
+| Mejora | Dónde | Fama | Costo | Efecto |
 |---|---|---:|---:|---|
-| Caballo de carga | Valkeep | Reputación 4 | 90 | +2 capacidad, más velocidad, salva 1 unidad en asaltos y acompaña visiblemente al caminante en las rutas. |
-| Arquera escolta | Duneshade | Reputación 8 | 150 | Salva otra unidad en asaltos. |
-| Fondo falso | Herrero de Ashfen | Reputación 14 | 240 | Oculta 2 unidades ante retenes y confiscación. |
+| Caballo de carga | Valkeep (Nella) | 4 | 90 | +2 carga, 10 % más rápido en rutas, te sigue en el mapa, 35 % de salvar una piedra de un golpe de bandido |
+| Arquera escolta | Duneshade | 8 | 150 | (pueblo aún no construido) |
+| Fondo falso | Ashfen (Oskar) | 14 | 240 | 2 casillas ocultas a los guardias (se ven rayadas en el HUD) |
 
-El herrero no revela la mejora ni el precio al principio: dice `sin encargos`. Esto mantiene
-el fondo falso como progreso tardío. Las mejoras se compran hablando físicamente con su NPC;
-no desde un menú de mapa.
+## Interfaz
 
-El caballo comprado no aparece dentro de las ciudades. Al entrar a cualquier camino aparece
-al lado del caminante, lo sigue y camina con él; así la mejora también se siente en el mundo,
-no sólo como números de capacidad y velocidad.
+- **HUD**: corazones · oro · casillas de carga con la gema de cada piedra (las del fondo falso,
+  rayadas) · ojo de alerta con 5 marcas (calor del lugar) · fama.
+- **Cartel** con nombre y región al entrar a cada lugar.
+- **Diálogos** en pergamino con nombre, texto que se escribe y ▼ para seguir.
+- **Elecciones** con cursor, opciones grises si no alcanza y una nota bajo la elegida.
+- **Pausa** con pestañas: mapa del mundo (pueblos visitados, dónde estás), carga y mejoras,
+  mercados conocidos (precios, pedido, calor) y controles.
+- **Título** con Ashfen de fondo, "Continuar" si hay partida guardada.
 
-## Qué ya prueba este corte
+## Pendiente
 
-- Atravesar pueblos y rutas, no teletransportarse.
-- Cinco biomas y cinco mercancías enlazadas.
-- Elegir cuánto comprar con inventario mixto.
-- Ver demanda agotarse, precios cambiar y calor subir/bajar.
-- Ver el riesgo de retén y confiscación en el HUD del camino.
-- Sentir cómo caballo, escolta y escondite cambian una pérdida.
-- En retén, asalto y confiscación, elegir entregar / pagar / huir.
-
-## Todavía pendiente
-
-- Encargo tutorial y compradores con nombre.
-- Rumor previo que explique por qué cambió el peligro.
-- Motivo personal del caminante y razón definitiva de la prohibición.
-- Convertir la línea norte-sur en herradura + golfo (`studio/maps/stones-mapa-atajo-13.png`).
-- Atajos posteriores: barco 1↔5 y montañas 1↔3 (cómo se cruzan, después).
-- Música propia para Verdelume, Duneshade y Frostholm; por ahora reutilizan los tres loops proto.
+- Verdelume, Duneshade y Frostholm con sus rutas (el derrumbe de Valkeep las promete).
+- Escolta (Duneshade) y atajo por barco / montañas.
+- Encargos con nombre y motivo personal del caminante (ver `story.md`).
+- Música propia por lugar y efectos finales.

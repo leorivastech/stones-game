@@ -102,8 +102,10 @@ export function buildMap(scene, def) {
           bushes.set(`${x},${y}`, { img: place(hash(x, y, 5) < 0.3 ? "bush-berries" : "bush", cx, py + TILE), x, y });
           break;
         case '"': {
-          const img = scene.add.sprite(px, py + TILE, "tallgrass", 0).setOrigin(0, 1).setDepth(py + TILE - 1);
-          tallGrass.set(`${x},${y}`, { img, x, y });
+          const variant = Math.floor(hash(x, y, 11) * 3);
+          const img = scene.add.sprite(px, py + TILE, `tallgrass-${variant}`, 0).setOrigin(0, 1).setDepth(py + TILE - 1);
+          if (hash(x, y, 12) < 0.5) img.setFlipX(true);
+          tallGrass.set(`${x},${y}`, { img, x, y, anim: `tallgrass-${variant}` });
           break;
         }
         case "f":

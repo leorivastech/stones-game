@@ -16,9 +16,15 @@ Abre http://127.0.0.1:5181/
 
 | Qué | Dónde |
 |---|---|
-| Arranque del juego | `src/main.js` |
-| Escena actual | `src/scenes/play.js` |
-| Gráficos proto (código) | `src/gfx/` |
+| Arranque del juego (480×270, escala entera) | `src/main.js` |
+| Escenas: arranque, título, mundo, interfaz | `src/scenes/` (`world.js` es el juego; `ui.js` HUD, diálogos, mercado, pausa) |
+| Mapas (pueblos y rutas, trazados con letras) | `src/maps/` — leyenda en `src/maps/grid.js` |
+| Jugador, enemigos, gente | `src/entities/` |
+| Controles, constructor de mapas, efectos | `src/engine/` |
+| Pixel art hecho en código | `src/art/` — paleta en `palette.js`, catálogo en `index.js` |
+| Laboratorio de arte (sprites ampliados) | http://127.0.0.1:5181/lab.html?z=4 |
+| Números que se ajustan jugando | `src/config.js` |
+| Economía (precios, calor, carga) | `src/state.js` + `src/world.js` |
 | Historia, mecánicas, arte | `studio/` |
 | Guía viva (pestañas) | `docs/guides/stones-studio.html` |
 | Assets de prueba | `public/assets/proto/` |
@@ -31,7 +37,10 @@ Abre http://127.0.0.1:5181/
 
 - Phaser **4** solamente. No copies recetas de Phaser 3. No Three.js salvo pedido explícito.
 - Física: Arcade, salvo que Leo pida otra.
-- Un diseño nuevo = un archivo en `src/scenes/`. No montes un editor, MCP ni Unity.
+- Un lugar nuevo = un archivo en `src/maps/` (y agregarlo a `src/maps/index.js`). No montes un editor, MCP ni Unity.
+- Arte: sólo pixel art con la paleta de `src/art/palette.js`. Nada de antialias ni formas vectoriales.
+- Revisar arte nuevo en `lab.html` antes de meterlo al juego. Verificar en WebGL y en Canvas (`?renderer=canvas`).
+- F1 en el juego: depuración (1 oro · 2 carga · 3 calor · 4 vida · 5 fama · 6 caballo).
 - Historia y plan viven en `studio/`, no solo en el chat. Actualizarlos después de cada plática.
 - Después de cambiar código, Leo recarga el navegador.
 

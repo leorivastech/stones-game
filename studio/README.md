@@ -20,4 +20,4 @@ y el skill personal `empezar-juego`.
 
 Assets de prueba: `public/assets/proto/`.
 Assets cerrados: `public/assets/final/`.
-Gráficos hechos en código: `src/gfx/`.
+Pixel art hecho en código: `src/art/` (revisar en `lab.html`).

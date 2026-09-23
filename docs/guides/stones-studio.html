@@ -459,41 +459,32 @@
   <h2>Code status</h2>
   <p class="sub" style="margin-bottom:1rem;">Guide vs repository. Update when behavior changes.</p>
 
-  <h3><span class="tag tgr">Aligned</span> &nbsp;Matches code / intent today</h3>
+  <h3><span class="tag tgr">Aligned</span> &nbsp;Matches code / intent today (rehecho en pixel art, 2026-09-23)</h3>
   <div class="rblock" style="margin-top:0.5rem;">
-    <div class="sbullet"><strong>Vite + Phaser 4.2.1</strong> — <code>package.json</code></div>
-    <div class="sbullet"><strong>WASD + cámara</strong> — <code>src/scenes/town.js</code></div>
-    <div class="sbullet"><strong>Pueblos + camino</strong> — <code>src/scenes/town.js</code>, <code>src/scenes/road.js</code></div>
-    <div class="sbullet"><strong>Recorrido físico de cinco ciudades</strong> — dos puertas por pueblo, sin mapa seleccionable ni viaje rápido.</div>
-    <div class="sbullet"><strong>Mercado medible</strong> — cinco mercancías, stock, pedido, precio, calor y reputación en <code>src/state.js</code>.</div>
-    <div class="sbullet"><strong>Mercado legible</strong> — botones <code>E</code>/<code>Q</code> aparecen al acercarse; compra, venta y rechazo tienen respuesta animada.</div>
-    <div class="sbullet"><strong>Preparación</strong> — caballo, escolta y fondo falso modifican capacidad, velocidad y pérdidas; el caballo comprado además camina junto al jugador en cada ruta.</div>
-    <div class="sbullet"><strong>Texturas y atmósfera proto</strong> — <code>src/gfx/bake.js</code>, <code>src/gfx/tiles.js</code>, <code>src/gfx/atmosphere.js</code></div>
-    <div class="sbullet"><strong>Rutas curveadas y cortas</strong> — splines en <code>src/routes.js</code> (campo 960×580 que llena la cámara, recodo de ~3 s). Se puede volver a la ciudad de origen. El caminante solo anda por el sendero.</div>
-    <div class="sbullet"><strong>Encuentros con elección</strong> — retén, asalto y confiscación: interrupt + <code>E</code>/<code>Q</code>/<code>X</code> en <code>src/encounters.js</code>. Huir usa <code>turnBack</code> y no avanza el mercado.</div>
-    <div class="sbullet"><strong>Choque de casas</strong> — cuerpo en el muro/puerta, no en el tejado (<code>placeHouses</code>).</div>
-    <div class="sbullet"><strong>Piso sin máscaras</strong> — <code>src/gfx/route.js</code>, <code>src/gfx/townground.js</code>: bandas por tramos, recorte matemático; igual en WebGL y Canvas.</div>
-    <div class="sbullet"><strong>Detalle y landmark por bioma</strong> — <code>paintTownDetail</code>, <code>paintRouteDetail</code>, <code>placeLandmarks</code>; mezcla de bioma en ruta por origen y destino.</div>
-    <div class="sbullet"><strong>HUD flotante</strong> — oro, piedras, alerta (estrellas) y fama en chips sueltos, semitransparentes, pegados arriba. Sin franja de borde a borde. <code>HUD_PAD</code> 72.</div>
-    <div class="sbullet"><strong>Herrero tardío</strong> — oculta nombre y precio del fondo falso hasta reputación 14.</div>
-    <div class="sbullet"><strong>Música por zona</strong> — tres loops CC0 y fundido en <code>src/music.js</code>.</div>
-    <div class="sbullet"><strong>Studio y regla always-on</strong> — <code>studio/</code>, <code>.cursor/rules/ai-game-studio.mdc</code></div>
+    <div class="sbullet"><strong>Vite + Phaser 4.2.1, 480×270 con escala entera</strong> — <code>src/main.js</code>, <code>src/config.js</code></div>
+    <div class="sbullet"><strong>Pixel art en código</strong> — <code>src/art/</code> (paleta, fuente, personajes, criaturas, terreno, objetos, casas, efectos, interfaz). Revisión en <code>lab.html</code>.</div>
+    <div class="sbullet"><strong>Mapas caminables</strong> — <code>src/maps/</code>: Ashfen, Ruta 1 (36×100, ramales, retén, campamento, reja con palanca, bordes de salto) y Valkeep.</div>
+    <div class="sbullet"><strong>Acción en tiempo real</strong> — <code>src/entities/player.js</code>: golpe, rodada, carrera, agacharse/esconderse, salto, daño, K.O.</div>
+    <div class="sbullet"><strong>Enemigos visibles</strong> — <code>src/entities/enemies.js</code>: jabalí que embiste, bandido que roba piedras, guardia con cono de visión, sospecha y revisión.</div>
+    <div class="sbullet"><strong>Mercado medible</strong> — sin cambios en <code>src/state.js</code>; nueva ventana de mercado en <code>src/scenes/ui.js</code>.</div>
+    <div class="sbullet"><strong>Interfaz</strong> — HUD de corazones/oro/carga/alerta/fama, cartel de lugar, indicador <code>[E]</code>, diálogos, elecciones, pausa con mapa del mundo, título y guardado.</div>
+    <div class="sbullet"><strong>Preparación</strong> — caballo (Valkeep) te sigue en la ruta; fondo falso (Ashfen) oculta 2 al guardia.</div>
+    <div class="sbullet"><strong>Música por zona</strong> — tres loops CC0 en <code>src/music.js</code> + tonos 8 bits en <code>src/sfx.js</code>.</div>
+    <div class="sbullet"><strong>Studio</strong> — <code>studio/</code> actualizado: <code>art.md</code>, <code>mechanics.md</code>, <code>decisions.md</code>, sesión <code>2026-09-23-pixel-remake.md</code>.</div>
   </div>
 
   <h3><span class="tag tg">Gaps</span> &nbsp;Missing or unclear</h3>
   <div class="rblock" style="margin-top:0.5rem;">
-    <div class="sbullet">Falta decidir el motivo personal del caminante.</div>
-    <div class="sbullet">Falta cerrar por qué el comercio es ilícito. Retén, asalto y confiscación ya piden una respuesta.</div>
-    <div class="sbullet">Faltan compradores con nombre y rumores que expliquen los cambios de riesgo.</div>
-    <div class="sbullet">NPCs y caballos son proto de código, no ilustrados.</div>
-    <div class="sbullet">Casas: tres siluetas con tinte + overlay (nieve, enredaderas). Falta variante de adobe (Duneshade) y de piedra (Valkeep).</div>
-    <div class="sbullet">Roblox: el puente Cursor↔Studio es oficial; en esta máquina falta probar Vinegar + MCP. Stones sigue Phaser.</div>
+    <div class="sbullet">Verdelume, Duneshade y Frostholm con sus rutas: cerrados por el derrumbe de Valkeep hasta que Leo apruebe el estilo.</div>
+    <div class="sbullet">Arquera escolta (Duneshade) y atajos por barco / montañas.</div>
+    <div class="sbullet">Motivo personal del caminante, encargos con nombre y rumores.</div>
+    <div class="sbullet">Música propia por lugar.</div>
   </div>
 
   <h3><span class="tag ta">Changes</span> &nbsp;Planned follow-ups</h3>
   <div class="rblock" style="margin-top:0.5rem;">
-    <div class="sbullet">Un encargo completo: cantera → 2 ámbar adelantados → Ilyra → pago o pérdida de confianza.</div>
-    <div class="sbullet">Sólo después: atajo de montañas 1–3 (cómo se cruza), barco 1–5, monedas regionales.</div>
+    <div class="sbullet">Leo prueba la muestra y aprueba el estilo → mismo método para los otros tres pueblos y rutas.</div>
+    <div class="sbullet">Un encargo completo: cantera → 2 ámbar adelantados → comprador con nombre → pago o pérdida de confianza.</div>
   </div>
 </div>
 
