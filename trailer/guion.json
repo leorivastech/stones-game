@@ -1,0 +1,44 @@
+{
+  "_ayuda": "Guion de edición del trailer. build.py lo convierte en index.html. Tiempos en segundos. clip = toma de shots.mjs; in = segundo de la toma donde empieza; dur = cuánto dura en el trailer; caption = texto grande; enter = cut | flash | fade; zoom = [inicio, fin].",
+  "title": "Stones — trailer",
+  "size": [1920, 1080],
+  "fps": 30,
+
+  "voice": { "voice": "es-MX-JorgeNeural", "rate": "-8%", "pitch": "-6Hz" },
+  "lines": {
+    "v1": "Las piedras de hechizo calientan las casas… y salvan las cosechas.",
+    "v2": "Pero la Corona las vende caras, pocas y tarde.",
+    "v3": "Así que alguien tiene que llevarlas por la calzada.",
+    "v4": "Abre tu propio camino.",
+    "v5": "Compra barato. Vende caro. Y que no te atrapen.",
+    "v6": "Stones."
+  },
+
+  "audio": {
+    "music": [
+      { "src": "../public/assets/proto/music/ashfen-small-fire.ogg", "from": 0, "to": 4, "mediaStart": 0, "volume": 0.55 },
+      { "src": "../public/assets/proto/music/road-iremos-forest.ogg", "from": 4, "to": "end", "mediaStart": 0, "volume": 0.6 }
+    ],
+    "duck": 0.3,
+    "sfxDir": "../public/assets/proto/sfx",
+    "sfxVolume": 0.55,
+    "captionSfx": "draw"
+  },
+
+  "beats": [
+    { "clip": "pueblo", "in": 0.4, "dur": 4.6, "vo": "v1", "enter": "fade", "zoom": [1.0, 1.06] },
+    { "clip": "mercado", "in": 1.1, "dur": 2.4, "zoom": [1.04, 1.0] },
+    { "clip": "reten", "in": 0.9, "dur": 3.4, "vo": "v2", "zoom": [1.0, 1.08] },
+    { "clip": "pasto", "in": 0.6, "dur": 3.0, "vo": "v3", "zoom": [1.08, 1.12] },
+    { "clip": "guardia", "in": 0.3, "dur": 2.3, "enter": "flash", "caption": "ESCÓNDETE" },
+    { "clip": "bandido", "in": 1.2, "dur": 2.6, "enter": "flash", "caption": "PELEA" },
+    { "clip": "jabali", "in": 0.5, "dur": 2.2, "enter": "flash", "caption": "SOBREVIVE", "zoom": [1.1, 1.18] },
+    { "clip": "palanca", "in": 0.3, "dur": 3.0, "vo": "v4", "enter": "flash" },
+    { "clip": "valkeep", "in": 0.2, "dur": 3.2, "vo": "v5" },
+    { "clip": "mapa", "in": 0.6, "dur": 1.8, "enter": "flash" },
+    {
+      "type": "title", "clip": "titulo", "in": 1.0, "dur": 5.5, "vo": "v6", "enter": "fade",
+      "logo": "assets/stills/logo.png", "tagline": "Contrabando de piedras de hechizo", "cta": "PRÓXIMAMENTE"
+    }
+  ]
+}

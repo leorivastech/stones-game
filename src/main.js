@@ -6,6 +6,8 @@ import { UIScene } from "./scenes/ui.js";
 import { VIEW_H, VIEW_W } from "./config.js";
 
 const params = new URLSearchParams(location.search);
+// ?capture=1 → modo grabación para trailers (trailer/capture.mjs): tamaño nativo, sin audio.
+const CAPTURE = params.has("capture");
 
 /**
  * Escala entera: cada píxel del juego mide lo mismo en pantalla (×2, ×3, ×4…).
@@ -25,13 +27,17 @@ const game = new Phaser.Game({
   backgroundColor: "#1b1422",
   pixelArt: true,
   roundPixels: true,
-  input: { gamepad: true },
+  input: { gamepad: !CAPTURE },
+  audio: CAPTURE ? { noAudio: true } : {},
   physics: { default: "arcade", arcade: { gravity: { x: 0, y: 0 }, debug: false } },
-  scale: { mode: Phaser.Scale.NONE, zoom: fitZoom(), autoCenter: Phaser.Scale.CENTER_BOTH },
+  scale: { mode: Phaser.Scale.NONE, zoom: CAPTURE ? 1 : fitZoom(), autoCenter: Phaser.Scale.CENTER_BOTH },
   scene: [BootScene, TitleScene, WorldScene, UIScene],
 });
 
-window.addEventListener("resize", () => game.scale.setZoom(fitZoom()));
+if (!CAPTURE) window.addEventListener("resize", () => game.scale.setZoom(fitZoom()));
 
-// Mano para revisar escenas desde el navegador mientras trabajamos.
-if (import.meta.env.DEV) globalThis.__stones = game;
+// Mano para revisar escenas desde el navegador y para grabar trailers.
+if (import.meta.env.DEV) {
+  globalThis.__stones = game;
+  globalThis.__game = game;
+}

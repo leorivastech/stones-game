@@ -25,6 +25,7 @@ Abre http://127.0.0.1:5181/
 | Laboratorio de arte (sprites ampliados) | http://127.0.0.1:5181/lab.html?z=4 |
 | Números que se ajustan jugando | `src/config.js` |
 | Economía (precios, calor, carga) | `src/state.js` + `src/world.js` |
+| Trailer (grabar el juego + voz + HyperFrames) | `trailer/` — skill `trailer-juego` |
 | Historia, mecánicas, arte | `studio/` |
 | Guía viva (pestañas) | `docs/guides/stones-studio.html` |
 | Assets de prueba | `public/assets/proto/` |

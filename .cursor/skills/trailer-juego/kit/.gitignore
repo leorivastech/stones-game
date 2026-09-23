@@ -1,0 +1,10 @@
+# Se regenera con los scripts: no va a git.
+node_modules/
+.venv/
+renders/
+snapshots/
+assets/clips/
+assets/stills/
+assets/music/
+assets/sfx/
+index.html

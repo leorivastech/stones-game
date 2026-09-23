@@ -92,3 +92,9 @@ Regla: una línea por decisión, con fecha. No borrar: si se revierte, se agrega
 - **Sí** — Muestra primero (Ashfen · Ruta 1 · Valkeep). Verdelume, Duneshade y Frostholm quedan detrás del derrumbe de Valkeep hasta que Leo apruebe el estilo.
 - **Se mantiene** — Economía de `state.js` (precios, stock, pedido, calor, fama, mejoras) y música CC0.
 - **Pendiente de Leo** — Probar la muestra y decir si sigue el estilo para los otros tres pueblos.
+
+## 2026-09-23 — trailer
+
+- **Sí / Leo** — Skill `trailer-juego` para el framework: abrir el juego, grabarlo, voz TTS, música del juego, HyperFrames. Va también al molde `framework-ia-videojuegos`, solo lo necesario.
+- **Sí** — Se graba cuadro a cuadro (`game.step`) en vez de grabar pantalla: sin GPU el navegador va lento y el video sale a tirones.
+- **Hecho** — Primer trailer de Stones (34 s, 16:9): `trailer/`, copia en `~/Downloads/stones-trailer.mp4`. Voz es-MX-JorgeNeural; música ashfen → road.

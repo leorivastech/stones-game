@@ -1,0 +1,16 @@
+{
+  "name": "trailer",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "capture": "node capture.mjs",
+    "voice": ".venv/bin/python make_voice.py",
+    "build": "python3 build.py",
+    "dev": "npx --yes hyperframes@0.8.65 preview",
+    "check": "npx --yes hyperframes@0.8.65 check",
+    "render": "npx --yes hyperframes@0.8.65 render"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.55.0"
+  }
+}
