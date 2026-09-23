@@ -11,13 +11,15 @@ import { Fx } from "../engine/fx.js";
 import { Player, DIRS } from "../entities/player.js";
 import { Npc } from "../entities/npc.js";
 import { makeEnemy, Guard } from "../entities/enemies.js";
+import { Escort } from "../entities/escort.js";
 import { DEPTH, TILE } from "../config.js";
 import { startMusic } from "../music.js";
 import { sfx, tone, duckTheme, restoreTheme } from "../sfx.js";
 import {
   GOODS, TOWNS, UPGRADES, addHeartContainer, addHeat, advanceMarket, ambushProtection, cargo, flag, gold, hasUpgrade,
   heal, heatLevel, hp, hurt, localHeat, loseStones, maxHp, pay, purchaseUpgrade, reputation, saveGame, setFlag,
-  stones, visibleStones, capacity,
+  stones, visibleStones, capacity, stashCount, emptyStash, STASH_RAID_HEAT, buyTonic, drinkTonic, tonics, TONIC,
+  BOAT_FARE,
 } from "../state.js";
 
 const INTRO = [
@@ -92,6 +94,8 @@ export class WorldScene extends Phaser.Scene {
     this.physics.add.collider(this.player.sprite, this.npcGroup);
 
     if (def.kind === "route" && hasUpgrade(reg, "horse")) this.addHorse();
+    this.escort = def.kind === "route" && hasUpgrade(reg, "escort") ? new Escort(this, this.player.x, this.player.y + 10) : null;
+    if (def.kind === "route") this.time.delayedCall(1200, () => this.checkRaids());
     this.speedBonus = def.kind === "route" && hasUpgrade(reg, "horse") ? 1.1 : 1;
 
     const cam = this.cameras.main;
@@ -126,11 +130,21 @@ export class WorldScene extends Phaser.Scene {
       const py = spec.y * TILE;
       switch (spec.type) {
         case "npc": {
+          if (spec.onlyIf && !flag(reg, spec.onlyIf)) break;
           const npc = new Npc(this, spec);
           this.npcs.push(npc);
           this.npcGroup.add(npc.sprite);
           npc.sprite.body.setImmovable(true);
           this.interactables.push({ get x() { return npc.x; }, get y() { return npc.y; }, r: 18, label: spec.role === "market" ? "Comerciar" : "Hablar", act: () => this.talkTo(npc) });
+          break;
+        }
+        case "stash": {
+          const built = hasUpgrade(reg, "stashKit") && flag(reg, `stash-${spec.id}`);
+          const img = this.add.sprite(px, py + 3, `stash-${spec.kind}`, built ? 1 : 0).setOrigin(0.5, 1).setDepth(py + 3);
+          this.world.addSolid(px - 9, py - 6, 18, 8);
+          const it = { x: px, y: py, r: 20, label: "Alijo", act: () => this.useStash(spec, img) };
+          this.interactables.push(it);
+          (this.stashes ??= []).push({ spec, img });
           break;
         }
         case "sign": {
@@ -231,7 +245,9 @@ export class WorldScene extends Phaser.Scene {
       return;
     }
 
+    if (this.controls.pressed("tonic")) this.useTonic();
     this.player.update(dt, this.controls, this.world);
+    this.escort?.update(dt);
     for (const e of this.enemies) if (!e.dead) e.update(dt);
     this.enemies = this.enemies.filter((e) => !e.dead || e.state === "down" || e.sprite.active);
     for (const n of this.npcs) n.update(dt);
@@ -292,7 +308,16 @@ export class WorldScene extends Phaser.Scene {
           await this.ui.shop(this.def.town, name, npc.spec.talk);
           break;
         case "smith":
-          await this.upgradeTalk(npc, "hideout", ["No trabajo para desconocidos."], "Oye… tu nombre ya suena. Te puedo armar un fondo falso: dos piedras que ningún guardia encuentra.");
+          await this.smithTalk(npc);
+          break;
+        case "healer":
+          await this.healerTalk(npc);
+          break;
+        case "escort":
+          await this.upgradeTalk(npc, "escort", ["No escolto a cualquiera por el desierto.", "Cuando la gente hable de ti, búscame."], "Te he visto llegar. Por el camino, yo cuido tu espalda con el arco: bandidos, bestias, lo que salga.");
+          break;
+        case "ferry":
+          await this.ferryTalk(npc);
           break;
         case "stable":
           await this.upgradeTalk(npc, "horse", ["Mis caballos no cargan para cualquiera.", "Hazte un nombre en la calzada y hablamos."], "Tengo una yegua que carga sin quejarse. Más espacio y más paso en la ruta.");
@@ -719,6 +744,126 @@ export class WorldScene extends Phaser.Scene {
     });
   }
 
+  // ---------------------------------------------------------------- servicios de los pueblos
+
+  /** El herrero: primero herrajes de alijo, luego fondo falso. */
+  async smithTalk(npc) {
+    const reg = this.registry;
+    const name = npc.spec.name;
+    const kit = UPGRADES.stashKit;
+    const hide = UPGRADES.hideout;
+    if (reputation(reg) < kit.reputation) {
+      await this.ui.say(["No trabajo para desconocidos.", `(Necesitas fama ${kit.reputation}. Tienes ${reputation(reg)}.)`], { name });
+      return;
+    }
+    const options = [];
+    if (!hasUpgrade(reg, "stashKit")) options.push({ id: "stashKit", label: `Herrajes de alijo · ${kit.cost} oro`, disabled: gold(reg) < kit.cost, note: "Abren los huecos de los caminos para guardar piedras" });
+    if (!hasUpgrade(reg, "hideout")) {
+      const locked = reputation(reg) < hide.reputation;
+      options.push({ id: "hideout", label: locked ? `Fondo falso (fama ${hide.reputation})` : `Fondo falso · ${hide.cost} oro`, disabled: locked || gold(reg) < hide.cost, note: "Dos piedras que ningún guardia encuentra" });
+    }
+    if (!options.length) {
+      await this.ui.say(["Ya tienes todo lo que sé hacer. Cuídalo."], { name });
+      return;
+    }
+    await this.ui.say(["Tu nombre ya suena en la calzada.", "Te puedo armar herrajes para esconder piedras en el camino. Y, más adelante, un fondo falso."], { name });
+    const pick = await this.ui.choose("Oskar, herrero", [...options, { label: "Nada por ahora" }], { name });
+    const choice = options[pick];
+    if (!choice) return;
+    const res = purchaseUpgrade(reg, choice.id);
+    tone(this, res.ok ? "chest" : "deny");
+    if (res.ok) sfx(this, "coins");
+    const extra = choice.id === "stashKit" && res.ok
+      ? ["En los caminos hay troncos huecos y rocas partidas. Con esto, cada uno es tu alijo.", "Lo que guardes ahí no te lo roba nadie. Pero si la Corona anda caliente en esa ruta, lo puede encontrar."]
+      : [];
+    await this.ui.say([res.reason, ...extra], { name });
+    saveGame(reg);
+  }
+
+  async healerTalk(npc) {
+    const reg = this.registry;
+    const name = npc.spec.name;
+    await this.ui.say(npc.spec.talk, { name });
+    const pick = await this.ui.choose("Tónico de raíz", [
+      { label: `Comprar uno · ${TONIC.cost} oro`, disabled: gold(reg) < TONIC.cost || tonics(reg) >= TONIC.max, note: `Llevas ${tonics(reg)} de ${TONIC.max}. Con Q recuperas 2 corazones.` },
+      { label: "Nada" },
+    ], { name });
+    if (pick !== 0) return;
+    const res = buyTonic(reg);
+    tone(this, res.ok ? "heart" : "deny");
+    if (res.ok) sfx(this, "coins");
+    await this.ui.say([res.reason], { name });
+    saveGame(reg);
+  }
+
+  useTonic() {
+    const reg = this.registry;
+    if (!tonics(reg)) { this.ui.toast("No llevas tónicos", "font-dim"); return; }
+    if (!drinkTonic(reg)) { this.ui.toast("Ya tienes la vida llena", "font-dim"); return; }
+    tone(this, "heart");
+    this.fx.float(this.player.x, this.player.y - 26, "+2 ♥", "font-green");
+  }
+
+  /** Barquero: en Frostholm se le conoce; desde entonces cruza en ambos sentidos. */
+  async ferryTalk(npc) {
+    const reg = this.registry;
+    const name = npc.spec.name;
+    const to = this.def.town === "frostholm" ? "ashfen" : "frostholm";
+    if (!flag(reg, "met-ferry")) {
+      setFlag(reg, "met-ferry");
+      await this.ui.say(["¿Vienes a pie desde Duneshade? Qué valiente.", `Mi barca cruza el golfo hasta ${TOWNS[to].name} en una tarde. Desde hoy también paro en tu muelle.`], { name });
+    }
+    const pick = await this.ui.choose(`Cruzar el golfo a ${TOWNS[to].name}`, [
+      { label: `Subir a la barca · ${BOAT_FARE} oro`, disabled: gold(reg) < BOAT_FARE, note: "Sin retenes ni bandidos. Cuenta como un viaje." },
+      { label: "Ahora no" },
+    ], { name });
+    if (pick !== 0) return;
+    pay(reg, BOAT_FARE);
+    sfx(this, "coins");
+    this.leaving = true;
+    this.cameras.main.fadeOut(600, 18, 14, 23);
+    await new Promise((r) => this.time.delayedCall(650, r));
+    await this.ui.say(["La barca se aparta del muelle. El golfo está en calma.", `Al caer la tarde asoma ${TOWNS[to].name}.`]);
+    this.scene.restart({ map: to, entry: "dock" });
+  }
+
+  // ---------------------------------------------------------------- alijos
+
+  async useStash(spec, img) {
+    const reg = this.registry;
+    const key = `stash-${spec.id}`;
+    if (!hasUpgrade(reg, "stashKit")) {
+      await this.ui.say([spec.kind === "tree" ? "Un tronco hueco, seco por dentro." : "Una grieta honda en la roca.", "Con herrajes, aquí cabría un alijo. El herrero de Ashfen sabe hacerlos."]);
+      return;
+    }
+    if (!flag(reg, key)) {
+      setFlag(reg, key);
+      img.setFrame(1);
+      tone(this, "chest");
+      sfx(this, "latch", { volume: 0.4 });
+      await this.ui.say(["Clavas la tapa y la atas con soga. Este alijo es tuyo."]);
+    }
+    await this.ui.stash(spec.id, this.def, localHeat(reg, this.def));
+    saveGame(reg);
+  }
+
+  /** Redada: con la ruta caliente, la Corona puede encontrar lo guardado. */
+  checkRaids() {
+    const reg = this.registry;
+    if (!this.stashes?.length || this.leaving) return;
+    const h = localHeat(reg, this.def);
+    if (h < STASH_RAID_HEAT) return;
+    for (const { spec } of this.stashes) {
+      if (!stashCount(reg, spec.id)) continue;
+      if (Math.random() < 0.5) {
+        const lost = emptyStash(reg, spec.id);
+        this.ui.toast(`Redada: la Corona encontró tu alijo (${lost} piedras)`, "font-red");
+        saveGame(reg);
+        return;
+      }
+    }
+  }
+
   // ---------------------------------------------------------------- salidas
 
   checkExits() {
@@ -726,9 +871,10 @@ export class WorldScene extends Phaser.Scene {
     const cx = p.x / TILE;
     const cy = (p.y - 2) / TILE;
     for (const ex of this.def.exits ?? []) {
-      if (cx >= ex.x && cx <= ex.x + ex.w && cy >= ex.y - 0.3 && cy <= ex.y + ex.h + 0.1) {
-        const edgeTop = ex.y === 0;
-        const moving = edgeTop ? p.body.velocity.y < 0 : p.body.velocity.y > 0;
+      if (cx >= ex.x - 0.3 && cx <= ex.x + ex.w + 0.3 && cy >= ex.y - 0.3 && cy <= ex.y + ex.h + 0.1) {
+        const dir = ex.dir ?? (ex.y === 0 ? "up" : ex.x === 0 ? "left" : ex.x + ex.w >= this.world.cols ? "right" : "down");
+        const v = p.body.velocity;
+        const moving = { up: v.y < 0, down: v.y > 0, left: v.x < 0, right: v.x > 0 }[dir];
         if (!moving) continue;
         this.leaving = true;
         this.ui.prompt(null);
@@ -780,6 +926,8 @@ export class WorldScene extends Phaser.Scene {
     if (k("FOUR")) heal(reg);
     if (k("FIVE")) reg.inc("reputation", 5);
     if (k("SIX")) reg.set("upgrades", { ...reg.get("upgrades"), horse: true });
+    if (k("SEVEN")) reg.set("upgrades", { ...reg.get("upgrades"), escort: true, stashKit: true });
+    if (k("EIGHT")) reg.set("tonics", TONIC.max);
   }
 }
 

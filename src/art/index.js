@@ -4,6 +4,7 @@ import { castSheet, flashSheet, rollSheet, koFrame, CASTS } from "./actors.js";
 import { paintGround, T } from "./terrain.js";
 import * as props from "./props.js";
 import * as creatures from "./creatures.js";
+import * as biomes from "./biomes.js";
 import * as fx from "./fx.js";
 import * as ui from "./ui.js";
 import { fontPreview } from "./font.js";
@@ -44,6 +45,9 @@ export function buildArt() {
   add("stall-amber", { buf: props.stall(["e2", "c4"], ["y3", "r4", "y4"]) });
   add("stall-rune", { buf: props.stall(["v2", "c4"], ["v4", "v3", "b4"]) });
   add("stall-green", { buf: props.stall(["g3", "c3"], ["e3", "y4", "g5"]) });
+  add("stall-rain", { buf: props.stall(["w2", "c4"], ["w4", "w5", "w3"]) });
+  add("stall-sun", { buf: props.stall(["r3", "y4"], ["y3", "y4", "r4"]) });
+  add("stall-frost", { buf: props.stall(["b2", "n4"], ["n3", "w5", "n4"]) });
   add("chest", props.chest());
   add("gate", props.gate());
   add("lever", props.lever());
@@ -66,6 +70,15 @@ export function buildArt() {
     "house-slate-b": { roof: "slate", wall: "stone", seed: 5, w: 56, h: 60, windows: 1 },
     "house-smithy": { roof: "red", wall: "stone", seed: 6, w: 64, h: 62, chimney: true },
     "house-stable": { roof: "moss", wall: "timber", seed: 7, w: 80, h: 60, chimney: false },
+    // Selva: madera y palma, sin chimenea.
+    "house-jungle": { roof: "palm", wall: "timber", seed: 8, w: 60, h: 60, chimney: false },
+    "house-jungle-b": { roof: "palm", wall: "timber", seed: 9, w: 52, h: 56, chimney: false, windows: 1 },
+    // Desierto: adobe y teja de barro.
+    "house-adobe": { roof: "clay", wall: "adobe", seed: 10, w: 64, h: 58, chimney: false },
+    "house-adobe-b": { roof: "clay", wall: "adobe", seed: 11, w: 52, h: 54, chimney: false, windows: 1 },
+    // Nieve: techo cargado de nieve.
+    "house-snow": { roof: "slate", wall: "timber", seed: 12, w: 64, h: 64, snowRoof: true },
+    "house-snow-b": { roof: "red", wall: "stone", seed: 13, w: 56, h: 60, snowRoof: true, windows: 1 },
   };
   for (const [key, spec] of Object.entries(houses)) {
     const h = props.house(spec);
@@ -74,6 +87,24 @@ export function buildArt() {
 
   // Criaturas
   add("boar", creatures.boarSheet());
+  add("wolf", creatures.wolfSheet());
+  add("scorpion", creatures.scorpionSheet());
+
+  // Selva, desierto y nieve
+  [0, 1].forEach((v) => add(`palm-${v}`, { buf: biomes.palm(v) }));
+  [0, 1].forEach((v) => add(`jungle-tree-${v}`, { buf: biomes.jungleTree(v) }));
+  add("fern", { buf: biomes.fern() });
+  [0, 1, 2].forEach((v) => add(`cactus-${v}`, { buf: biomes.cactus(v) }));
+  add("dry-bush", { buf: biomes.dryBush() });
+  add("sand-rock", { buf: biomes.sandRock() });
+  add("sand-boulder", { buf: biomes.sandRock(true) });
+  add("bare-tree", { buf: biomes.bareTree(true) });
+  add("snow-rock", { buf: biomes.snowRock() });
+  add("snow-boulder", { buf: biomes.snowRock(true) });
+  add("ice-block", { buf: biomes.iceBlock() });
+  for (const kind of ["tree", "rock", "snow"]) add(`stash-${kind}`, biomes.stashSpot(kind));
+  add("boat", { buf: biomes.boat() });
+  add("target", { buf: biomes.targetDummy() });
   add("horse", creatures.horseSheet());
 
   // Efectos: el barrido se dibuja a la derecha y se rota (abajo = 1 giro, izquierda = 2, arriba = 3).
@@ -105,6 +136,8 @@ export function buildArt() {
   add("glint", fx.glintSheet());
   add("sparkle", { buf: fx.sparkleDot() });
   add("stone-burst", fx.stoneBurst());
+  add("arrow", { buf: fx.arrow() });
+  add("tonic", { buf: fx.tonicIcon() });
 
   // Interfaz
   add("ui-dark", { buf: ui.panelDark() });
@@ -143,12 +176,28 @@ const DEMO = [
   "WWWWWWWWBBBWWWWWWWWWWWWWWWWW",
   "WWWWWWWWWWWWWWWWWWWWWWWWWWWW",
 ];
-const DEMO_KEY = { G: T.GRASS, C: T.CLIFF, F: T.FIELD, D: T.DIRT, E: T.FOREST, K: T.GRAVEL, O: T.COBBLE, S: T.SAND, W: T.WATER, B: T.BRIDGE };
+const DEMO_KEY = { G: T.GRASS, C: T.CLIFF, F: T.FIELD, D: T.DIRT, E: T.FOREST, K: T.GRAVEL, O: T.COBBLE, S: T.SAND, W: T.WATER, B: T.BRIDGE, N: T.SNOW, I: T.ICE };
+
+// Tres franjas: selva (izq.), desierto (centro) y nieve (der.).
+const DEMO2 = [
+  "EEEEGGGGGGSSSSSSSSSSNNNNNNNNN",
+  "EEGGGGGDDDSSSSSSSSSSNNNNNNNNN",
+  "EGGGGGDDDDDDSSSSSSNNNNNIIIINN",
+  "GGGGGGDDDDDDDDDSSSNNNNIIIIIIN",
+  "GGGWWWWGGGGDDDDDDDDDDNNIIIIIN",
+  "GGWWWWWWGGGGSSSSSDDDDDNNIIINN",
+  "GGGWWWWGGGGSSSSSSSSSDDDDNNNNN",
+  "GGGGGGGGGGSSSSSSSSSSNNNDDDNNN",
+  "EEGGGGGGGSSSSSSSSSSSNNNNNDDDN",
+];
 
 export function buildLabExtras() {
   const grid = DEMO.map((row) => [...row].map((ch) => DEMO_KEY[ch]));
+  const grid2 = DEMO2.map((row) => [...row].map((ch) => DEMO_KEY[ch]));
+  const zone = (cx) => (cx < 10 ? "tropical" : cx < 20 ? "desert" : "snow");
   return [
     { key: "terrain-demo", buf: paintGround(grid).buf },
+    { key: "terrain-biomes", buf: paintGround(grid2, { biomeAt: (cx) => zone(cx) }).buf },
     { key: "font-o", buf: fontPreview("font-o") },
     { key: "font-shadow", buf: fontPreview("font") },
   ];

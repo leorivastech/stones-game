@@ -421,6 +421,50 @@ export const CASTS = {
       P: "b1", p: "b0", F: "o1", f: "o0", M: "l1", m: "l0",
     },
   },
+  // Arquera escolta de Duneshade: capucha arena, bufanda turquesa, capa de viaje.
+  archer: {
+    head: "hood", body: "cloak",
+    map: {
+      o: "ink", H: "d4", h: "d3", J: "d5", A: "o1", S: "k2", s: "k1", e: "ink",
+      Y: "w3", y: "w2", C: "d3", c: "d2", L: "d4", W: "c3", w: "c2", B: "o1", b: "o4",
+      P: "o2", p: "o1", F: "o1", f: "o0", M: "l1", m: "l0",
+    },
+  },
+  // Barquero de Frostholm.
+  ferryman: {
+    head: "hat", body: "tunic",
+    map: {
+      o: "ink", H: "b1", h: "b0", J: "b2", A: "c1", S: "k3", s: "k2", e: "ink",
+      Y: "c4", y: "c2", C: "b2", c: "b1", L: "b3", W: "c3", w: "c2", B: "o1", b: "o3",
+      P: "s2", p: "s1", F: "o1", f: "o0", M: "l1", m: "l0",
+    },
+  },
+  // Curandera de Verdelume.
+  healer: {
+    head: "hair", body: "tunic",
+    map: {
+      o: "ink", H: "c2", h: "c1", J: "c4", A: "c2", S: "k2", s: "k1", e: "ink",
+      Y: "v4", y: "v3", C: "f3", c: "f2", L: "f4", W: "c3", w: "c2", B: "o1", b: "o3",
+      P: "o2", p: "o1", F: "o1", f: "o0", M: "l1", m: "l0",
+    },
+  },
+  // Gente del desierto (turbante claro) y de la nieve (capucha de piel).
+  desertfolk: {
+    head: "hood", body: "tunic",
+    map: {
+      o: "ink", H: "c3", h: "c2", J: "c4", A: "ink2", S: "k1", s: "k0", e: "ink",
+      Y: "r3", y: "r2", C: "c2", c: "c1", L: "c3", W: "c3", w: "c2", B: "r2", b: "o3",
+      P: "d3", p: "d2", F: "o1", f: "o0", M: "l1", m: "l0",
+    },
+  },
+  snowfolk: {
+    head: "hood", body: "cloak",
+    map: {
+      o: "ink", H: "n3", h: "n1", J: "n4", A: "o1", S: "k3", s: "k2", e: "ink",
+      Y: "e2", y: "e1", C: "b1", c: "b0", L: "b2", W: "n3", w: "n2", B: "o1", b: "o4",
+      P: "s2", p: "s1", F: "o1", f: "o0", M: "l1", m: "l0",
+    },
+  },
 };
 
 function frame(cast, dir, legIndex, { crouch = false } = {}) {

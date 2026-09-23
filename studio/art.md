@@ -46,7 +46,8 @@ queda en la historia de git (`be15c32`).
 | `palette.js` | La paleta maestra |
 | `font.js` | Fuente propia de ancho variable (7 px de alto, acentos y ñ). Variantes: crema con sombra, oscura, con contorno, oro, rojo, verde, azul, tenue |
 | `actors.js` | Personajes 16×24 armados por partes (cabeza + cuerpo + piernas) y paletas: caminante, guardia, bandido, aldeanos, mercader, herrero, caballeriza. Caminar en 4 cuadros, agachado, silueta blanca para el daño, rodada (una bola rotada ×4) y K.O. |
-| `creatures.js` | Jabalí (caminar, embestida, aturdido) y caballo de carga con silla (trote de 4 cuadros) |
+| `creatures.js` | Jabalí (caminar, embestida, aturdido), lobo, escorpión (con cuadro enterrado) y caballo de carga con silla (trote de 4 cuadros) |
+| `biomes.js` | Flora y rocas de selva, desierto y nieve (palmeras, árboles de selva, helechos, cactus, matorral, rocas de arena y de nieve, árbol pelado, bloque de hielo), huecos de alijo (tronco, roca, grieta; cerrado y con tapa), barca, diana |
 | `terrain.js` | El suelo de cada mapa pintado píxel a píxel: bordes orgánicos entre pasto/tierra/arena/agua, sombras del terreno alto, orilla con espuma y profundidad, adoquín con bordillo, surcos de cultivo, tablones de puente, farallón de peñas, flores |
 | `props.js` | Árboles (3 variantes + otoño), pinos (y nevados), arbustos, pasto alto (3 variantes, 2 cuadros de vaivén), rocas, peñascos, tocón, tronco, cercas, letrero, barril, caja, heno, farol, pozo, puestos de mercado a rayas, cofre, reja con postes de piedra, palanca, barrera del retén, tienda de campaña, fogata, derrumbe, yunque, fragua, estandarte de la Corona, barandas, borde de salto, humo. Casas en vista 3/4 con techo de paja/teja/pizarra/musgo, muros de revoque/madera/piedra, puerta, ventanas iluminadas con jardinera y chimenea |
 | `fx.js` | Barrido del bastón (3 cuadros, rotado a las 4 direcciones), zarpazo rojo de enemigos, polvo, chispas, burbujas `!` `?` `…`, gemas de las 5 piedras, moneda que gira, corazones, pedacitos de pasto y hojas, brillo del agua |
@@ -57,6 +58,12 @@ queda en la historia de git (`be15c32`).
 - **Ashfen** (templado): pasto `g`, casas de paja y teja roja, plaza de adoquín, cultivos, playa y golfo.
 - **Ruta 1**: pradera → río → bosque denso (follaje `f`) → farallón de peñas → subida de montaña con pinos.
 - **Valkeep** (montaña): pasto frío (rampa `f`), casas de piedra con pizarra, pinos, farallón, establo de techo de musgo.
+- **Verdelume** (selva): verde hondo saturado, casas de palma, canal con puentes, palmeras.
+- **Duneshade** (desierto): arena `d`, casas de adobe con teja de barro, cactus, oasis, dianas.
+- **Frostholm** (nieve): nieve `n`, techos nevados, pinos nevados, estanque helado, muelle con barca.
+- **Rutas mixtas**: la paleta del suelo se elige por celda (`biomeAt`). La frontera entre biomas es
+  una línea ondulada continua: el ruido por celda deja un tablero de cuadros.
+- **Grava**: tierra con guijarros, no gris plano (el gris plano se leía como mancha).
 
 ## Música y SFX
 

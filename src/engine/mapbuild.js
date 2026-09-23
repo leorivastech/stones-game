@@ -7,19 +7,36 @@ import { paintGround, paintFlowerBeds, T } from "../art/terrain.js";
 import { hash } from "../art/pixel.js";
 import { DEPTH, TILE } from "../config.js";
 
+// "D" = suelo por defecto de la zona: pasto en templado/montaña/selva, arena en desierto, nieve en nieve.
 const GROUND = {
-  ".": T.GRASS, ",": T.GRASS, '"': T.GRASS, x: T.GRASS, t: T.GRASS, o: T.GRASS, O: T.GRASS, b: T.GRASS,
-  f: T.GRASS, "|": T.GRASS, h: T.GRASS, r: T.DIRT, c: T.DIRT, "^": T.GRASS, P: T.FOREST,
+  ".": "D", ",": "D", '"': "D", x: "D", t: "D", o: "D", O: "D", b: "D",
+  f: "D", "|": "D", h: "D", r: T.DIRT, c: T.DIRT, "^": "D", P: T.FOREST,
   ":": T.DIRT, X: T.DIRT, "=": T.COBBLE, _: T.SAND, "~": T.WATER, g: T.GRAVEL, F: T.FIELD,
   B: T.BRIDGE, "#": T.CLIFF, T: T.FOREST,
+  v: T.GRASS, s: T.SNOW, i: T.ICE, I: T.ICE, k: "D", y: "D", e: "D", d: "D", p: "D",
 };
+const DEFAULT_GROUND = { desert: T.SAND, snow: T.SNOW };
+
+/** Bioma de una celda: el mapa puede partirse en zonas (una ruta cruza de un bioma a otro). */
+export function biomeOf(def, cx, cy) {
+  return def.biomeAt ? def.biomeAt(cx, cy) : def.biome;
+}
 
 // Índices de la capa de colisión.
 export const SOLID = 1;
 export const LEDGE = 2;
 export const BUSH = 3;
 
-const SOLID_CHARS = new Set(["~", "#", "T", "t", "P", "o", "O", "f", "|", "h", "r", "c", "x", "X"]);
+const SOLID_CHARS = new Set(["~", "#", "T", "t", "P", "o", "O", "f", "|", "h", "r", "c", "x", "X", "k", "y", "I", "p"]);
+
+// Qué árbol / roca se dibuja según el bioma de la celda.
+const FLORA = {
+  temperate: { forest: (v) => `tree-${v % 3}`, single: (v) => `tree-${v % 3}`, rock: "rock", boulder: "boulder" },
+  mountain: { forest: () => "pine", single: (v) => (v % 2 ? "pine" : `tree-${v % 3}`), rock: "rock", boulder: "boulder" },
+  tropical: { forest: (v) => (v % 4 === 3 ? `palm-${v % 2}` : `jungle-tree-${v % 2}`), single: (v) => `palm-${v % 2}`, rock: "rock", boulder: "boulder" },
+  desert: { forest: (v) => `palm-${v % 2}`, single: (v) => `palm-${v % 2}`, rock: "sand-rock", boulder: "sand-boulder" },
+  snow: { forest: (v) => (v % 3 === 2 ? "bare-tree" : "pine-snow"), single: () => "bare-tree", rock: "snow-rock", boulder: "snow-boulder" },
+};
 
 export function buildMap(scene, def) {
   const rows = def.grid;
@@ -30,8 +47,14 @@ export function buildMap(scene, def) {
   // --- Suelo ---
   const texKey = `ground-${def.id}`;
   if (!scene.textures.exists(texKey)) {
-    const grid = rows.map((r) => [...r].map((ch) => GROUND[ch] ?? T.GRASS));
-    const { buf } = paintGround(grid, { biome: def.biome, seed: def.id.length * 13 + 5, crispCobble: def.kind === "town" });
+    const grid = rows.map((r, y) => [...r].map((ch, x) => {
+      const g = GROUND[ch] ?? "D";
+      return g === "D" ? DEFAULT_GROUND[biomeOf(def, x, y)] ?? T.GRASS : g;
+    }));
+    const { buf } = paintGround(grid, {
+      biome: def.biome, seed: def.id.length * 13 + 5, crispCobble: def.kind === "town",
+      biomeAt: def.biomeAt ? (cx, cy) => def.biomeAt(cx, cy) : null,
+    });
     const beds = [];
     rows.forEach((r, y) => [...r].forEach((ch, x) => { if (ch === ",") beds.push([x, y]); }));
     paintFlowerBeds(buf, beds, 9);
@@ -74,29 +97,48 @@ export function buildMap(scene, def) {
       const py = y * TILE;
       const cx = px + TILE / 2;
       const r = hash(x, y, 77);
+      const flora = FLORA[biomeOf(def, x, y)] ?? FLORA.temperate;
+      const v = Math.floor(hash(x, y, 4) * 12);
       switch (ch) {
         case "T": {
           // Bosque: árbol en tablero de ajedrez, con leve desfase.
           if ((x + y) % 2 === 0) {
             const jx = Math.round((hash(x, y, 3) - 0.5) * 6);
-            const variant = Math.floor(hash(x, y, 4) * 3);
-            place(`tree-${variant}`, cx + jx, py + TILE + 3, { flip: r < 0.5 });
+            place(flora.forest(v), cx + jx, py + TILE + 3, { flip: r < 0.5 });
           }
           break;
         }
         case "t":
-          place(`tree-${Math.floor(r * 3)}`, cx, py + TILE + 3, { flip: hash(x, y, 9) < 0.5 });
+          place(flora.single(v), cx, py + TILE + 3, { flip: hash(x, y, 9) < 0.5 });
+          break;
+        case "p":
+          place(`palm-${v % 2}`, cx, py + TILE + 3, { flip: hash(x, y, 9) < 0.5 });
           break;
         case "P":
           if ((x + y) % 2 === 0 || !["P", "#"].includes(at(x, y - 1))) {
-            place(def.biome === "snow" ? "pine-snow" : "pine", cx + Math.round((r - 0.5) * 4), py + TILE + 3);
+            place(biomeOf(def, x, y) === "snow" ? "pine-snow" : "pine", cx + Math.round((r - 0.5) * 4), py + TILE + 3);
           }
           break;
         case "o":
-          place("rock", cx, py + TILE - 1);
+          place(flora.rock, cx, py + TILE - 1);
           break;
         case "O":
-          place("boulder", cx + 4, py + TILE);
+          place(flora.boulder, cx + 4, py + TILE);
+          break;
+        case "k":
+          place(`cactus-${v % 3}`, cx, py + TILE + 1, { flip: r < 0.5 });
+          break;
+        case "y":
+          place("bare-tree", cx, py + TILE + 2, { flip: r < 0.5 });
+          break;
+        case "I":
+          place("ice-block", cx, py + TILE);
+          break;
+        case "e":
+          place("fern", cx, py + TILE, { depth: py + TILE - 2, flip: r < 0.5 });
+          break;
+        case "d":
+          place("dry-bush", cx, py + TILE - 1, { depth: py + TILE - 2 });
           break;
         case "b":
           bushes.set(`${x},${y}`, { img: place(hash(x, y, 5) < 0.3 ? "bush-berries" : "bush", cx, py + TILE), x, y });
@@ -140,7 +182,9 @@ export function buildMap(scene, def) {
 
   // --- Casas, puestos, pozos y adornos ---
   const chimneys = [];
+  const flags = scene.registry.get("flags") ?? {};
   for (const obj of def.objects) {
+    if (obj.onlyIf && !flags[obj.onlyIf]) continue;
     const ox = obj.x * TILE;
     const oy = obj.y * TILE;
     if (obj.type === "house") {
@@ -148,7 +192,7 @@ export function buildMap(scene, def) {
       const { width: w, height: h } = img;
       img.setDepth(oy + h - 3);
       addSolid(ox + 3, oy + Math.round(h * 0.34), w - 6, Math.round(h * 0.66) - 3);
-      if (!obj.art.includes("stable")) chimneys.push({ x: ox + w - 15, y: oy + 1 });
+      if (!/stable|jungle|adobe/.test(obj.art)) chimneys.push({ x: ox + w - 15, y: oy + 1 });
     } else if (obj.type === "stall") {
       const img = scene.add.image(ox, oy, obj.art).setOrigin(0, 0).setDepth(oy + 40);
       addSolid(ox + 1, oy + 22, img.width - 2, 17);

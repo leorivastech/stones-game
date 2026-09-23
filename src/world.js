@@ -15,7 +15,7 @@ export const TOWNS = {
     produce: "amber", need: "frost", buyBase: 8, sellBase: 40,
     ground: "grass", path: "dirt", plaza: "cobble", biome: "temperate", music: "ashfen",
     houseTint: 0xfff0d2, treeTint: 0xffffff,
-    exits: { north: "valkeep" }, blocked: { south: "GOLFO · sin barco", west: "MONTAÑAS · atajo cerrado" }, service: "hideout",
+    exits: { north: "valkeep" }, boat: "frostholm", service: "stashKit",
   },
   valkeep: {
     id: "valkeep", name: "Valkeep", region: "FALDAS DE MONTAÑA",
@@ -31,7 +31,7 @@ export const TOWNS = {
     produce: "rain", need: "rune", buyBase: 15, sellBase: 26,
     ground: "jungle", path: "mud", plaza: "cobble", biome: "tropical", music: "ashfen",
     houseTint: 0xe2d6a6, treeTint: 0x74ad68,
-    exits: { west: "valkeep", east: "duneshade" }, service: null,
+    exits: { south: "valkeep", east: "duneshade" }, service: "tonic",
   },
   duneshade: {
     id: "duneshade", name: "Duneshade", region: "MAR DE DUNAS",
@@ -47,7 +47,7 @@ export const TOWNS = {
     produce: "frost", need: "sun", buyBase: 22, sellBase: 39,
     ground: "snow", path: "packed", plaza: "cobble", biome: "snow", music: "valkeep",
     houseTint: 0xd9e7ee, treeTint: 0xb8cad0,
-    exits: { north: "duneshade" }, blocked: { south: "GOLFO · sin barco" }, service: null,
+    exits: { north: "duneshade" }, boat: "ashfen", service: "ferry",
   },
 };
 

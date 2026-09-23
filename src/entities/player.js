@@ -1,4 +1,4 @@
-/** El caminante. Estados: move, attack, roll, jump, hurt, ko, frozen. */
+/** El caminante. Estados: move, attack, roll, jump, slide, hurt, ko, frozen. */
 
 import Phaser from "phaser";
 import { SHEET_INDEX } from "../art/actors.js";
@@ -13,7 +13,13 @@ export const DIRS = {
 };
 
 // Punto de giro del barrido dentro del cuadro de 32×32, por dirección.
+const SLIDE_SPEED = 150;
+
 const SLASH_ORIGIN = { right: [10 / 32, 16 / 32], down: [16 / 32, 10 / 32], left: [22 / 32, 16 / 32], up: [16 / 32, 22 / 32] };
+
+function cellIsIce(world, s) {
+  return world.cellAt(s.x, s.y - 2) === "i";
+}
 
 export function viewOf(dir) {
   return dir === "left" || dir === "right" ? "side" : dir;
@@ -109,6 +115,9 @@ export class Player {
       case "jump":
         this.updateJump(dt);
         break;
+      case "slide":
+        this.updateSlide(world);
+        break;
       default:
         this.updateMove(dt, controls, world);
     }
@@ -127,6 +136,11 @@ export class Player {
     this.crouching = controls.held("hide");
     if (!controls.held("roll")) this.running = false;
 
+    // En hielo no hay pasos: se patina en línea recta hasta chocar o salir del hielo.
+    if (cellIsIce(world, s) && moving) {
+      const dir = Math.abs(mv.x) > Math.abs(mv.y) ? (mv.x < 0 ? "left" : "right") : mv.y < 0 ? "up" : "down";
+      return this.startSlide(dir);
+    }
     if (controls.pressed("attack")) return this.startAttack(world);
     if (controls.pressed("roll") && this.rollCooldown <= 0 && !this.crouching) return this.startRoll(mv);
 
@@ -170,6 +184,52 @@ export class Player {
       const below = world.cellAt(s.x, s.y + 3);
       if (below === "^") this.startJump();
     }
+  }
+
+  startSlide(dir) {
+    const s = this.sprite;
+    this.facing = dir;
+    this.crouching = false;
+    this.running = false;
+    this.setState("slide");
+    this.snapToLane(dir === "left" || dir === "right" ? "y" : "x");
+    const d = DIRS[dir];
+    this.body.setVelocity(d.x * SLIDE_SPEED, d.y * SLIDE_SPEED);
+    this.faceIdle();
+    s.setFrame(SHEET_INDEX[viewOf(dir)] + 1);
+  }
+
+  updateSlide(world) {
+    const d = DIRS[this.facing];
+    const b = this.body;
+    const blocked = b.blocked[this.facing] || b.touching[this.facing];
+    // Sin velocidad en el eje (tapón) también cuenta como choque.
+    const stalled = this.stateTime > 60 && Math.abs(d.x ? b.velocity.x : b.velocity.y) < 5;
+    if (blocked || stalled || this.stateTime > 4000) {
+      this.snapToLane("x");
+      this.snapToLane("y");
+      b.setVelocity(0, 0);
+      tone(this.scene, "bump");
+      this.setState("move");
+      this.faceIdle();
+      return;
+    }
+    if (!cellIsIce(world, this.sprite)) {
+      b.setVelocity(0, 0);
+      this.setState("move");
+      this.faceIdle();
+      return;
+    }
+    b.setVelocity(d.x * SLIDE_SPEED, d.y * SLIDE_SPEED);
+    if (this.stateTime % 90 < 20) this.scene.fx?.dust?.(this.sprite.x, this.sprite.y);
+  }
+
+  /** Centra al jugador en su celda sobre un eje, para patinar por carriles limpios. */
+  snapToLane(axis) {
+    const s = this.sprite;
+    if (axis === "x") s.x = Math.floor(s.x / TILE) * TILE + TILE / 2;
+    else s.y = Math.floor((s.y - 2) / TILE) * TILE + 11;
+    this.body.reset(s.x, s.y);
   }
 
   rustle(world) {

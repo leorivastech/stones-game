@@ -219,3 +219,24 @@ export function stoneBurst() {
     return b;
   }));
 }
+
+/** Flecha de la arquera, horizontal (se rota al disparar). */
+export function arrow() {
+  const b = new Buf(12, 5);
+  b.hline(2, 2, 8, "o4");
+  b.set(10, 2, "s5"); b.set(11, 2, "s4"); b.set(10, 1, "s3"); b.set(10, 3, "s3");
+  b.set(0, 1, "c4"); b.set(1, 2, "c3"); b.set(0, 3, "c4"); b.set(1, 1, "e3"); b.set(1, 3, "e3");
+  return b;
+}
+
+/** Tónico de raíz: frasco verde con tapón. */
+export function tonicIcon() {
+  const b = new Buf(9, 11);
+  b.rect(3, 0, 3, 2, "o3");
+  b.rect(3, 2, 3, 2, "c3");
+  b.ellipse(4.5, 7, 4, 3.5, "g3");
+  b.ellipse(3.5, 6, 1.5, 1.5, "g5");
+  b.set(3, 5, "white");
+  b.outline("ink");
+  return b;
+}

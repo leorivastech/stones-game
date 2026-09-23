@@ -60,12 +60,11 @@ export default {
     { type: "prop", art: "lamp", x: 25.4, y: 17.4, solid: [2, 22, 6, 5] },
     { type: "prop", art: "banner", x: 16.4, y: 8.8, solid: [0, 26, 4, 5] },
     { type: "prop", art: "banner", x: 23, y: 8.8, solid: [0, 26, 4, 5] },
-    { type: "prop", art: "rubble", x: 17, y: 2.6, solid: [0, 8, 56, 26] },
     { type: "prop", art: "barrel", x: 16, y: 12.4, solid: [0, 8, 12, 7] },
     { type: "prop", art: "crate", x: 21.3, y: 11.4, solid: [0, 6, 14, 8] },
     { type: "prop", art: "hay", x: 34, y: 22, solid: [0, 4, 18, 8] },
     { type: "prop", art: "hay", x: 27.4, y: 22.4, solid: [0, 4, 18, 8] },
-    { type: "sign", x: 21.8, y: 6.4, text: ["PASO DE VERDELUME", "Derrumbe. Cerrado hasta nuevo aviso."] },
+    { type: "sign", x: 22.2, y: 6.4, text: ["↑ RUTA 2 · PASO ALTO", "Aduana de la Corona en el paso. Después, la selva de Verdelume."] },
     { type: "sign", x: 22, y: 27.4, text: ["VALKEEP", "↓ Ruta 1 · Ashfen"] },
     {
       type: "npc", cast: "merchant", name: "Maese Ivo", x: 21.3, y: 13.4, dir: "down", role: "market",
@@ -75,13 +74,17 @@ export default {
       type: "npc", cast: "stablehand", name: "Nella", x: 32.4, y: 22.2, dir: "left", role: "stable",
       talk: ["Mis caballos no cargan para cualquiera."],
     },
-    { type: "npc", cast: "villager", name: "Anselmo", x: 11, y: 18.5, dir: "right", wander: 3, talk: ["Desde el derrumbe nadie baja a la selva.", "Dicen que Verdelume paga el vidrio rúnico a precio de oro."] },
+    { type: "npc", cast: "villager", name: "Anselmo", x: 11, y: 18.5, dir: "right", wander: 3, talk: ["Por el paso alto se baja a la selva.", "Dicen que Verdelume paga el vidrio rúnico a precio de oro."] },
     { type: "npc", cast: "villager2", name: "Pía", x: 26, y: 26, dir: "left", wander: 3, talk: ["Los jabalíes del farallón embisten en línea recta.", "Hazte a un lado y chocan contra la roca."] },
     { type: "npc", cast: "guard", name: "Guardia", x: 15.2, y: 18.8, dir: "down", role: "townguard", talk: ["El retén de la calzada es del Gremio.", "Nosotros sólo cuidamos la plaza."] },
   ],
-  exits: [{ x: 17, y: 29, w: 5, h: 1, to: "ruta1", entry: "north" }],
+  exits: [
+    { x: 17, y: 29, w: 5, h: 1, to: "ruta1", entry: "north" },
+    { x: 17, y: 0, w: 6, h: 1, to: "ruta2", entry: "south" },
+  ],
   entries: {
     south: { x: 19.5, y: 28.2, dir: "up" },
+    north: { x: 19.5, y: 1.6, dir: "down" },
     start: { x: 19.5, y: 19.6, dir: "up" },
   },
 };

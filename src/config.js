@@ -20,6 +20,9 @@ export const PLAYER = {
 
 export const ENEMY = {
   boar: { hp: 2, speed: 34, charge: 175, sight: 80, damage: 1 },
+  // El lobo avisa menos, ve más lejos y embiste más rápido.
+  wolf: { hp: 2, speed: 46, charge: 215, sight: 96, damage: 1, windup: 380 },
+  scorpion: { hp: 2, speed: 30, sight: 40, damage: 1 },
   bandit: { hp: 3, speed: 60, lunge: 165, sight: 92, damage: 1 },
   guard: { hp: 5, speed: 44, chase: 74, sight: 86, fov: 0.62, damage: 2 },
 };

@@ -9,6 +9,7 @@ Antes de programar una feature, el agente **los lee**.
 |---|---|
 | `story.md` | Premisa, mundo, personaje, tono |
 | `mechanics.md` | Cómo se juega, loop, controles |
+| `diseno-mundo.md` | El mundo completo: pueblos, rutas, piedras, economía simulada, alijos |
 | `art.md` | Qué se genera en código, qué se importa |
 | `decisions.md` | Decisiones fechadas (sí / no / pendiente) |
 | `sessions/` | Bitácora de cada conversación |

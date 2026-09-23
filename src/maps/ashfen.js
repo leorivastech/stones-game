@@ -79,7 +79,12 @@ export default {
     { type: "prop", art: "rubble", x: 0, y: 12.6, solid: [0, 10, 56, 24] },
     { type: "sign", x: 21.5, y: 2.5, text: ["↑ RUTA 1 · Calzada del Ámbar", "Al norte: Valkeep, pueblo de montaña."] },
     { type: "sign", x: 4, y: 13.6, text: ["PASO DE MONTAÑA", "Cerrado por derrumbe. Dicen que algún día habrá atajo."] },
-    { type: "sign", x: 21.4, y: 23.4, text: ["MUELLE DE ASHFEN", "Sin barco. El golfo separa Ashfen de Frostholm."] },
+    { type: "sign", x: 21.4, y: 23.4, text: ["MUELLE DE ASHFEN", "La barca de Frostholm atraca aquí cuando cruza el golfo."] },
+    { type: "prop", art: "boat", x: 20.9, y: 26, onlyIf: "met-ferry" },
+    {
+      type: "npc", cast: "ferryman", name: "Ceno", x: 21.8, y: 23.6, dir: "left", role: "ferry", onlyIf: "met-ferry",
+      talk: ["Mi barca cruza el golfo hasta Frostholm."],
+    },
     {
       type: "npc", cast: "merchant", name: "Brena", x: 21.2, y: 13.2, dir: "down", role: "market",
       talk: ["Ámbar de sello, recién sacado de la cantera.", "Valkeep lo paga mejor que nadie. Pero ojo con la calzada."],
@@ -106,5 +111,6 @@ export default {
   entries: {
     north: { x: 19.5, y: 1.6, dir: "down" },
     start: { x: 19.5, y: 16.6, dir: "up" },
+    dock: { x: 19.5, y: 23.2, dir: "up" },
   },
 };

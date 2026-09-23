@@ -587,19 +587,24 @@ const ROOFS = {
   red: { ramp: ["r0", "r1", "r2", "r3", "r4", "r5"], line: "r1" },
   slate: { ramp: ["b0", "s1", "s2", "s3", "s4", "s5"], line: "s1" },
   moss: { ramp: ["f0", "f1", "f2", "f3", "f4", "f5"], line: "f1" },
+  // Selva: hojas de palma trenzadas.
+  palm: { ramp: ["f1", "l2", "l3", "l4", "t4", "t5"], line: "l1", thatch: true },
+  // Desierto: teja de barro clara.
+  clay: { ramp: ["r1", "r3", "r4", "d5", "r5", "d6"], line: "r2" },
 };
 
 const WALLS = {
   plaster: { base: "c3", shade: "c2", light: "c4", beam: "o2" },
   stone: { base: "s3", shade: "s2", light: "s4", beam: "s1" },
   timber: { base: "o4", shade: "o3", light: "o5", beam: "o1" },
+  adobe: { base: "d5", shade: "d4", light: "d6", beam: "d3" },
 };
 
 /**
  * Casa en vista 3/4. w×h en píxeles. El techo ocupa ~55 % del alto.
  * Devuelve { buf, door: {x,y} } — la puerta en coordenadas del sprite.
  */
-export function house({ w = 64, h = 64, roof = "thatch", wall = "plaster", chimney = true, seed = 1, windows = 2, lit = true } = {}) {
+export function house({ w = 64, h = 64, roof = "thatch", wall = "plaster", chimney = true, seed = 1, windows = 2, lit = true, snowRoof = false } = {}) {
   const b = new Buf(w, h);
   const R = ROOFS[roof];
   const Wl = WALLS[wall];
@@ -670,7 +675,7 @@ export function house({ w = 64, h = 64, roof = "thatch", wall = "plaster", chimn
       if (y < top + 3) tone = 5;
       if (y > roofH - 3) tone = 1;
       let col = R.ramp[tone];
-      if (roof === "thatch") {
+      if (roof === "thatch" || R.thatch) {
         const streak = hash(x, Math.floor(y / 3), seed) < 0.2;
         if (streak) col = R.ramp[Math.max(0, tone - 1)];
         if ((y - top) % 6 === 5 && bayer(x, y) < 0.7) col = R.line;
@@ -687,6 +692,17 @@ export function house({ w = 64, h = 64, roof = "thatch", wall = "plaster", chimn
   // Canto del alero
   for (let x = 0; x < w; x += 1) {
     if (b.alpha(x, roofH - 1)) b.set(x, roofH - 1, R.ramp[0]);
+  }
+  // Nieve acumulada: manto arriba que baja en goterones irregulares, y carámbanos en el alero.
+  if (snowRoof) {
+    for (let x = 0; x < w; x += 1) {
+      const depth = 6 + Math.floor(hash(x >> 2, 3, seed) * 7) + (hash(x, 5, seed) < 0.3 ? 2 : 0);
+      for (let y = top; y < top + depth; y += 1) {
+        if (!b.alpha(x, y)) continue;
+        b.set(x, y, y === top + depth - 1 ? "n2" : x < w * 0.25 ? "n4" : x > w * 0.75 ? "n3" : "white");
+      }
+      if (x % 5 === 2 && b.alpha(x, roofH - 1)) { b.set(x, roofH, "n4"); if (x % 10 === 2) b.set(x, roofH + 1, "n3"); }
+    }
   }
   // Chimenea
   if (chimney) {
@@ -712,3 +728,5 @@ export function smoke() {
   });
   return strip(frames);
 }
+
+export { sphere, shadow, withOutline };

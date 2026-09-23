@@ -98,3 +98,14 @@ Regla: una línea por decisión, con fecha. No borrar: si se revierte, se agrega
 - **Sí / Leo** — Skill `trailer-juego` para el framework: abrir el juego, grabarlo, voz TTS, música del juego, HyperFrames. Va también al molde `framework-ia-videojuegos`, solo lo necesario.
 - **Sí** — Se graba cuadro a cuadro (`game.step`) en vez de grabar pantalla: sin GPU el navegador va lento y el video sale a tirones.
 - **Hecho** — Primer trailer de Stones (34 s, 16:9): `trailer/`, copia en `~/Downloads/stones-trailer.mp4`. Voz es-MX-JorgeNeural; música ashfen → road.
+
+## 2026-09-23 — mundo completo
+
+- **Sí / Leo** — Hacer los tres pueblos que faltaban (Verdelume, Duneshade, Frostholm) con sus rutas (2, 3 y 4) para que la muestra tenga todas las mecánicas. Se quita el derrumbe de Valkeep.
+- **Sí / Leo** — "Sistema de guardado" del herrero = **herrajes de alijo** (Oskar, fama 3, 40 oro): los huecos de las rutas se vuelven escondites tipo base secreta de Pokémon, hasta 6 piedras cada uno. Riesgo: redada con calor ≥ 60.
+- **Sí** — El caballo sigue (Valkeep). La arquera, que nunca se construyó, ahora existe: **Sahra en Duneshade**, te sigue y dispara a bandidos y bestias.
+- **Sí** — Círculo cerrado con la **barca Frostholm ↔ Ashfen** (15 oro). En Ashfen sólo aparece después de conocer a Ceno en Frostholm: la primera vuelta se camina entera.
+- **Sí** — Tónicos en Verdelume (Q, 2 corazones, máx. 3) para que el K.O. no sea la única salida en rutas largas.
+- **Sí** — Economía ajustada con simulación (`diseno-mundo.md` §3): existencias 8, pedido 6, compra +1 y venta −2 por unidad, calor por venta 5. Con las reglas viejas el caballo no se pagaba.
+- **Sí** — Cada ruta enseña algo: aduana y cornisa (2), selva cerrada vs. desierto abierto (3), puerta de la escarcha y lago helado para patinar (4). Enemigos nuevos: lobo y escorpión enterrado.
+- **Fuera de la muestra** — Atajo de montaña Ashfen ↔ Verdelume, encargos, música propia de los pueblos nuevos.

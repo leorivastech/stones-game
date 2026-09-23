@@ -5,7 +5,7 @@
  *  Mover: WASD / flechas / palanca / cruceta
  *  Atacar: J, ESPACIO (A)      Rodar/correr: K, SHIFT (B)
  *  Agacharse: L, C (X)         Hablar/usar: E (Y)
- *  Pausa: ESC, ENTER (Start)
+ *  Tónico: Q (LB)            Pausa: ESC, ENTER (Start)
  */
 
 const KEYS = {
@@ -17,6 +17,7 @@ const KEYS = {
   roll: ["K", "SHIFT"],
   hide: ["L", "C"],
   interact: ["E"],
+  tonic: ["Q"],
   pause: ["ESC", "ENTER"],
   confirm: ["E", "ENTER", "SPACE", "J"],
   cancel: ["ESC", "K", "Q", "BACKSPACE"],
@@ -24,7 +25,7 @@ const KEYS = {
 };
 
 const PAD = {
-  attack: [0], roll: [1], hide: [2], interact: [3], pause: [9],
+  attack: [0], roll: [1], hide: [2], interact: [3], pause: [9], tonic: [4],
   confirm: [0, 3], cancel: [1],
   up: [12], down: [13], left: [14], right: [15],
 };

@@ -48,6 +48,9 @@ export class BootScene extends Phaser.Scene {
     }
     a.create({ key: "boar-walk", frames: [0, 1].map((f) => ({ key: "boar", frame: f })), frameRate: 6, repeat: -1 });
     a.create({ key: "boar-run", frames: [0, 1].map((f) => ({ key: "boar", frame: f })), frameRate: 14, repeat: -1 });
+    a.create({ key: "wolf-walk", frames: [0, 1].map((f) => ({ key: "wolf", frame: f })), frameRate: 7, repeat: -1 });
+    a.create({ key: "wolf-run", frames: [0, 1].map((f) => ({ key: "wolf", frame: f })), frameRate: 16, repeat: -1 });
+    a.create({ key: "scorpion-walk", frames: [0, 1].map((f) => ({ key: "scorpion", frame: f })), frameRate: 8, repeat: -1 });
     a.create({ key: "horse-walk", frames: [0, 1, 2, 3].map((f) => ({ key: "horse", frame: f })), frameRate: 9, repeat: -1 });
     a.create({ key: "dust", frames: [0, 1, 2, 3].map((f) => ({ key: "dust", frame: f })), frameRate: 16, repeat: 0 });
     a.create({ key: "spark", frames: [0, 1, 2].map((f) => ({ key: "spark", frame: f })), frameRate: 22, repeat: 0 });

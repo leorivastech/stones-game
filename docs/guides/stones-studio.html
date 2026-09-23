@@ -459,31 +459,30 @@
   <h2>Code status</h2>
   <p class="sub" style="margin-bottom:1rem;">Guide vs repository. Update when behavior changes.</p>
 
-  <h3><span class="tag tgr">Aligned</span> &nbsp;Matches code / intent today (rehecho en pixel art, 2026-09-23)</h3>
+  <h3><span class="tag tgr">Aligned</span> &nbsp;Matches code / intent today (mundo completo, 2026-09-23)</h3>
   <div class="rblock" style="margin-top:0.5rem;">
     <div class="sbullet"><strong>Vite + Phaser 4.2.1, 480×270 con escala entera</strong> — <code>src/main.js</code>, <code>src/config.js</code></div>
     <div class="sbullet"><strong>Pixel art en código</strong> — <code>src/art/</code> (paleta, fuente, personajes, criaturas, terreno, objetos, casas, efectos, interfaz). Revisión en <code>lab.html</code>.</div>
-    <div class="sbullet"><strong>Mapas caminables</strong> — <code>src/maps/</code>: Ashfen, Ruta 1 (36×100, ramales, retén, campamento, reja con palanca, bordes de salto) y Valkeep.</div>
+    <div class="sbullet"><strong>Mapas caminables</strong> — <code>src/maps/</code>: los 5 pueblos (Ashfen, Valkeep, Verdelume, Duneshade, Frostholm) y 4 rutas: Ruta 1 (retén, campamento, reja con palanca), Ruta 2 (aduana, cornisa, lobos), Ruta 3 (selva → desierto, escorpiones, oasis), Ruta 4 (Puerta de la Escarcha, lago helado para patinar). Barca Frostholm ↔ Ashfen. Diseño en <code>studio/diseno-mundo.md</code>.</div>
     <div class="sbullet"><strong>Acción en tiempo real</strong> — <code>src/entities/player.js</code>: golpe, rodada, carrera, agacharse/esconderse, salto, daño, K.O.</div>
-    <div class="sbullet"><strong>Enemigos visibles</strong> — <code>src/entities/enemies.js</code>: jabalí que embiste, bandido que roba piedras, guardia con cono de visión, sospecha y revisión.</div>
-    <div class="sbullet"><strong>Mercado medible</strong> — sin cambios en <code>src/state.js</code>; nueva ventana de mercado en <code>src/scenes/ui.js</code>.</div>
+    <div class="sbullet"><strong>Enemigos visibles</strong> — <code>src/entities/enemies.js</code>: jabalí y lobo que embisten, escorpión enterrado, bandido que roba piedras, guardia con cono de visión, sospecha y revisión.</div>
+    <div class="sbullet"><strong>Mercado medible</strong> — reglas ajustadas con simulación en <code>src/state.js</code> (existencias 8, pedido 6, compra +1, venta −2, calor 5 por venta); ventana de mercado en <code>src/scenes/ui.js</code>.</div>
     <div class="sbullet"><strong>Interfaz</strong> — HUD de corazones/oro/carga/alerta/fama, cartel de lugar, indicador <code>[E]</code>, diálogos, elecciones, pausa con mapa del mundo, título y guardado.</div>
-    <div class="sbullet"><strong>Preparación</strong> — caballo (Valkeep) te sigue en la ruta; fondo falso (Ashfen) oculta 2 al guardia.</div>
+    <div class="sbullet"><strong>Preparación</strong> — herrajes de alijo (Ashfen): 8 escondites en las rutas, con redadas si hay calor; caballo (Valkeep); tónicos con Q (Verdelume); arquera Sahra que dispara (Duneshade, <code>src/entities/escort.js</code>); fondo falso (Ashfen).</div>
     <div class="sbullet"><strong>Música por zona</strong> — tres loops CC0 en <code>src/music.js</code> + tonos 8 bits en <code>src/sfx.js</code>.</div>
-    <div class="sbullet"><strong>Studio</strong> — <code>studio/</code> actualizado: <code>art.md</code>, <code>mechanics.md</code>, <code>decisions.md</code>, sesión <code>2026-09-23-pixel-remake.md</code>.</div>
+    <div class="sbullet"><strong>Studio</strong> — <code>studio/</code> actualizado: <code>art.md</code>, <code>mechanics.md</code>, <code>decisions.md</code>, <code>diseno-mundo.md</code>, sesiones <code>2026-09-23-pixel-remake.md</code> y <code>2026-09-23-mundo-completo.md</code>.</div>
   </div>
 
   <h3><span class="tag tg">Gaps</span> &nbsp;Missing or unclear</h3>
   <div class="rblock" style="margin-top:0.5rem;">
-    <div class="sbullet">Verdelume, Duneshade y Frostholm con sus rutas: cerrados por el derrumbe de Valkeep hasta que Leo apruebe el estilo.</div>
-    <div class="sbullet">Arquera escolta (Duneshade) y atajos por barco / montañas.</div>
+    <div class="sbullet">Atajo de montaña Ashfen ↔ Verdelume (sigue cerrado).</div>
     <div class="sbullet">Motivo personal del caminante, encargos con nombre y rumores.</div>
-    <div class="sbullet">Música propia por lugar.</div>
+    <div class="sbullet">Música propia de Verdelume, Duneshade y Frostholm (reusan los tres loops).</div>
   </div>
 
   <h3><span class="tag ta">Changes</span> &nbsp;Planned follow-ups</h3>
   <div class="rblock" style="margin-top:0.5rem;">
-    <div class="sbullet">Leo prueba la muestra y aprueba el estilo → mismo método para los otros tres pueblos y rutas.</div>
+    <div class="sbullet">Leo juega la vuelta completa (Ashfen → Valkeep → Verdelume → Duneshade → Frostholm → barca) y ajusta ritmo de rutas y precios.</div>
     <div class="sbullet">Un encargo completo: cantera → 2 ámbar adelantados → comprador con nombre → pago o pérdida de confianza.</div>
   </div>
 </div>

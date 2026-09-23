@@ -10,22 +10,28 @@ import { rgba } from "./palette.js";
 export const TILE = 16;
 
 export const T = {
-  GRASS: 1, DIRT: 2, COBBLE: 3, WATER: 4, SAND: 5, FIELD: 6, BRIDGE: 7, CLIFF: 8, FOREST: 9, GRAVEL: 10,
+  GRASS: 1, DIRT: 2, COBBLE: 3, WATER: 4, SAND: 5, FIELD: 6, BRIDGE: 7, CLIFF: 8, FOREST: 9, GRAVEL: 10, SNOW: 11, ICE: 12,
 };
 
 const CRISP = new Set([T.COBBLE, T.BRIDGE, T.FIELD, T.CLIFF]);
 // Altura aparente: el terreno más alto proyecta sombra sobre el más bajo.
-const HEIGHT = { [T.WATER]: 0, [T.SAND]: 1, [T.DIRT]: 2, [T.FIELD]: 2, [T.COBBLE]: 2, [T.GRAVEL]: 2, [T.BRIDGE]: 3, [T.GRASS]: 3, [T.FOREST]: 3, [T.CLIFF]: 4 };
+const HEIGHT = { [T.WATER]: 0, [T.SAND]: 1, [T.DIRT]: 2, [T.FIELD]: 2, [T.COBBLE]: 2, [T.GRAVEL]: 2, [T.BRIDGE]: 3, [T.GRASS]: 3, [T.FOREST]: 3, [T.CLIFF]: 4, [T.SNOW]: 3, [T.ICE]: 1 };
 
 const BIOME_GRASS = {
   temperate: { g0: "g1", g1: "g2", g2: "g3", g3: "g4", g4: "g5", g5: "g6" },
   mountain: { g0: "f1", g1: "f2", g2: "f3", g3: "f4", g4: "f5", g5: "f6" },
+  // Selva: verde hondo y saturado.
+  tropical: { g0: "f0", g1: "g1", g2: "g2", g3: "g3", g4: "g4", g5: "g5" },
+  // Desierto: matorral seco, olivo y paja.
+  desert: { g0: "l0", g1: "l1", g2: "l2", g3: "l3", g4: "l4", g5: "t4" },
+  // Nieve: el pasto asoma escarchado.
+  snow: { g0: "f1", g1: "n0", g2: "n1", g3: "n2", g4: "n3", g5: "n4" },
 };
 
 const c = (n) => rgba(n);
 
 /** Pinta el suelo. `grid[y][x]` es un número de T. Devuelve el Buf y el terreno por píxel. */
-export function paintGround(grid, { biome = "temperate", seed = 7, crispCobble = true } = {}) {
+export function paintGround(grid, { biome = "temperate", seed = 7, crispCobble = true, biomeAt = null } = {}) {
   const rows = grid.length;
   const cols = grid[0].length;
   const W = cols * TILE;
@@ -67,13 +73,16 @@ export function paintGround(grid, { biome = "temperate", seed = 7, crispCobble =
   }
 
   const buf = new Buf(W, H);
-  const gp = BIOME_GRASS[biome] ?? BIOME_GRASS.temperate;
+  // Paleta de pasto por celda: una ruta puede pasar de montaña a selva, o de desierto a nieve.
+  const fallback = BIOME_GRASS[biome] ?? BIOME_GRASS.temperate;
+  const cellGp = Array.from({ length: rows }, (_, cy) => Array.from({ length: cols }, (_, cx) => (biomeAt ? BIOME_GRASS[biomeAt(cx, cy)] : null) ?? fallback));
+  const gpAt = (x, y) => cellGp[Math.max(0, Math.min(rows - 1, y >> 4))][Math.max(0, Math.min(cols - 1, x >> 4))];
 
   // 3) Color base de cada píxel.
   for (let y = 0; y < H; y += 1) {
     for (let x = 0; x < W; x += 1) {
       const t = ter[y * W + x];
-      buf.data[y * W + x] = baseColor(t, x, y, seed, gp, waterDist[y * W + x], at);
+      buf.data[y * W + x] = baseColor(t, x, y, seed, gpAt(x, y), waterDist[y * W + x], at);
     }
   }
 
@@ -83,6 +92,7 @@ export function paintGround(grid, { biome = "temperate", seed = 7, crispCobble =
     for (let x = 0; x < W; x += 1) {
       const t = at(x, y);
       if (t === T.WATER || t === T.CLIFF) continue;
+      const gp = gpAt(x, y);
       const up = at(x, y - 1);
       const up2 = at(x, y - 2);
       const down = at(x, y + 1);
@@ -103,6 +113,7 @@ export function paintGround(grid, { biome = "temperate", seed = 7, crispCobble =
         out[i] = shadowOf(t, gp, 1);
       }
       // Canto iluminado del pasto que da a algo más bajo, con hojitas colgando.
+      if (t === T.SNOW && HEIGHT[down] < HEIGHT[t]) out[i] = c("n4");
       if ((t === T.GRASS || t === T.FOREST) && HEIGHT[down] < HEIGHT[t]) {
         out[i] = c(t === T.FOREST ? gp.g2 : gp.g4);
         if (hash(x, y, seed + 5) < 0.35) {
@@ -116,15 +127,17 @@ export function paintGround(grid, { biome = "temperate", seed = 7, crispCobble =
   buf.data.set(out);
 
   // 5) Adornos sueltos: matas, flores, piedritas.
-  decorate(buf, ter, W, H, seed, gp);
+  decorate(buf, ter, W, H, seed, gpAt);
   return { buf, ter, W, H };
 }
 
 function shadowOf(t, gp, amount) {
   if (t === T.DIRT || t === T.FIELD) return c(amount > 1 ? "d1" : "d2");
   if (t === T.SAND) return c(amount > 1 ? "d3" : "d4");
-  if (t === T.GRAVEL) return c(amount > 1 ? "s1" : "s2");
+  if (t === T.GRAVEL) return c(amount > 1 ? "d1" : "d2");
   if (t === T.BRIDGE) return c("o1");
+  if (t === T.SNOW) return c(amount > 1 ? "n1" : "n2");
+  if (t === T.ICE) return c("w4");
   if (t === T.FOREST) return c(gp.g0);
   return c(amount > 1 ? gp.g0 : gp.g1);
 }
@@ -153,12 +166,39 @@ function baseColor(t, x, y, seed, gp, wd, at) {
       return c(p > 0 ? "d4" : p < 0 ? "d2" : "d3");
     }
     case T.SAND: {
-      const p = patch(x, y, 16, seed + 13, 0.3, 0.75);
+      const p = patch(x, y, 26, seed + 13, 0.17, 0.72);
       return c(p > 0 ? "d6" : p < 0 ? "d4" : "d5");
     }
+    case T.SNOW: {
+      const p = patch(x, y, 28, seed + 19, 0.15, 0.7);
+      if (hash(x, y, seed + 71) < 0.006) return c("white");
+      return c(p > 0 ? "n4" : p < 0 ? "n2" : "n3");
+    }
+    case T.ICE: {
+      // Hielo: vetas diagonales claras y alguna grieta.
+      const streak = (x + y * 2 + Math.floor(smoothNoise(x, y, 14, seed) * 20)) % 23;
+      if (streak < 2) return c("n4");
+      if (hash(x >> 1, y, seed + 73) < 0.01) return c("w3");
+      const p = patch(x, y, 18, seed + 29, 0.3, 0.7);
+      return c(p > 0 ? "w6" : p < 0 ? "w4" : "w5");
+    }
     case T.GRAVEL: {
-      const p = patch(x, y, 10, seed + 17, 0.3, 0.72);
-      return c(p > 0 ? "s4" : p < 0 ? "s2" : "s3");
+      // Tierra con guijarros sueltos (antes era gris plano y se leía como mancha).
+      const by = Math.floor(y / 3);
+      const sx = x + ((by * 5) % 4);
+      const bx = Math.floor(sx / 4);
+      const lx = sx % 4;
+      const ly = y % 3;
+      const r = hash(bx, by, seed + 17);
+      if (r < 0.62 && lx < 3) {
+        const wide = r < 0.3;
+        if (ly === 2) return lx < (wide ? 3 : 2) ? c("s1") : c("d2");
+        if (!wide && lx === 2) return c("d3");
+        if (ly === 0) return c(lx === 0 ? "s5" : "s4");
+        return c(lx === 0 ? "s4" : "s3");
+      }
+      const p = patch(x, y, 10, seed + 23, 0.35, 0.72);
+      return c(p > 0 ? "d4" : p < 0 ? "d2" : "d3");
     }
     case T.FIELD: {
       const r = y % 5;
@@ -265,7 +305,7 @@ const FLOWERS = [
   { rows: ["p.p", ".y.", "p.p"], petal: "y4" },
 ];
 
-function decorate(buf, ter, W, H, seed, gp) {
+function decorate(buf, ter, W, H, seed, gpAt) {
   const terAt = (x, y) => (x < 0 || y < 0 || x >= W || y >= H ? 0 : ter[y * W + x]);
   const allGrass = (x, y, w, h, t) => {
     for (let j = -1; j <= h; j += 1) for (let i = -1; i <= w; i += 1) if (terAt(x + i, y + j) !== t) return false;
@@ -277,6 +317,7 @@ function decorate(buf, ter, W, H, seed, gp) {
       const x = gx + Math.floor(hash(gx, gy, seed + 62) * 5);
       const y = gy + Math.floor(hash(gx, gy, seed + 63) * 4);
       const t = terAt(x, y);
+      const gp = gpAt(x, y);
       if (t === T.GRASS && r < 0.42 && allGrass(x, y, 4, 3, T.GRASS)) {
         const tuft = TUFTS[Math.floor(hash(gx, gy, seed + 64) * TUFTS.length)];
         buf.stamp(tuft, { l: gp.g4, m: gp.g3, s: gp.g1 }, x, y);
@@ -291,6 +332,13 @@ function decorate(buf, ter, W, H, seed, gp) {
         buf.stamp(["lm", "md"], { l: light, m: t === T.DIRT ? "d4" : "s4", d: dark }, x, y);
       } else if (t === T.SAND && r < 0.08 && allGrass(x, y, 2, 2, T.SAND)) {
         buf.stamp(["l.", ".d"], { l: "c4", d: "d3" }, x, y);
+      } else if (t === T.SAND && r > 0.72 && allGrass(x, y, 7, 3, T.SAND)) {
+        // Ondas de duna: arco claro arriba, sombra abajo.
+        buf.stamp(["..lll..", ".l...l.", "d.....d", ".d...d."].slice(0, 3), { l: "d6", d: "d4" }, x, y);
+      } else if (t === T.SNOW && r < 0.12 && allGrass(x, y, 5, 3, T.SNOW)) {
+        buf.stamp([".lll.", "lllll", ".sss."], { l: "n4", s: "n2" }, x, y);
+      } else if (t === T.SNOW && r > 0.96 && allGrass(x, y, 3, 3, T.SNOW)) {
+        buf.stamp(["g.g", ".g.", "..."], { g: gp.g1 }, x, y);
       }
     }
   }

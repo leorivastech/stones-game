@@ -13,6 +13,7 @@ import { tone, sfx } from "../sfx.js";
 import {
   GOODS, MAX_DEMAND, MAX_STOCK, TOWNS, UPGRADES, buy, canBuy, canSell, capacity, cargo, flag, gold, hasUpgrade,
   heatLevel, hiddenCapacity, hp, localHeat, marketQuote, maxHp, reputation, saveGame, sell, setFlag, stones,
+  moveStash, stashOf, stashCount, STASH_CAPACITY, STASH_RAID_HEAT, tonics, TONIC,
 } from "../state.js";
 
 const D = 20000;
@@ -50,7 +51,9 @@ export class UIScene extends Phaser.Scene {
     this.pips = [0, 1, 2, 3, 4].map((i) => this.add.image(VIEW_W - 49 + i * 6, 8, "ui-pip-off").setOrigin(0, 0));
     this.star = this.add.image(VIEW_W - 63, 18, "ui-star").setOrigin(0, 0);
     this.fameText = this.add.bitmapText(VIEW_W - 51, 17, "font-o", "0");
-    this.hud.add([this.coinIcon, this.goldText, this.eye, ...this.pips, this.star, this.fameText]);
+    this.tonicIcon = this.add.image(7, 28, "tonic").setOrigin(0, 0);
+    this.tonicText = this.add.bitmapText(18, 29, "font-o", "");
+    this.hud.add([this.coinIcon, this.goldText, this.eye, ...this.pips, this.star, this.fameText, this.tonicIcon, this.tonicText]);
   }
 
   refresh() {
@@ -104,6 +107,11 @@ export class UIScene extends Phaser.Scene {
       if (list[i]) gem.setTexture(`gem-${list[i]}`);
     });
 
+    // Tónicos: sólo si llevas.
+    const tn = tonics(reg);
+    this.tonicIcon.setVisible(tn > 0);
+    this.tonicText.setVisible(tn > 0).setText(`${tn} · Q`);
+
     // Alerta
     const heat = localHeat(reg, this.def);
     const lvl = heatLevel(heat);
@@ -115,7 +123,7 @@ export class UIScene extends Phaser.Scene {
 
   /** Cierra cualquier ventana abierta (por si el mapa cambió con una abierta). */
   resetModals() {
-    for (const [key, obj] of [["dialog", this.dialog], ["choice", this.choice], ["shopState", this.shopState], ["pauseState", this.pauseState]]) {
+    for (const [key, obj] of [["dialog", this.dialog], ["choice", this.choice], ["shopState", this.shopState], ["pauseState", this.pauseState], ["stashState", this.stashState]]) {
       if (!obj) continue;
       obj.box.destroy();
       this[key] = null;
@@ -265,7 +273,7 @@ export class UIScene extends Phaser.Scene {
     return new Promise((resolve) => {
       this.closeAll();
       this.mode = "choice";
-      const w = Math.max(textWidth(title), ...options.map((o) => textWidth(o.label) + 14), 150) + 20;
+      const w = even(Math.max(textWidth(title), ...options.map((o) => Math.max(textWidth(o.label) + 14, textWidth(o.note ?? ""))), 150) + 20);
       const h = 30 + options.length * 14 + 16;
       const x = VIEW_W / 2 - w / 2;
       const y = VIEW_H / 2 - h / 2 - 10;
@@ -422,6 +430,93 @@ export class UIScene extends Phaser.Scene {
     s.resolve();
   }
 
+  // ------------------------------------------------------------------ alijo
+
+  /** Ventana del alijo: ↑↓ elige piedra, → guarda, ← saca. */
+  stash(id, def, heat) {
+    return new Promise((resolve) => {
+      this.closeAll();
+      this.mode = "stash";
+      const w = 260;
+      const rowsN = Object.keys(GOODS).length;
+      const h = 58 + rowsN * 16 + 30;
+      const x = VIEW_W / 2 - w / 2;
+      const y = VIEW_H / 2 - h / 2 - 6;
+      const box = this.add.container(0, 0).setDepth(D + 12);
+      box.add(this.panel(x, y, "ui-dark", w, h).setOrigin(0, 0));
+      box.add(this.add.bitmapText(x + 10, y + 7, "font-gold", "ALIJO"));
+      const count = this.add.bitmapText(x + w - 10, y + 7, "font-dim", "").setOrigin(1, 0);
+      box.add(count);
+      box.add(this.add.bitmapText(x + 118, y + 24, "font-dim", "Carga"));
+      box.add(this.add.bitmapText(x + 196, y + 24, "font-dim", "Alijo"));
+      const rows = Object.values(GOODS).map((g, i) => {
+        const ry = y + 40 + i * 16;
+        const r = {
+          good: g.id,
+          icon: this.add.image(x + 22, ry + 4, `gem-${g.id}`).setOrigin(0, 0.5),
+          label: this.add.bitmapText(x + 36, ry, "font", g.short),
+          carry: this.add.bitmapText(x + 130, ry, "font", "").setOrigin(0.5, 0),
+          arrows: this.add.bitmapText(x + 168, ry, "font-dim", "").setOrigin(0.5, 0),
+          stored: this.add.bitmapText(x + 208, ry, "font", "").setOrigin(0.5, 0),
+        };
+        box.add([r.icon, r.label, r.carry, r.arrows, r.stored]);
+        return r;
+      });
+      const cursor = this.add.bitmapText(x + 10, y + 40, "font-gold", "▶");
+      const warn = this.add.bitmapText(x + 10, y + h - 28, heat >= STASH_RAID_HEAT ? "font-red" : "font-dim",
+        heat >= STASH_RAID_HEAT ? "Ruta caliente: la Corona puede dar con él." : "Lo guardado aquí no lo pierdes al caer.");
+      const hint = this.add.bitmapText(x + 10, y + h - 15, "font-dim", "→ guardar · ← sacar · ↑↓ elegir · ESC salir");
+      box.add([cursor, warn, hint]);
+      box.setAlpha(0);
+      this.tweens.add({ targets: box, alpha: 1, duration: 120 });
+      this.stashState = { id, box, rows, cursor, count, index: 0, resolve, y };
+      this.drawStash();
+    });
+  }
+
+  drawStash() {
+    const s = this.stashState;
+    const reg = this.registry;
+    const c = cargo(reg);
+    const st = stashOf(reg, s.id);
+    for (const r of s.rows) {
+      const a = c[r.good] ?? 0;
+      const b = st[r.good] ?? 0;
+      r.carry.setText(String(a)).setFont(a ? "font" : "font-dim");
+      r.stored.setText(String(b)).setFont(b ? "font-gold" : "font-dim");
+      r.arrows.setText(`${b ? "←" : " "} ${a ? "→" : " "}`);
+      r.label.setFont(a || b ? "font" : "font-dim");
+    }
+    s.cursor.setY(s.y + 40 + s.index * 16);
+    s.count.setText(`${stashCount(reg, s.id)}/${STASH_CAPACITY} · carga ${stones(reg)}/${capacity(reg)}`);
+  }
+
+  updateStash() {
+    const s = this.stashState;
+    const n = s.rows.length;
+    if (this.controls.pressed("down")) { s.index = (s.index + 1) % n; tone(this, "select"); this.drawStash(); }
+    if (this.controls.pressed("up")) { s.index = (s.index + n - 1) % n; tone(this, "select"); this.drawStash(); }
+    if (this.controls.pressed("cancel") || this.controls.pressed("pause")) {
+      tone(this, "select");
+      s.box.destroy();
+      this.stashState = null;
+      this.mode = null;
+      s.resolve();
+      return;
+    }
+    const dir = this.controls.pressed("right") ? 1 : this.controls.pressed("left") ? -1 : 0;
+    if (!dir) return;
+    const r = s.rows[s.index];
+    if (moveStash(this.registry, s.id, r.good, dir)) {
+      sfx(this, "sack", { volume: 0.35 });
+      tone(this, "pickup");
+    } else {
+      tone(this, "deny");
+      this.tweens.add({ targets: r.label, x: r.label.x + 2, duration: 40, yoyo: true, repeat: 2 });
+    }
+    this.drawStash();
+  }
+
   // ------------------------------------------------------------------ pausa
 
   pause(def) {
@@ -471,6 +566,16 @@ export class UIScene extends Phaser.Scene {
           g.fillRect(Math.round(mx + ax + ((bx - ax) * i) / steps), Math.round(my + ay + ((by - ay) * i) / steps), 2, 2);
         }
       }
+      if (flag(reg, "met-ferry")) {
+        const [ax, ay] = WORLD_PINS.frostholm;
+        const [bx, by] = WORLD_PINS.ashfen;
+        const steps = Math.ceil(Math.hypot(bx - ax, by - ay) / 4);
+        g.fillStyle(0x1d3f66, 1);
+        for (let i = 0; i <= steps; i += 2) {
+          const t = i / steps;
+          g.fillRect(Math.round(mx + ax + (bx - ax) * t), Math.round(my + ay + (by - ay) * t + Math.sin(t * Math.PI) * 18), 2, 2);
+        }
+      }
       const here = p.def.kind === "town" ? p.def.town : null;
       for (const [id, [x, y]] of Object.entries(WORLD_PINS)) {
         const known = flag(reg, `visited-${id}`);
@@ -493,14 +598,16 @@ export class UIScene extends Phaser.Scene {
       txt(side, 42, p.def.name, "font-gold");
       txt(side, 54, p.def.subtitle, "font-dim");
       txt(side, 74, "Recorrido", "font-gold");
+      // Cada pueblo compra lo que produce el anterior: el círculo paga completo.
       const lines = [
-        "Ashfen produce ámbar.",
-        "Valkeep lo compra y",
-        "funde vidrio rúnico.",
+        "Cada pueblo compra lo",
+        "que hace el anterior:",
+        "Ashfen → Valkeep →",
+        "Verdelume → Duneshade →",
+        "Frostholm → Ashfen.",
         "",
-        "Los pueblos de más allá",
-        "se abren cuando caiga",
-        "el derrumbe.",
+        flag(reg, "met-ferry") ? "La barca cruza el golfo." : "Dicen que en Frostholm",
+        flag(reg, "met-ferry") ? "Frostholm y Ashfen." : "hay un barquero.",
       ];
       lines.forEach((l, i) => txt(side, 86 + i * 12, l, "font-dim"));
     } else if (p.index === 1) {
@@ -515,6 +622,23 @@ export class UIScene extends Phaser.Scene {
       txt(36, 86, String(gold(reg)));
       txt(24, 106, "FAMA", "font-gold");
       txt(24, 118, `${reputation(reg)}`);
+      txt(24, 138, "TÓNICOS", "font-gold");
+      add(this.add.image(24, 151, "tonic").setOrigin(0, 0));
+      txt(36, 152, `${tonics(reg)}/${TONIC.max}  (Q)`);
+      txt(24, 172, "ALIJOS", "font-gold");
+      const stashes = Object.entries(reg.get("stashes") ?? {}).filter(([id]) => stashCount(reg, id) > 0);
+      if (!stashes.length) txt(24, 184, hasUpgrade(reg, "stashKit") ? "Vacíos." : "Sin herrajes.", "font-dim");
+      stashes.slice(0, 5).forEach(([id, st], i) => {
+        const label = id.replace(/^r(\d)-/, "Ruta $1 · ");
+        txt(24, 184 + i * 11, label, "font-dim");
+        let gx = 24 + textWidth(label) + 4;
+        for (const [g, n] of Object.entries(st)) {
+          if (!n) continue;
+          add(this.add.image(gx, 184 + i * 11, `gem-${g}`).setOrigin(0, 0));
+          txt(gx + 11, 184 + i * 11, String(n));
+          gx += 22;
+        }
+      });
       txt(150, 42, `CARGA ${stones(reg)}/${capacity(reg)}`, "font-gold");
       const c = cargo(reg);
       let row = 0;
@@ -530,8 +654,8 @@ export class UIScene extends Phaser.Scene {
       txt(150, 134, "MEJORAS", "font-gold");
       Object.values(UPGRADES).forEach((u, i) => {
         const owned = hasUpgrade(reg, u.id);
-        txt(150, 148 + i * 22, owned ? u.name : `${u.name} (fama ${u.reputation})`, owned ? "font-green" : "font-dim");
-        txt(158, 159 + i * 22, u.effect, "font-dim");
+        txt(150, 146 + i * 20, owned ? u.name : `${u.name} (fama ${u.reputation})`, owned ? "font-green" : "font-dim");
+        txt(158, 156 + i * 20, u.effect, "font-dim");
       });
     } else if (p.index === 2) {
       txt(24, 42, "Lo que sabes de cada mercado", "font-gold");
@@ -562,15 +686,16 @@ export class UIScene extends Phaser.Scene {
         ["Rodar (tocar) · correr (mantener)", "K / SHIFT"],
         ["Agacharse · esconderse en pasto alto", "L / C"],
         ["Hablar · usar · comerciar", "E"],
+        ["Beber tónico (2 corazones)", "Q"],
         ["Pausa", "ESC / ENTER"],
         ["Bajar un escalón", "caminar hacia abajo"],
       ];
       txt(24, 42, "CONTROLES", "font-gold");
       rows.forEach(([a, b], i) => {
-        txt(24, 58 + i * 16, a);
-        txt(VIEW_W - 26 - textWidth(b), 58 + i * 16, b, "font-gold");
+        txt(24, 58 + i * 14, a);
+        txt(VIEW_W - 26 - textWidth(b), 58 + i * 14, b, "font-gold");
       });
-      txt(24, 180, "Control: A atacar · B rodar · X agacharse · Y usar", "font-dim");
+      txt(24, 180, "Control: A atacar · B rodar · X agacharse · Y usar · LB tónico", "font-dim");
       txt(24, 196, "Guardias: revisan si llevas piedras a la vista.", "font-dim");
       txt(24, 208, "Bandidos: te arrancan piedras; recógelas antes que ellos.", "font-dim");
     }
@@ -620,5 +745,6 @@ export class UIScene extends Phaser.Scene {
     else if (this.mode === "choice" && this.choice) this.updateChoice();
     else if (this.mode === "shop" && this.shopState) this.updateShop();
     else if (this.mode === "pause" && this.pauseState) this.updatePause();
+    else if (this.mode === "stash" && this.stashState) this.updateStash();
   }
 }

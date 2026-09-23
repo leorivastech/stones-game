@@ -105,3 +105,61 @@ export function horseSheet() {
   });
   return strip(frames);
 }
+
+/** Lobo 26×18: 0-1 caminar, 2 salto (patas estiradas), 3 aturdido. Gris con vientre claro. */
+export function wolfSheet() {
+  const ramp = ["s1", "s2", "s3", "s4"];
+  const make = (pose) => {
+    const b = new Buf(26, 18);
+    b.ellipse(13, 16, 9, 1.8, rgba("ink", 80));
+    const stretch = pose === 2;
+    const legs = pose === 1 ? [[6, 1], [9, -1], [16, 1], [19, -1]] : [[6, -1], [9, 1], [16, -1], [19, 1]];
+    for (const [x, s] of legs) {
+      const len = pose === 3 ? 2 : 4;
+      const dx = stretch ? (x < 12 ? -2 : 2) : 0;
+      b.rect(x + dx, 12, 2, len + (s > 0 ? 0 : -1), "s1");
+      b.set(x + dx, 11 + len + (s > 0 ? 0 : -1), "ink2");
+    }
+    body(b, 12, 9, 8.5, 4, ramp, 7);
+    // Vientre claro y lomo oscuro.
+    for (let x = 7; x < 18; x += 1) { b.set(x, 12, "n3"); b.set(x, 5, "s1"); }
+    const hy = stretch ? 1 : 0;
+    body(b, 20, 7 + hy, 4, 3.3, ramp, 9);
+    b.rect(23, 8 + hy, 3, 2, "s3");
+    b.set(25, 8 + hy, "ink");
+    b.set(21, 6 + hy, pose === 3 ? "y4" : "y3");
+    b.set(19, 3, "s2"); b.set(19, 4, "s2"); b.set(21, 3, "s2"); b.set(21, 4, "s3");
+    for (let i = 0; i < 5; i += 1) b.set(4 - i, 7 + Math.floor(i / 2) - (stretch ? 1 : 0), i > 3 ? "n3" : "s2");
+    return outlined(b);
+  };
+  return strip([make(0), make(1), make(2), make(3)]);
+}
+
+/** Escorpión 20×14: 0-1 caminar, 2 aguijón adelante, 3 escondido (sólo la arena removida y los ojos). */
+export function scorpionSheet() {
+  const make = (pose) => {
+    const b = new Buf(20, 14);
+    if (pose === 3) {
+      b.ellipse(10, 10, 6, 2.5, "d4");
+      b.ellipse(10, 9.5, 4, 1.5, "d5");
+      b.set(8, 9, "ink"); b.set(11, 9, "ink");
+      return b;
+    }
+    b.ellipse(10, 12, 7, 1.5, rgba("ink", 80));
+    const step = pose === 1 ? 1 : 0;
+    for (let k = 0; k < 3; k += 1) {
+      b.set(6 + k * 3, 11 + ((k + step) % 2), "r0");
+      b.set(6 + k * 3, 7 - ((k + step) % 2), "r0");
+    }
+    body(b, 10, 9, 5, 2.6, ["r0", "r1", "r2", "r3"], 3);
+    b.ellipse(16, 7, 2, 1.5, "r2");
+    b.ellipse(16, 11, 2, 1.5, "r2");
+    b.set(18, 7, "r1"); b.set(18, 11, "r1");
+    const tail = pose === 2 ? [[5, 8], [4, 6], [5, 4], [7, 3], [9, 3], [11, 4]] : [[5, 8], [3, 7], [2, 5], [3, 3], [5, 2], [6, 3]];
+    tail.forEach(([x, y], i) => { b.set(x, y, i % 2 ? "r3" : "r2"); b.set(x, y + 1, "r1"); });
+    const [sx, sy] = tail[tail.length - 1];
+    b.set(sx + 1, sy, "y4");
+    return outlined(b);
+  };
+  return strip([make(0), make(1), make(2), make(3)]);
+}

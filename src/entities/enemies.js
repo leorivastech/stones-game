@@ -151,9 +151,10 @@ class Enemy {
 // ---------------------------------------------------------------------------
 
 export class Boar extends Enemy {
-  constructor(scene, spec) {
-    super(scene, spec, "boar", 0);
-    this.hp = ENEMY.boar.hp;
+  constructor(scene, spec, kind = "boar") {
+    super(scene, spec, kind, 0);
+    this.kind = kind;
+    this.hp = ENEMY[kind].hp;
     this.body.setSize(16, 7).setOffset(4, 10);
     this.shadow.setTexture("shadow-big");
     this.wanderTarget = null;
@@ -163,7 +164,7 @@ export class Boar extends Enemy {
   update(dt) {
     if (this.dead) return;
     if (this.preUpdate(dt)) return;
-    const cfg = ENEMY.boar;
+    const cfg = ENEMY[this.kind];
     const p = this.player();
     const d = this.distToPlayer();
     switch (this.state) {
@@ -174,7 +175,7 @@ export class Boar extends Enemy {
         }
         const arrived = this.moveToward(this.wanderTarget.x, this.wanderTarget.y, cfg.speed);
         if (arrived) this.body.setVelocity(0, 0);
-        this.anim(arrived ? null : "boar-walk");
+        this.anim(arrived ? null : `${this.kind}-walk`);
         if (d < cfg.sight && !p.hidden && p.state !== "ko" && this.lineOfSight(p.x, p.y - 8)) {
           this.setState("windup");
           this.body.setVelocity(0, 0);
@@ -189,7 +190,7 @@ export class Boar extends Enemy {
         this.sprite.setFlipX(p.x < this.x);
         this.sprite.x += Math.sin(this.stateTime * 0.08) * 0.6;
         if (Math.floor(this.stateTime / 120) % 2 === 0) this.scene.fx.dust(this.x - (this.sprite.flipX ? -8 : 8), this.y, 0.6);
-        if (this.stateTime > 560) {
+        if (this.stateTime > (cfg.windup ?? 560)) {
           const dx = p.x - this.x;
           const dy = p.y - this.y;
           const len = Math.hypot(dx, dy) || 1;
@@ -200,7 +201,7 @@ export class Boar extends Enemy {
       }
       case "charge": {
         this.body.setVelocity(this.chargeDir.x * cfg.charge, this.chargeDir.y * cfg.charge);
-        this.anim("boar-run");
+        this.anim(`${this.kind}-run`);
         this.sprite.setFlipX(this.chargeDir.x < 0);
         if (Math.floor(this.stateTime / 90) !== Math.floor((this.stateTime - dt) / 90)) this.scene.fx.dust(this.x, this.y, 0.8);
         if (this.touching()) this.scene.damagePlayer(cfg.damage, this, { steal: false });
@@ -729,8 +730,101 @@ export class Guard extends Humanoid {
   }
 }
 
+// ---------------------------------------------------------------------------
+
+/** Escorpión: enterrado en la arena (sólo se ve la arena removida), sale si te acercas y pica. */
+export class Scorpion extends Enemy {
+  constructor(scene, spec) {
+    super(scene, spec, "scorpion", 3);
+    this.hp = ENEMY.scorpion.hp;
+    this.body.setSize(14, 6).setOffset(3, 7);
+    this.shadow.setVisible(false);
+    this.setState("buried");
+  }
+
+  update(dt) {
+    if (this.dead) return;
+    if (this.preUpdate(dt)) return;
+    const cfg = ENEMY.scorpion;
+    const p = this.player();
+    const d = this.distToPlayer();
+    const s = this.sprite;
+    switch (this.state) {
+      case "buried":
+        this.body.setVelocity(0, 0);
+        s.anims.stop();
+        s.setFrame(3);
+        // La arena tiembla un poco para que el jugador atento lo note.
+        s.x = this.home.x + (Math.floor(this.stateTime / 90) % 2 ? 0.5 : -0.5);
+        if (d < cfg.sight && p.state !== "ko" && !this.scene.modal) {
+          this.setState("emerge");
+          this.scene.fx.dust(this.x, this.y, 0.8);
+          tone(this.scene, "suspect");
+        }
+        break;
+      case "emerge":
+        this.body.setVelocity(0, 0);
+        s.setFrame(0);
+        this.shadow.setVisible(true);
+        if (this.stateTime > 300) this.setState("chase");
+        break;
+      case "chase": {
+        this.moveToward(p.x, p.y, cfg.speed);
+        s.setFlipX(p.x < this.x);
+        if (s.anims.currentAnim?.key !== "scorpion-walk") s.play("scorpion-walk");
+        if (d < 22) this.setState("windup");
+        if (d > cfg.sight * 1.8) this.setState("return");
+        break;
+      }
+      case "windup":
+        this.body.setVelocity(0, 0);
+        s.anims.stop();
+        s.setFrame(2);
+        s.setFlipX(p.x < this.x);
+        this.flash = this.stateTime % 140 < 50 ? 40 : 0;
+        if (this.stateTime > 320) {
+          const dx = p.x - this.x;
+          const dy = p.y - this.y;
+          const len = Math.hypot(dx, dy) || 1;
+          this.body.setVelocity((dx / len) * 110, (dy / len) * 110);
+          this.setState("strike");
+        }
+        break;
+      case "strike":
+        if (this.touching(4)) this.scene.damagePlayer(cfg.damage, this, { steal: false });
+        if (this.stateTime > 160) {
+          this.body.setVelocity(0, 0);
+          this.setState("recover");
+        }
+        break;
+      case "recover":
+        this.body.setVelocity(0, 0);
+        s.setFrame(0);
+        if (this.stateTime > 700) this.setState(d > cfg.sight ? "return" : "chase");
+        break;
+      case "return": {
+        const arrived = this.moveToward(this.home.x, this.home.y, cfg.speed);
+        if (s.anims.currentAnim?.key !== "scorpion-walk") s.play("scorpion-walk");
+        if (arrived) {
+          this.shadow.setVisible(false);
+          this.setState("buried");
+        }
+        break;
+      }
+      default:
+        this.setState("buried");
+    }
+  }
+
+  onHurt() {
+    if (this.state === "buried") this.setState("chase");
+  }
+}
+
 export function makeEnemy(scene, spec) {
   if (spec.kind === "boar") return new Boar(scene, spec);
+  if (spec.kind === "wolf") return new Boar(scene, spec, "wolf");
+  if (spec.kind === "scorpion") return new Scorpion(scene, spec);
   if (spec.kind === "bandit") return new Bandit(scene, spec);
   if (spec.kind === "guard") return new Guard(scene, spec);
   return null;
