@@ -9,15 +9,17 @@ description: >-
 
 # Trailer de un juego
 
-Salida: MP4 **1920×1080, 30 fps, 30–45 s** en `<juego>/trailer/renders/` y copia en
-`~/Downloads/<juego>-trailer.mp4`. Primera versión sin preguntar; al final reportar dudas.
+Salida: MP4 **1920×1080, 30 fps** — teaser 30–45 s o trailer completo 75–90 s — en
+`<juego>/trailer/renders/` y copia en `~/Downloads/<juego>-trailer.mp4`. Primera versión sin
+preguntar; al final reportar dudas.
 
-Ejemplo real y completo: `stones_Game/trailer/` (34 s, 11 tomas, 6 voces).
+Ejemplo real y completo: `stones_Game/trailer/` (v2: 90 s, 21 tomas, 36 cortes, 10 voces, sonidos
+del juego en su cuadro, cortes en los compases de la música).
 
 ## Arranque (una vez por juego)
 
 1. Copiar el kit: `cp -r .cursor/skills/trailer-juego/kit trailer` (en la raíz del juego).
-2. Enganche en `src/main.js` (si no está):
+2. Enganches en el juego (si no están):
    ```js
    const CAPTURE = new URLSearchParams(location.search).has("capture");
    // en la config de Phaser.Game:
@@ -26,21 +28,31 @@ Ejemplo real y completo: `stones_Game/trailer/` (34 s, 11 tomas, 6 voces).
    // después de crear el juego:
    if (import.meta.env.DEV) globalThis.__game = game;
    ```
-3. `cd trailer && npm install && python3 -m venv .venv && .venv/bin/pip install edge-tts`
+   Y en la función que toca efectos del juego (la primera línea), para que la grabación anote
+   cada sonido en su cuadro (en modo captura no hay audio):
+   ```js
+   if (globalThis.__captureSfx) globalThis.__captureSfx.push({ name, volume });
+   ```
+3. `cd trailer && npm install && python3 -m venv .venv && .venv/bin/pip install edge-tts librosa`
    (necesita red; Chromium sale de `~/.cache/ms-playwright` o de `CHROME=`).
 
 ## Flujo
 
-1. **Qué vender.** Leer `studio/story.md` y `mechanics.md`. Elegir 8–12 momentos. Estructura
-   que funcionó: gancho con el mundo (voz) → el conflicto (voz) → 3–4 **verbos** del juego con
-   texto grande (ESCÓNDETE · PELEA · …) y flashes → progreso/descubrimiento (voz) → cierre con logo,
-   lema y PRÓXIMAMENTE.
+1. **Qué vender.** Leer `studio/` (historia, mecánicas). Estructura que funcionó (Stones v2):
+   apertura con los lugares y su **rótulo** (town) → el conflicto (voz) → **tarjeta** sobre negro en
+   el silencio de la música → la premisa (voz sobre la pantalla del juego que la muestra) → 6–8
+   **verbos** con texto grande y rótulo chico, uno por compás, entrando con **barrido** → el mundo
+   vivo (voz) → tensión: cámara lenta + **barras de cine** → **clímax**: cortes de medio compás con
+   destellos y sacudidas → **logo que cae de golpe** con rayos, lema, PRÓXIMAMENTE y créditos.
+1b. **Música con curva.** `.venv/bin/python beats.py <pista>` imprime tempo, compases y energía por
+   segundo. Elegir una pista que tenga respiro y clímax (no una plana) y cortar en sus compases:
+   cada `dur` = distancia al siguiente compás. El clímax del trailer va donde la energía sube.
 2. **Tomas** en `trailer/shots.mjs`: cada toma = `setup` (arrancar escena, colocar jugador, quitar
    enemigos que estorban, carga, HUD) + `input` (teclas por segundo) + `sfx` en el segundo exacto.
    Las ayudas de arriba del archivo son lo único propio de cada juego.
 3. **Grabar**: juego corriendo (`npm run dev` en la raíz; si Leo ya lo tiene abierto en ese puerto,
-   usar ese) → `node capture.mjs [toma…]` → `python3 sheet.py [toma…]` y **mirar** las hojas.
-   Re-grabar solo la toma que salió mal.
+   usar ese) → `node capture.mjs [toma…]` → `python3 sheet.py [toma…]` y `python3 sheets.py …`
+   (junta 4 hojas por imagen) y **mirar** todas. Re-grabar solo la toma que salió mal.
 4. **Guion** en `guion.json`: `lines` (voz) y `beats` (toma, `in`, `dur`, `vo`, `caption`, `enter`,
    `zoom`) + música. Voz: `.venv/bin/python make_voice.py` (solo regenera lo que cambió).
 5. `python3 build.py && npm run check` → 0 errores. Los avisos `container_overflow` son el zoom
@@ -66,8 +78,18 @@ Ejemplo real y completo: `stones_Game/trailer/` (34 s, 11 tomas, 6 voces).
   `letterSpacing` animado; cada `<audio>` con `id`; el audio tiene que vivir dentro de `trailer/`
   (`build.py` copia música y sonidos del juego); la cámara de GSAP usa nombres largos
   (`"Sine.easeInOut"`), los tweens aceptan los cortos.
-- **Voz**: narrador `es-MX-JorgeNeural`, `-8%`, `-6Hz`; frases cortas; puede seguir sobre el corte
-  siguiente pero nunca pisa otra voz (`build.py` la corre). La música baja sola bajo la voz.
+- **Voz**: narrador `es-MX-JorgeNeural`, `-6%`, `-8Hz`; frases cortas (edge-tts alarga las pausas:
+  medir con `make_voice.py` y acortar si la voz se come el corte siguiente); nunca pisa otra voz
+  (`build.py` la corre). La música baja sola bajo la voz.
+- **Sonido del juego**: con el enganche de `__captureSfx`, `capture.mjs` anota cada sonido que el
+  juego pidió (golpes, flechas, pasos, monedas) y `build.py` lo pone en su cuadro. Los pasos van más
+  bajos (`stepGain`). El mismo sonido en el mismo cuadro se pone una vez, y cada sonido busca un
+  carril libre (si dos se enciman en un carril, `check` avisa).
+- **Textos**: la palabra grande en el **tercio de arriba** (la acción suele estar al centro); el
+  rótulo chico con fondo oscuro (si no, falla el contraste sobre arena o nieve).
+- **Diálogo sobre negro** (cruces, fundidos): ocultar sólo el HUD (`ui.hud.setVisible(false)`), no la
+  cámara de la interfaz, o se pierde el diálogo.
+- Si la IA del juego es azarosa (rumores, emboscadas), fijar `Math.random` en el setup de esa toma.
 - **Música**: la del propio juego primero (una tranquila para el gancho, la tensa para la acción).
   Si el juego no tiene, `/media-use` → `resolve --type bgm`.
 - Texto grande con fuente pixel del kit (Pixelify Sans, OFL) y contorno duro. Logo: se exporta del
@@ -84,7 +106,8 @@ Ejemplo real y completo: `stones_Game/trailer/` (34 s, 11 tomas, 6 voces).
 | `capture.mjs` | Graba tomas cuadro a cuadro → `assets/clips/` | No |
 | `make_voice.py` | Voz TTS → `assets/vo-*.mp3` + `vo.json` | No |
 | `build.py` + `template.tpl` | Arman `index.html` (HyperFrames) | Solo si cambia el estilo |
-| `sheet.py`, `check_render.py` | Revisar tomas y render | No |
+| `beats.py` | Tempo, compases y energía de la música → `assets/beats.json` | No |
+| `sheet.py`, `sheets.py`, `check_render.py` | Revisar tomas (de a una o 4 por imagen) y render | No |
 
 `index.html`, tomas, renders y copias de audio no van a git: se regeneran.
 

@@ -1,10 +1,10 @@
 {
-  "_ayuda": "Guion de edición. build.py lo convierte en index.html. clip = toma de shots.mjs; in = segundo de la toma donde empieza; dur = cuánto dura en el trailer; vo = línea de voz; caption = texto grande; enter = cut | flash | fade; zoom = [inicio, fin]; speed = velocidad constante. Música: from/to = índice de toma o 'end'.",
+  "_ayuda": "Guion de edición. build.py lo convierte en index.html. Cortar en compases de la música (beats.py → assets/beats.json). clip = toma de shots.mjs; in = segundo de la toma; dur = cuánto dura; vo = línea de voz (voAt = segundo dentro del corte); caption/kicker = texto grande con rótulo chico; town = rótulo de lugar {name, stone, sub}; enter = cut | flash | fade | whip; shake = sacudida (segundo); speed; zoom = [inicio, fin]; type card = texto sobre negro. Música: from/to = índice de corte, segundo o 'end'.",
   "title": "Juego — trailer",
   "size": [1920, 1080],
   "fps": 30,
 
-  "voice": { "voice": "es-MX-JorgeNeural", "rate": "-8%", "pitch": "-6Hz" },
+  "voice": { "voice": "es-MX-JorgeNeural", "rate": "-6%", "pitch": "-8Hz" },
   "lines": {
     "v1": "Una frase que presente el mundo.",
     "v2": "Una frase con el conflicto.",
@@ -13,20 +13,31 @@
 
   "audio": {
     "music": [
-      { "src": "../public/assets/proto/music/tema.ogg", "from": 0, "to": "end", "mediaStart": 0, "volume": 0.6 }
+      { "src": "../public/assets/music/trailer.ogg", "from": 0, "to": "end", "mediaStart": 0, "volume": 0.8, "fadeOut": 3.0 }
     ],
-    "duck": 0.3,
-    "sfxDir": "../public/assets/proto/sfx",
-    "sfxVolume": 0.55,
-    "captionSfx": null
+    "duck": 0.45,
+    "sfxDirs": ["../public/assets/sfx"],
+    "sfxGain": 0.9,
+    "stepGain": 0.45,
+    "skipSfx": [],
+    "captionSfx": "hit",
+    "captionVolume": 0.4,
+    "whipSfx": "swing",
+    "whipVolume": 0.35,
+    "hitVolume": 0.65
   },
 
+  "letterbox": [{ "from": 20.0, "to": 28.0, "size": 110 }],
+
   "beats": [
-    { "clip": "juego", "in": 0.3, "dur": 4.0, "vo": "v1", "enter": "fade", "zoom": [1.0, 1.06] },
-    { "clip": "juego", "in": 1.0, "dur": 2.4, "vo": "v2", "enter": "flash", "caption": "VERBO" },
+    { "clip": "mundo", "in": 0.3, "dur": 4.0, "vo": "v1", "enter": "fade", "zoom": [1.0, 1.06], "town": { "name": "Lugar", "stone": "gema", "sub": "Qué hay aquí" } },
+    { "type": "card", "dur": 3.0, "text": "EL CONFLICTO EN UNA FRASE", "vo": "v2", "sfx": ["hit"] },
+    { "clip": "accion", "in": 1.0, "dur": 2.2, "enter": "whip", "kicker": "CONTRA QUIÉN", "caption": "VERBO", "shake": 0.5 },
+    { "clip": "accion", "in": 2.0, "dur": 1.1, "enter": "flash" },
     {
-      "type": "title", "clip": "portada", "in": 0.5, "dur": 5.0, "vo": "v3", "enter": "fade",
-      "logo": "assets/stills/logo.png", "tagline": "El lema del juego", "cta": "PRÓXIMAMENTE"
+      "type": "title", "clip": "portada", "in": 0.5, "dur": 7.0, "vo": "v3", "voAt": 1.2, "slamAt": 0.35, "sfx": ["hit"],
+      "logo": "assets/stills/logo.png", "tagline": "El lema del juego", "cta": "PRÓXIMAMENTE",
+      "credits": "Música: … (licencia) · Efectos: … (licencia)"
     }
   ]
 }

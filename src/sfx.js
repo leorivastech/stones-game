@@ -44,6 +44,8 @@ export function preloadSfx(scene) {
 }
 
 export function sfx(scene, name, extra = {}) {
+  // Grabación de trailer (?capture=1, sin audio): se anota el sonido para ponerlo en su cuadro.
+  if (globalThis.__captureSfx) globalThis.__captureSfx.push({ name, volume: extra.volume ?? 0.55 });
   const key = `sfx-${name}`;
   if (!scene.cache.audio.exists(key)) return;
   scene.sound.play(key, { volume: 0.55, ...extra });
@@ -85,7 +87,7 @@ let noiseBuffer = null;
 
 export function tone(scene, name) {
   const sample = SAMPLE_TONES[name];
-  if (sample && sample[0].every((n) => scene.cache.audio.exists(`sfx-${n}`))) {
+  if (sample && (globalThis.__captureSfx || sample[0].every((n) => scene.cache.audio.exists(`sfx-${n}`)))) {
     sfxVary(scene, sample[0], sample[1], 80);
     return;
   }

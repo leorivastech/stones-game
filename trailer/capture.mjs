@@ -114,7 +114,11 @@ async function recordShot(browser, shot) {
       if (i.run) await i.run(page);
       if (i.sfx) events.push({ t: +(f / FPS).toFixed(3), sfx: i.sfx });
     }
+    // Los sonidos que dispara el propio juego en este cuadro (el juego los anota en modo captura).
+    await page.evaluate(() => { globalThis.__captureSfx = []; });
     await step(page);
+    const heard = await page.evaluate(() => globalThis.__captureSfx ?? []);
+    for (const h of heard) events.push({ t: +(f / FPS).toFixed(3), sfx: h.name, vol: h.volume, game: true });
     await out.write(await canvas.screenshot({ type: "png" }));
   }
   await out.end();

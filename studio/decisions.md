@@ -145,3 +145,8 @@ Regla: una línea por decisión, con fecha. No borrar: si se revierte, se agrega
 - **Hecho** — 10 pistas nuevas por lugar (elegidas por defecto entre 31 candidatas), 39 efectos, 6 ambientes, música de persecución. Leo puede cambiar cualquiera desde `escuchar.html`.
 - **Pendiente de Leo** — Escuchar y decir qué cambiar.
 
+## 2026-09-23 — trailer v2 y celular
+
+- **Anotado / Leo** — Jugar en celular y iPad: pendiente (plan en `panorama.md` §5: web táctil + PWA → APK con Capacitor → App Store al publicar).
+- **Hecho / Leo** — Trailer nuevo de 1:30, más imponente: música épica CC-BY cortada a compás, 21 tomas nuevas, sonidos del juego en su cuadro, rótulos, verbos, clímax y logo. `~/Downloads/stones-trailer-v2.mp4`.
+

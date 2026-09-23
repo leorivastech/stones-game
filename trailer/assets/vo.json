@@ -1,32 +1,52 @@
 {
  "v1": {
-  "dur": 5.26,
-  "text": "Las piedras de hechizo calientan las casas… y salvan las cosechas.",
-  "sig": "es-MX-JorgeNeural|-8%|-6Hz"
+  "dur": 3.82,
+  "text": "Alrededor del golfo… hay cinco pueblos.",
+  "sig": "es-MX-JorgeNeural|-6%|-8Hz"
  },
  "v2": {
-  "dur": 4.01,
-  "text": "Pero la Corona las vende caras, pocas y tarde.",
-  "sig": "es-MX-JorgeNeural|-8%|-6Hz"
+  "dur": 5.81,
+  "text": "Cada uno guarda una piedra de hechizo. Y necesita la del vecino.",
+  "sig": "es-MX-JorgeNeural|-6%|-8Hz"
  },
  "v3": {
-  "dur": 3.91,
-  "text": "Así que alguien tiene que llevarlas por la calzada.",
-  "sig": "es-MX-JorgeNeural|-8%|-6Hz"
+  "dur": 3.62,
+  "text": "Pero la Corona las vende caras… y tarde.",
+  "sig": "es-MX-JorgeNeural|-6%|-8Hz"
  },
  "v4": {
-  "dur": 2.47,
-  "text": "Abre tu propio camino.",
-  "sig": "es-MX-JorgeNeural|-8%|-6Hz"
+  "dur": 2.66,
+  "text": "Alguien tiene que llevarlas.",
+  "sig": "es-MX-JorgeNeural|-6%|-8Hz"
  },
  "v5": {
-  "dur": 6.0,
-  "text": "Compra barato. Vende caro. Y que no te atrapen.",
-  "sig": "es-MX-JorgeNeural|-8%|-6Hz"
+  "dur": 4.82,
+  "text": "Tu padre te dejó una deuda. Y el Gremio cobra.",
+  "sig": "es-MX-JorgeNeural|-6%|-8Hz"
  },
  "v6": {
-  "dur": 1.97,
+  "dur": 4.32,
+  "text": "Compra donde sobra. Vende donde falta.",
+  "sig": "es-MX-JorgeNeural|-6%|-8Hz"
+ },
+ "v7": {
+  "dur": 4.82,
+  "text": "El mundo cambia cada día. Y los precios también.",
+  "sig": "es-MX-JorgeNeural|-6%|-8Hz"
+ },
+ "v8": {
+  "dur": 4.39,
+  "text": "Tú decides qué llevas… a quién llevas… y por dónde.",
+  "sig": "es-MX-JorgeNeural|-6%|-8Hz"
+ },
+ "v9": {
+  "dur": 4.58,
+  "text": "Pero cuidado. La Corona siempre está mirando.",
+  "sig": "es-MX-JorgeNeural|-6%|-8Hz"
+ },
+ "v10": {
+  "dur": 1.92,
   "text": "Stones.",
-  "sig": "es-MX-JorgeNeural|-8%|-6Hz"
+  "sig": "es-MX-JorgeNeural|-6%|-8Hz"
  }
 }

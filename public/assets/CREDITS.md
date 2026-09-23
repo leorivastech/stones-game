@@ -25,6 +25,8 @@ CC-BY = hay que dar crédito (aquí y en los créditos del juego).
   - `music/title.ogg`
 - **chase** → *Medieval: Battle* — RandomMind · CC0 · https://opengameart.org/content/medieval-battle
   - `music/chase.ogg`
+- **trailer** → *Epic Orchestral Fantasy Theme* — linxiaoma · CC-BY 4.0 · https://opengameart.org/content/epic-orchestral-fantasy-theme
+  - `music/trailer.ogg` (sólo para el trailer)
 
 Pistas de antes (siguen en uso): ver `proto/CREDITS.md` (Ashfen, Valkeep, Ruta 1).
 

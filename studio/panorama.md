@@ -57,11 +57,18 @@ Lo interesante es **prepararse**: qué llevas, a quién llevas, dónde dejas qu�
 
 ## 5. Para después
 
+- **Jugar en celular y iPad** (Leo lo pidió anotar):
+  1. Web: palanca y botones táctiles, menús que se tocan, aviso de girar a horizontal, revisar texto
+     en teléfono (queda ×1.4 en iPhone acostado) y tiempo de carga; PWA instalable ("Agregar a
+     pantalla de inicio", pantalla completa, sin internet; en iOS protege la partida); publicarlo en
+     un hosting gratis o en Hostinger.
+  2. APK de Android con Capacitor (mismo código). Google Play: 25 USD una vez.
+  3. iPhone/iPad en App Store con Capacitor: 99 USD al año, Mac o compilación en la nube
+     (Codemagic), TestFlight para probar. Sólo cuando se publique.
 - **En línea sin juego simultáneo:** jugadores como parte de la oferta y la demanda; acaparar;
   grupos con refugios compartidos; "alguien salvó tus cosas". `economy.js` y `director.js` ya son
   lógica pura: se pueden mover a un servidor.
-- Música propia de Verdelume, Duneshade y Frostholm.
-- Trailer con el mundo nuevo.
+- Trailer con el mundo nuevo (en curso 23-sep).
 - Atajo de montaña Ashfen ↔ Verdelume.
 
 ## 6. Falta decidir
