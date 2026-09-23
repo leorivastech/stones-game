@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stones — Ashfen</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background:
+          radial-gradient(circle at 50% 20%, #263026 0%, #121714 42%, #090c0b 100%);
+        color: #e8dfd0;
+        font-family: Georgia, "Times New Roman", serif;
+      }
+      body {
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+      }
+      .shell {
+        width: min(96vw, calc((100vh - 52px) * 16 / 9), 1280px);
+      }
+      .masthead {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        margin: 0 4px 10px;
+        color: #a99a83;
+        font-size: clamp(11px, 1.1vw, 14px);
+        letter-spacing: 0.03em;
+      }
+      .masthead strong {
+        color: #e7cf98;
+        font-size: 1.15em;
+        letter-spacing: 0.14em;
+      }
+      #game {
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        overflow: hidden;
+        border: 1px solid #6d5531;
+        border-radius: 7px;
+        background: #17130f;
+        box-shadow: 0 26px 90px #000c, 0 0 0 1px #0a0806 inset;
+      }
+      canvas {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <div class="masthead">
+        <strong>STONES</strong>
+        <span>WASD / flechas · E comprar o tratar · Q vender</span>
+      </div>
+      <div id="game"></div>
+    </main>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

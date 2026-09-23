@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stones — studio y biblia del juego</title>
+<style>
+  /* Standalone theme tokens (same variables as frontera3k-layout-reference.html expects) */
+  :root {
+    --font-sans: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    --color-text-primary: #1a1a1a;
+    --color-text-secondary: #454545;
+    --color-text-tertiary: #6b6b6b;
+    --color-text-danger: #b42318;
+    --color-border-primary: #c9c9c9;
+    --color-border-secondary: #dcdcdc;
+    --color-border-tertiary: #ebebeb;
+    --color-background-secondary: #f4f4f5;
+    --border-radius-md: 8px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --color-text-primary: #ececec;
+      --color-text-secondary: #c4c4c4;
+      --color-text-tertiary: #9a9a9a;
+      --color-text-danger: #f87171;
+      --color-border-primary: #3f3f46;
+      --color-border-secondary: #3a3a3a;
+      --color-border-tertiary: #2e2e2e;
+      --color-background-secondary: #27272a;
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-sans, system-ui, sans-serif);
+    font-size: 14px; line-height: 1.7;
+    color: var(--color-text-primary);
+    padding: 2rem 1.5rem 4rem;
+    max-width: 780px;
+  }
+  h2 { font-size: 15px; font-weight: 500; margin: 2.5rem 0 0.75rem; padding-bottom: 6px; border-bottom: 0.5px solid var(--color-border-tertiary); }
+  h3 { font-size: 11px; font-weight: 500; color: var(--color-text-tertiary); margin: 1.5rem 0 0.5rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  p { color: var(--color-text-secondary); margin-bottom: 0.5rem; font-size: 13px; }
+  p strong { color: var(--color-text-primary); font-weight: 500; }
+  em { color: var(--color-text-tertiary); font-style: normal; font-size: 12px; }
+  .sub { font-size: 12px; color: var(--color-text-tertiary); margin-top: 2px; }
+  .doc-meta { font-size: 12px; color: var(--color-text-tertiary); margin: 0.75rem 0 0; }
+  code { font-family: var(--font-mono, monospace); font-size: 11px; background: var(--color-background-secondary); padding: 1px 5px; border-radius: 4px; }
+
+  /* Nav */
+  .nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 1.25rem 0 2rem; }
+  .pill {
+    font-size: 12px; padding: 4px 11px;
+    border: 0.5px solid var(--color-border-secondary);
+    border-radius: 99px; cursor: pointer;
+    color: var(--color-text-secondary);
+    background: transparent;
+  }
+  .pill:hover { background: var(--color-background-secondary); }
+  .pill.on { background: var(--color-background-secondary); color: var(--color-text-primary); border-color: var(--color-border-primary); }
+
+  /* Sections */
+  .sec { display: none; }
+  .sec.on { display: block; }
+
+  /* Tags */
+  .tag { display: inline-block; font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+  .tg { background: #F1EFE8; color: #444441; }
+  .tb { background: #E6F1FB; color: #0C447C; }
+  .tp { background: #EEEDFE; color: #3C3489; }
+  .tgr { background: #EAF3DE; color: #3B6D11; }
+  .ta { background: #FAEEDA; color: #854F0B; }
+  .tr { background: #FCEBEB; color: #A32D2D; }
+  .tc { background: #E1F5EE; color: #085041; }
+  @media (prefers-color-scheme: dark) {
+    .tg  { background: #444441; color: #D3D1C7; }
+    .tb  { background: #0C447C; color: #B5D4F4; }
+    .tp  { background: #3C3489; color: #CECBF6; }
+    .tgr { background: #27500A; color: #C0DD97; }
+    .ta  { background: #633806; color: #FAC775; }
+    .tr  { background: #791F1F; color: #F7C1C1; }
+    .tc  { background: #085041; color: #9FE1CB; }
+  }
+
+  /* Cards */
+  .grid { display: grid; gap: 10px; margin: 1rem 0; }
+  .g2 { grid-template-columns: 1fr 1fr; }
+  .g3 { grid-template-columns: 1fr 1fr 1fr; }
+  .g4 { grid-template-columns: repeat(4,1fr); }
+  .card { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 13px 15px; }
+  .ct { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+  .cb { font-size: 12px; color: var(--color-text-secondary); line-height: 1.6; }
+
+  /* Status flow */
+  .flow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 1rem 0; }
+  .arr { font-size: 12px; color: var(--color-text-tertiary); }
+
+  /* Rules */
+  .rule { padding: 12px 16px; border-left: 2px solid var(--color-border-secondary); margin-bottom: 10px; }
+  .rt { font-size: 13px; font-weight: 500; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .rb { font-size: 12px; color: var(--color-text-secondary); line-height: 1.65; }
+  .rb + .rb { margin-top: 8px; }
+  .rb-dim { font-size: 11px; color: var(--color-text-tertiary); margin-top: 8px; line-height: 1.55; }
+
+  /* Tables */
+  .t { width: 100%; border-collapse: collapse; font-size: 12px; margin: 0.75rem 0; }
+  .t th { text-align: left; font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-tertiary); padding: 6px 10px; border-bottom: 0.5px solid var(--color-border-secondary); }
+  .t td { padding: 7px 10px; border-bottom: 0.5px solid var(--color-border-tertiary); color: var(--color-text-secondary); vertical-align: top; font-size: 12px; }
+  .t td:first-child { color: var(--color-text-primary); font-weight: 500; white-space: nowrap; }
+  .t tr:last-child td { border-bottom: none; }
+  .bl { color: var(--color-text-danger) !important; font-size: 12px; }
+
+  /* Ref block */
+  .rblock { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 13px 16px; margin: 0.75rem 0; }
+  .rblock p { font-size: 12px; margin-bottom: 4px; color: var(--color-text-secondary); }
+  .rblock p:last-child { margin: 0; }
+
+  /* Timeline */
+  .tl-item { display: flex; gap: 15px; margin-bottom: 16px; }
+  .tl-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+  .tl-time { font-size: 12px; font-weight: 500; margin-bottom: 2px; }
+  .tl-desc { font-size: 12px; color: var(--color-text-secondary); line-height: 1.65; }
+
+  /* Banner */
+  .banner { border: 0.5px solid var(--color-border-secondary); border-left: 3px solid #534AB7; border-radius: var(--border-radius-md); background: var(--color-background-secondary); padding: 13px 16px; margin-bottom: 1.5rem; }
+  .banner-t { font-size: 13px; font-weight: 500; margin-bottom: 8px; }
+  .banner p { font-size: 12px; margin-bottom: 6px; }
+  .banner p:last-child { margin: 0; }
+  @media (prefers-color-scheme: dark) { .banner { border-left-color: #8B7FD8; } }
+
+  /* Status bullets */
+  .sbullet { font-size: 12px; color: var(--color-text-secondary); padding: 5px 0; border-bottom: 0.5px solid var(--color-border-tertiary); line-height: 1.6; }
+  .sbullet:last-child { border-bottom: none; }
+  .sbullet strong { color: var(--color-text-primary); font-weight: 500; }
+
+  /* FAQ */
+  .faq { margin-bottom: 1.15rem; }
+  .faq-q { font-size: 13px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 5px; }
+  .faq-a { font-size: 12px; color: var(--color-text-secondary); line-height: 1.65; }
+  .faq-a code { font-size: 10px; }
+</style>
+</head>
+<body>
+
+<h2 style="border:none;margin-top:0;margin-bottom:2px;font-size:18px;">Stones — studio y biblia</h2>
+<p class="sub">Proyecto base para hacer juegos con IA: la plática actualiza <code>studio/</code>, el código vive en <code>src/</code>, el navegador muestra el resultado.</p>
+<p class="doc-meta">Last updated — 2026-09-19 13:42 · Markdown fuente: <code>studio/*.md</code> · Molde portable: <code>~/Development/framework-ia-videojuegos</code></p>
+
+<div class="banner" role="note">
+  <div class="banner-t">Propuesta: golfo, no línea</div>
+  <p>El código ya no es un pasillo recto: los caminos suben, bajan y rodean. Ashfen sale al norte hacia Valkeep. Verdelume se cruza de oeste a este. El golfo se ve al sur de Ashfen y Frostholm. Atajo de montañas 1→3 todavía cerrado.</p>
+</div>
+
+<div class="nav">
+  <button type="button" class="pill on" onclick="show('overview', this)">Overview</button>
+  <button type="button" class="pill" onclick="show('goals', this)">Goals</button>
+  <button type="button" class="pill" onclick="show('story', this)">Historia</button>
+  <button type="button" class="pill" onclick="show('mechanics', this)">Mecánicas</button>
+  <button type="button" class="pill" onclick="show('map', this)">Mapa</button>
+  <button type="button" class="pill" onclick="show('art', this)">Arte</button>
+  <button type="button" class="pill" onclick="show('studio', this)">Studio</button>
+  <button type="button" class="pill" onclick="show('roblox', this)">Roblox</button>
+  <button type="button" class="pill" onclick="show('rules', this)">Rules</button>
+  <button type="button" class="pill" onclick="show('faq', this)">FAQ</button>
+  <button type="button" class="pill" onclick="show('quick-ref', this)">Quick ref</button>
+  <button type="button" class="pill" onclick="show('status', this)">Code status</button>
+  <button type="button" class="pill" onclick="show('llm-opinions', this)">LLM Opinions</button>
+</div>
+
+<div id="s-overview" class="sec on">
+  <h2>Overview</h2>
+  <p>Mental model: este repo es <strong>el juego Stones</strong> y su caja de herramientas. El molde portable vive aparte. Leo habla. El agente actualiza <code>studio/</code> y cambia <code>src/</code>. Leo recarga <code>http://127.0.0.1:5181/</code>. No hay editor.</p>
+  <div class="flow">
+    <span class="tag tb">plática</span>
+    <span class="arr">→</span>
+    <span class="tag tp">studio/</span>
+    <span class="arr">→</span>
+    <span class="tag tgr">src/</span>
+    <span class="arr">→</span>
+    <span class="tag tc">navegador</span>
+  </div>
+  <div class="grid g2" style="margin-top:1rem;">
+    <div class="card"><div class="ct">Para Leo</div><div class="cb">Decir de qué va, corregir el borrador, recargar y ver.</div></div>
+    <div class="card"><div class="ct">Para el agente</div><div class="cb">Leer studio + skills Phaser, cambiar lo mínimo, no inventar otro motor.</div></div>
+  </div>
+</div>
+
+<div id="s-goals" class="sec">
+  <h2>Goals</h2>
+  <div class="rblock">
+    <p>• <strong>Juego</strong> — Pasar de mensajero a comerciante clandestino: encargos, carga, riesgo, compradores y mejoras.</p>
+    <p>• <strong>Studio</strong> — Que la historia y las decisiones no se queden solo en el chat.</p>
+    <p>• <strong>Arte iterable</strong> — Primero proto en código; después PNG finales si hacen falta.</p>
+  </div>
+  <h3>Non-goals</h3>
+  <div class="rblock">
+    <p>• Editor visual, Unity, Tauri, un MCP studio casero.</p>
+    <p>• Three.js / 3D, salvo que Leo lo pida por nombre.</p>
+    <p>• Convertir Stones a Roblox. Si se prueba Roblox, es otro repo.</p>
+    <p>• RPG de turnos, atrapar bichos, sim de droga real, sprites finales en el primer corte.</p>
+  </div>
+</div>
+
+<div id="s-story" class="sec">
+  <h2>Historia</h2>
+  <p>Fuente: <code>studio/story.md</code>. Estado: <span class="tag ta">recomendado, falta va</span></p>
+  <p>Un caminante entra a una red que mueve <strong>piedras de hechizo</strong> para calor, agua, conservación y protección. La exploración se siente Pokémon porque cada ruta y pueblo se recorren físicamente; el comercio hace volver por lugares ya conocidos.</p>
+  <div class="grid g3">
+    <div class="card"><div class="ct">Jugador</div><div class="cb">Primero mensajero con carga adelantada; después comerciante con capital propio.</div></div>
+    <div class="card"><div class="ct">Mundo</div><div class="cb">Templado, arcano, tropical, desierto y nieve. Cinco ciudades conectadas sin teletransporte.</div></div>
+    <div class="card"><div class="ct">Tono</div><div class="cb">Ilícito y chico. Piedras de ficción, no sim de droga real.</div></div>
+  </div>
+</div>
+
+<div id="s-mechanics" class="sec">
+  <h2>Mecánicas</h2>
+  <p>Fuente: <code>studio/mechanics.md</code>.</p>
+  <p><strong>Loop en código:</strong> comprar → cruzar pueblo → salir por una puerta → caminar el sendero → llegar al pueblo vecino → vender o seguir atravesándolo.</p>
+  <p><strong>Interacción de mercado:</strong> al acercarse aparecen botones animados <code>E</code> comprar y <code>Q</code> vender con mercancía, precio y motivo de bloqueo. Una operación exitosa anima la piedra entre el puesto y el caminante y muestra el cambio de oro.</p>
+  <p><strong>Encuentros:</strong> retén, asalto y confiscación cortan el camino (flash, velo, NPCs) y esperan <code>E</code> entregar, <code>Q</code> pagar/sobornar o <code>X</code> huir. No hay HP ni turnos. Camino quieto sigue automático.</p>
+  <p><strong>HUD:</strong> oro, piedras (N de M + qué llevás), alerta en 5 estrellas (el calor) y fama. Sin siglas.</p>
+  <table class="t">
+    <thead><tr><th>Palanca</th><th>Por qué importa</th></tr></thead>
+    <tbody>
+      <tr><td>Mercado</td><td>Stock 5 y pedido 4. Comprar encarece; vender reduce el pago disponible.</td></tr>
+      <tr><td>Calor local</td><td>Comprar suma 2; vender suma 6. Viajar enfría las ciudades que dejás descansar.</td></tr>
+      <tr><td>Riesgo de ruta</td><td>El sendero tira retén o confiscación según carga visible y calor. Los tres encuentros piden una respuesta; el asalto de monte se fuerza desde el picker hasta que existan veredas.</td></tr>
+    </tbody>
+  </table>
+  <p>El progreso es preparación, no pelea directa: caballo en Valkeep, arquera escolta en Duneshade y fondo falso tardío en Ashfen. El caballo comprado acompaña visiblemente al caminante en las rutas, pero no aparece dentro de las ciudades. El herrero no revela su mejora ni precio antes de reputación 14.</p>
+  <div class="grid g2">
+    <div class="card"><div class="ct">Retén</div><div class="cb"><code>E</code> pierde 1 visible o pasa con fondo falso. <code>Q</code> paga 8+calor y enfría. <code>X</code> vuelve al origen y sube calor.</div></div>
+    <div class="card"><div class="ct">Asalto / confiscación</div><div class="cb"><code>E</code> entrega (caballo/escolta o fondo falso reducen). <code>Q</code> paga el paso. <code>X</code> huye: el asalto calienta poco, la requisa calienta más.</div></div>
+  </div>
+  <div class="rule"><div class="rt">Geografía</div><div class="rb">Camino libre 1→2→3→4→5. Golfo parte Ashfen de Frostholm. Valkeep es montaña; Verdelume es selva. Atajos posteriores: barco 1↔5 y montañas 1↔3 (se salta Valkeep).</div></div>
+  <h3>Regla mundial implementada</h3>
+  <div class="rblock">
+    <p>• <strong>Una ciudad = produce + necesita + calor.</strong> Los valores viven en el estado y cambian de verdad.</p>
+    <p>• <strong>Pedidos limitados.</strong> Repetir una ruta llena la demanda, baja el precio y aumenta el calor local.</p>
+    <p>• <strong>Un solo oro al inicio.</strong> Las piedras son mercancía; la confianza desbloquea contactos. Trueques y monedas regionales pueden llegar después.</p>
+    <p>• <strong>Tres presiones.</strong> Guardias/gremio, bandidos/rivales y camino/mercado. El riesgo se anuncia y ofrece respuestas; no es castigo invisible.</p>
+  </div>
+  <p><strong>Cadena comercial:</strong> ámbar de Ashfen → Valkeep → vidrio rúnico a Verdelume → perla de lluvia a Duneshade → piedra solar a Frostholm → cristal de escarcha de regreso a Ashfen.</p>
+</div>
+
+<div id="s-map" class="sec">
+  <h2>Mapa de prueba — biomas</h2>
+  <p>Fuente: <code>studio/sessions/2026-09-18-mapa-circular.md</code>. Esto <strong>no está en el juego todavía</strong>.</p>
+  <p>Camino libre 1→2→3→4→5. Valkeep es el pueblo de montaña. Verdelume es la selva. El atajo de montañas es 1→3 (se salta el 2); cómo se cruza se decide después. El golfo parte 1 y 5.</p>
+  <p><img src="../../studio/maps/stones-mapa-atajo-13.png" alt="Mapa: camino libre 1 a 5, atajo de montañas 1 a 3" style="width:100%;border-radius:8px;margin:12px 0;border:0.5px solid var(--color-border-secondary);"></p>
+  <table class="t">
+    <thead><tr><th>Pueblo</th><th>Qué es</th><th>Produce</th><th>Pide</th></tr></thead>
+    <tbody>
+      <tr><td>1 Ashfen</td><td>Lugar normal, campos, costa oeste</td><td>Ámbar</td><td>Escarcha</td></tr>
+      <tr><td>2 Valkeep</td><td>Pueblo de montaña</td><td>Vidrio rúnico</td><td>Ámbar</td></tr>
+      <tr><td>3 Verdelume</td><td>Selva</td><td>Perla de lluvia</td><td>Vidrio rúnico</td></tr>
+      <tr><td>4 Duneshade</td><td>Desierto</td><td>Piedra solar</td><td>Perla de lluvia</td></tr>
+      <tr><td>5 Frostholm</td><td>Hielo, costa este</td><td>Cristal de escarcha</td><td>Piedra solar</td></tr>
+    </tbody>
+  </table>
+  <div class="rule"><div class="rt">Pendiente</div><div class="rb">Cómo se cruza el atajo de montañas 1–3: por arriba, por vereda o por túnel.</div></div>
+</div>
+
+<div id="s-art" class="sec">
+  <h2>Arte — qué puedo hacer yo</h2>
+  <p>Fuente: <code>studio/art.md</code>. Este juego es <strong>Phaser 4, 2D</strong>. Phaser ya usa WebGL. Three.js sería otro motor.</p>
+  <table class="t">
+    <thead><tr><th>Qué</th><th>Cómo</th><th>Sirve para</th></tr></thead>
+    <tbody>
+      <tr><td>Piedras, umbral, orbes</td><td><code>Graphics.generateTexture</code> en <code>src/gfx/</code></td><td>Proto y a veces ship</td></tr>
+      <tr><td>Tiles, ruido, patrones</td><td>Canvas / Graphics</td><td>Proto</td></tr>
+      <tr><td>Jugador / NPCs proto</td><td>Spritesheet + <code>src/gfx/npcs.js</code></td><td>Proto</td></tr>
+      <tr><td>UI, texto, barras</td><td><code>Text</code> + Graphics</td><td>Suficiente</td></tr>
+      <tr><td>Polvo, brillo</td><td>Particles</td><td>Buena</td></tr>
+      <tr><td>Movimiento de “vida”</td><td>Tweens</td><td>Buena</td></tr>
+      <tr><td>Personaje ilustrado, fondo pintado, 3D, música</td><td>Archivo en <code>public/assets/final/</code></td><td>Cuando Leo lo cierra</td></tr>
+    </tbody>
+  </table>
+  <div class="rule">
+    <div class="rt">Pipeline</div>
+    <div class="rb">1) proto código → 2) proto imagen en <code>public/assets/proto/</code> → 3) final en <code>public/assets/final/</code> y <code>preload()</code>.</div>
+  </div>
+  <div class="rblock">
+    <p>• <strong>Pasada visual 2</strong> — tiles orgánicos 96×96, adoquín irregular, casas y vegetación con más volumen.</p>
+    <p>• <strong>Profundidad</strong> — orden por Y para pasar delante o detrás; polvo, hojas, humo y luces cálidas.</p>
+    <p>• <strong>Cinco biomas</strong> — templado, arcano, selva, arena y nieve con tiles, tintes y partículas propias.</p>
+    <p>• <strong>Música por lugar</strong> — guitarra calmada en Ashfen, bosque tenso en el camino y pueblo místico en Valkeep; fundido al cambiar escena.</p>
+    <p>• <strong>Pasada visual 3 (2026-09-19)</strong> — detalle de piso por bioma (matas, flores, lajas, charcos, hojarasca, dunas, grietas, montículos, hielo, huellas); landmark por pueblo (riscos en Valkeep, palmeras y cactus en Duneshade, banco de hielo y nieve en techos en Frostholm, enredaderas en Verdelume, cerca en Ashfen); plaza-mercado con puestos, faroles y pozo vivo; velo de luz por bioma, sombras de nubes y viñeta.</p>
+  </div>
+  <div class="rule">
+    <div class="rt">Reglas de dibujo</div>
+    <div class="rb"><strong>Sin máscaras de geometría</strong> (fallan en el navegador de Cursor): recorte matemático y relleno por tramos. <strong>Verificar en WebGL y Canvas</strong>: si difieren, está mal hecho. Un bioma se lee por piso + props + landmark + luz, no solo por tinte.</div>
+  </div>
+  <table class="t">
+    <thead><tr><th>Pueblo</th><th>Piso / calle</th><th>Detalle de piso</th><th>Landmark</th></tr></thead>
+    <tbody>
+      <tr><td>Ashfen</td><td>pasto / tierra</td><td>matas, flores, manchas</td><td>cerca, heno, arena con marea</td></tr>
+      <tr><td>Valkeep</td><td>highland / tierra</td><td>lajas, grava, matas pálidas</td><td>cordón de riscos, peñas, peñascos</td></tr>
+      <tr><td>Verdelume</td><td>selva / barro</td><td>charcos, hojarasca, raíces, helechos</td><td>doble fila de selva, enredaderas en techos</td></tr>
+      <tr><td>Duneshade</td><td>arena / tierra</td><td>rizos de duna, grietas, matas secas</td><td>palmeras, juncos, cactus, huesos</td></tr>
+      <tr><td>Frostholm</td><td>nieve / nieve pisada</td><td>montículos, hielo, huellas</td><td>banco de hielo, témpanos, nieve en techos, árboles secos</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div id="s-studio" class="sec">
+  <h2>Studio — el molde para el próximo juego</h2>
+  <p>Para otro juego se usa el molde de <code>~/Development/framework-ia-videojuegos</code>. Este repo conserva las mismas ideas — Vite + Phaser 4, <code>studio/</code>, skills, proto/final — pero se queda dedicado a Stones.</p>
+  <table class="t">
+    <thead><tr><th>Carpeta</th><th>Rol</th></tr></thead>
+    <tbody>
+      <tr><td><code>studio/</code></td><td>Memoria: historia, mecánicas, arte, decisiones, sesiones</td></tr>
+      <tr><td><code>docs/guides/</code></td><td>Esta guía, para leer en el navegador</td></tr>
+      <tr><td><code>src/gfx/</code></td><td>Gráficos generados por código</td></tr>
+      <tr><td><code>public/assets/proto/</code></td><td>Imágenes/audio de prueba</td></tr>
+      <tr><td><code>public/assets/final/</code></td><td>Assets cerrados</td></tr>
+      <tr><td><code>src/scenes/</code></td><td>El juego</td></tr>
+    </tbody>
+  </table>
+  <p>Skills: <code>phaser-work</code> (código) y <code>studio-work</code> (actualizar la biblia). Regla always-on: <code>.cursor/rules/ai-game-studio.mdc</code>.</p>
+</div>
+
+<div id="s-roblox" class="sec">
+  <h2>Roblox desde Cursor — investigación</h2>
+  <p>Fuente: <code>studio/sessions/2026-09-19-roblox-analisis.md</code>, <code>studio/sessions/2026-09-19-roblox-prueba-mcp.md</code>. Estado: <span class="tag ta">probado a medias</span>. Stones sigue Phaser.</p>
+
+  <div class="banner" role="note" style="margin-top:1rem;">
+    <div class="banner-t">Respuesta corta</div>
+    <p>El puente oficial existe (MCP + Script Sync). Sirve para el mismo loop chat → código → ver. No sirve para “házme el juego solo”. En Linux no es oficial; Vinegar 1.9.4 y <code>StudioMCP.exe</code> ya están en esta PC. El puente cuesta $0; se paga el LLM.</p>
+  </div>
+
+  <h3>Sirve?</h3>
+  <table class="t">
+    <thead><tr><th>Pedido</th><th>2026</th></tr></thead>
+    <tbody>
+      <tr><td>Prototipo, obby, shop, tycoon simple</td><td>Sí. Roblox ya trae personaje, física, UI, multiplayer.</td></tr>
+      <tr><td>Iterar scripts y playtestear</td><td>Sí. Play, consola, screenshot, teclado/mouse.</td></tr>
+      <tr><td>Sistemas complejos</td><td>El agente ayuda; vos dirigís. Puede romper el DataModel.</td></tr>
+      <tr><td>Dejarlo solo toda la noche</td><td>No. Falsos Pass, 50 turns, se cae el MCP.</td></tr>
+    </tbody>
+  </table>
+  <p>Quién: Roblox lo empuja; creators en Cursor/Claude/Codex; algunos equipos como acelerador. Nadie serio lo usa de piloto automático. Salió Roview (diffs + undo) porque el agente a veces borra de más.</p>
+
+  <h3>Capacidades del MCP oficial</h3>
+  <div class="grid g2" style="margin-top:0.5rem;">
+    <div class="card"><div class="ct">Código y árbol</div><div class="cb">Leer/grep/editar scripts, explorar instancias, ejecutar Luau. Mejor editar <code>.luau</code> en disco (Script Sync) y usar MCP para el resto: editar por MCP gasta ~4× tokens.</div></div>
+    <div class="card"><div class="ct">Playtest</div><div class="cb">Start/stop, consola, captura, input, pathfinding. Subagente playtest: beta, límite diario, falsos pases, sin reflejos.</div></div>
+    <div class="card"><div class="ct">Assets</div><div class="cb">Mesh, material, modelo procedural (50/24 h), Creator Store. Gratis, con cupos.</div></div>
+    <div class="card"><div class="ct">No hace</div><div class="cb">Debugger remoto, multiplayer con varios clientes, combate en tiempo real, versionar el place entero (eso es Rojo).</div></div>
+  </div>
+
+  <h3>Opciones</h3>
+  <table class="t">
+    <thead><tr><th>#</th><th>Stack</th><th>Linux</th><th>Usar</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Assistant dentro de Studio</td><td>Si Studio abre</td><td>Límite diario, contexto chico. No es Cursor.</td></tr>
+      <tr><td>2</td><td>MCP oficial + Cursor/Claude/Codex</td><td>Win/mac oficial; Vinegar + Wine aquí</td><td><strong>Camino correcto</strong></td></tr>
+      <tr><td>3</td><td>Script Sync o Rojo + Git</td><td>Rojo sí; Studio no</td><td>Junto al 2</td></tr>
+      <tr><td>4</td><td>API key Anthropic/OpenAI en Assistant</td><td>Igual</td><td>Caro. No si ya hay Cursor.</td></tr>
+      <tr><td>5</td><td>WEPPY (terceros)</td><td>Win/mac</td><td>Solo si el oficial no alcanza. Pro es de pago.</td></tr>
+      <tr><td>6</td><td>MCP Rust GitHub</td><td>Win/mac</td><td>Deprecado. No.</td></tr>
+      <tr><td>7</td><td>Sober</td><td>Sí</td><td>Jugar. No desarrollar.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Linux en esta PC</h3>
+  <p>Vinegar 1.9.4. Wrapper: <code>~/.local/bin/roblox-studio-mcp</code>. Cursor: <code>~/.cursor/mcp.json</code>. Reinstalación limpia: LIVE 0.739 y la 0.732 de agosto (forzada, <code>version-ff6341faef444107</code>) cuelgan en el splash. Handshake MCP OK; no hay sesión usable. Dual-boot Windows es el camino estable. Sober = Player, no Studio.</p>
+
+  <h3>Costo</h3>
+  <table class="t">
+    <thead><tr><th>Ítem</th><th>Precio</th></tr></thead>
+    <tbody>
+      <tr><td>Studio + MCP + Script Sync + mesh gen</td><td>$0 (cupos en procedural: 50/24 h)</td></tr>
+      <tr><td>Assistant default en Studio</td><td>$0, límite diario</td></tr>
+      <tr><td>Cursor Pro / Claude Pro / ChatGPT Plus</td><td>~$20/mes (el cerebro). Pro+/Max $60–$200 si el agente playtestea todo el día</td></tr>
+      <tr><td>API Anthropic BYOK</td><td>Pay-per-token. No lo cubre Claude Pro</td></tr>
+      <tr><td>WEPPY Pro</td><td>Suscripción; USD no listado en la comparativa</td></tr>
+    </tbody>
+  </table>
+  <p>Si ya pagás Cursor: <strong>cero extra</strong> hasta que se acaben tokens. Un solo cliente de IA basta.</p>
+</div>
+
+<div id="s-rules" class="sec">
+  <h2>Rules</h2>
+  <div class="rule">
+    <div class="rt">El chat no es el archivo</div>
+    <div class="rb">Después de una plática de diseño se actualiza <code>studio/</code> y esta guía. Antes de programar se leen.</div>
+  </div>
+  <div class="rule">
+    <div class="rt">Phaser 4.2.1 solamente</div>
+    <div class="rb">Arcade para movimiento. No recetas de Phaser 3. No Three.js / Unity / editor salvo pedido explícito.</div>
+  </div>
+  <div class="rule">
+    <div class="rt">Cambio mínimo</div>
+    <div class="rb">Un diseño nuevo = <code>src/scenes/&lt;nombre&gt;.js</code> y registro en <code>src/main.js</code> si hay que mostrarlo.</div>
+  </div>
+  <div class="rule">
+    <div class="rt">Proto ≠ final</div>
+    <div class="rb">Código e IA de prueba en <code>src/gfx/</code> o <code>public/assets/proto/</code>. Cerrado en <code>public/assets/final/</code>.</div>
+  </div>
+  <div class="rule">
+    <div class="rt">Decisiones fechadas</div>
+    <div class="rb">No se borra una decisión: se agrega la reversión en <code>studio/decisions.md</code>.</div>
+  </div>
+</div>
+
+<div id="s-faq" class="sec">
+  <h2>FAQ</h2>
+  <div class="faq">
+    <div class="faq-q">¿Y Three.js? ¿Y un juego 3D?</div>
+    <div class="faq-a">Este molde es 2D Phaser. Three.js es otro proyecto. Si Leo lo pide por nombre, se discute; no se mete “por si acaso”.</div>
+  </div>
+  <div class="faq">
+    <div class="faq-q">¿Para qué es phaser-work si ya está studio-work?</div>
+    <div class="faq-a"><code>studio-work</code> guarda el plan. <code>phaser-work</code> dice cómo tocar el código (qué skill oficial leer, Arcade, recargar). Uno no reemplaza al otro.</div>
+  </div>
+  <div class="faq">
+    <div class="faq-q">¿Por qué no un editor?</div>
+    <div class="faq-a">El chat es el plan. El navegador es la vista. Un editor es otro producto y se come el tiempo del juego.</div>
+  </div>
+  <div class="faq">
+    <div class="faq-q">¿La historia de Stones ya está cerrada?</div>
+    <div class="faq-a">No. Es borrador para tener de qué hablar. Leo la confirma o la tira.</div>
+  </div>
+  <div class="faq">
+    <div class="faq-q">¿Hace falta un prompt en cada carpeta del studio?</div>
+    <div class="faq-a">No. Los <code>.md</code> son el prompt. El molde para otro juego está en <code>~/Development/framework-ia-videojuegos</code> y el skill personal <code>empezar-juego</code>.</div>
+  </div>
+  <div class="faq">
+    <div class="faq-q">¿Se puede programar Roblox Studio desde Cursor, Claude Code o Codex?</div>
+    <div class="faq-a">Sí, y hay análisis en la pestaña Roblox. Sirve como acelerador, no como piloto automático. El puente es $0; se paga el LLM (~$20). Linux: Vinegar no oficial, <code>StudioMCP.exe</code> ya está. Detalle: <code>studio/sessions/2026-09-19-roblox-analisis.md</code>.</div>
+  </div>
+</div>
+
+<div id="s-quick-ref" class="sec">
+  <h2>Quick ref</h2>
+  <table class="t">
+    <thead><tr><th>Item</th><th>Detail</th></tr></thead>
+    <tbody>
+      <tr><td>Juego</td><td><code>http://127.0.0.1:5181/</code></td></tr>
+      <tr><td>Guía</td><td><code>docs/guides/stones-studio.html</code> (abrir en el navegador)</td></tr>
+      <tr><td>Historia</td><td><code>studio/story.md</code></td></tr>
+      <tr><td>Mecánicas</td><td><code>studio/mechanics.md</code></td></tr>
+      <tr><td>Arte</td><td><code>studio/art.md</code></td></tr>
+      <tr><td>Sesión de encuentros</td><td><code>studio/sessions/2026-09-18-reten-asalto.md</code>, <code>2026-09-19-reten-eleccion.md</code>, <code>2026-09-19-asalto-confiscan.md</code></td></tr>
+      <tr><td>Encuentros</td><td><code>src/encounters.js</code> + picker en <code>src/events.js</code></td></tr>
+      <tr><td>Mapa de prueba</td><td><code>studio/maps/stones-mapa-atajo-13.png</code></td></tr>
+      <tr><td>Mundo / economía</td><td><code>src/world.js</code> + <code>src/state.js</code></td></tr>
+      <tr><td>NPCs proto</td><td><code>src/gfx/npcs.js</code></td></tr>
+      <tr><td>Escena pueblo / camino</td><td><code>src/scenes/town.js</code>, <code>src/scenes/road.js</code></td></tr>
+      <tr><td>Roblox desde Cursor</td><td>Pestaña Roblox. Análisis: <code>studio/sessions/2026-09-19-roblox-analisis.md</code></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div id="s-status" class="sec">
+  <h2>Code status</h2>
+  <p class="sub" style="margin-bottom:1rem;">Guide vs repository. Update when behavior changes.</p>
+
+  <h3><span class="tag tgr">Aligned</span> &nbsp;Matches code / intent today</h3>
+  <div class="rblock" style="margin-top:0.5rem;">
+    <div class="sbullet"><strong>Vite + Phaser 4.2.1</strong> — <code>package.json</code></div>
+    <div class="sbullet"><strong>WASD + cámara</strong> — <code>src/scenes/town.js</code></div>
+    <div class="sbullet"><strong>Pueblos + camino</strong> — <code>src/scenes/town.js</code>, <code>src/scenes/road.js</code></div>
+    <div class="sbullet"><strong>Recorrido físico de cinco ciudades</strong> — dos puertas por pueblo, sin mapa seleccionable ni viaje rápido.</div>
+    <div class="sbullet"><strong>Mercado medible</strong> — cinco mercancías, stock, pedido, precio, calor y reputación en <code>src/state.js</code>.</div>
+    <div class="sbullet"><strong>Mercado legible</strong> — botones <code>E</code>/<code>Q</code> aparecen al acercarse; compra, venta y rechazo tienen respuesta animada.</div>
+    <div class="sbullet"><strong>Preparación</strong> — caballo, escolta y fondo falso modifican capacidad, velocidad y pérdidas; el caballo comprado además camina junto al jugador en cada ruta.</div>
+    <div class="sbullet"><strong>Texturas y atmósfera proto</strong> — <code>src/gfx/bake.js</code>, <code>src/gfx/tiles.js</code>, <code>src/gfx/atmosphere.js</code></div>
+    <div class="sbullet"><strong>Rutas curveadas y cortas</strong> — splines en <code>src/routes.js</code> (campo 960×580 que llena la cámara, recodo de ~3 s). Se puede volver a la ciudad de origen. El caminante solo anda por el sendero.</div>
+    <div class="sbullet"><strong>Encuentros con elección</strong> — retén, asalto y confiscación: interrupt + <code>E</code>/<code>Q</code>/<code>X</code> en <code>src/encounters.js</code>. Huir usa <code>turnBack</code> y no avanza el mercado.</div>
+    <div class="sbullet"><strong>Choque de casas</strong> — cuerpo en el muro/puerta, no en el tejado (<code>placeHouses</code>).</div>
+    <div class="sbullet"><strong>Piso sin máscaras</strong> — <code>src/gfx/route.js</code>, <code>src/gfx/townground.js</code>: bandas por tramos, recorte matemático; igual en WebGL y Canvas.</div>
+    <div class="sbullet"><strong>Detalle y landmark por bioma</strong> — <code>paintTownDetail</code>, <code>paintRouteDetail</code>, <code>placeLandmarks</code>; mezcla de bioma en ruta por origen y destino.</div>
+    <div class="sbullet"><strong>HUD flotante</strong> — oro, piedras, alerta (estrellas) y fama en chips sueltos, semitransparentes, pegados arriba. Sin franja de borde a borde. <code>HUD_PAD</code> 72.</div>
+    <div class="sbullet"><strong>Herrero tardío</strong> — oculta nombre y precio del fondo falso hasta reputación 14.</div>
+    <div class="sbullet"><strong>Música por zona</strong> — tres loops CC0 y fundido en <code>src/music.js</code>.</div>
+    <div class="sbullet"><strong>Studio y regla always-on</strong> — <code>studio/</code>, <code>.cursor/rules/ai-game-studio.mdc</code></div>
+  </div>
+
+  <h3><span class="tag tg">Gaps</span> &nbsp;Missing or unclear</h3>
+  <div class="rblock" style="margin-top:0.5rem;">
+    <div class="sbullet">Falta decidir el motivo personal del caminante.</div>
+    <div class="sbullet">Falta cerrar por qué el comercio es ilícito. Retén, asalto y confiscación ya piden una respuesta.</div>
+    <div class="sbullet">Faltan compradores con nombre y rumores que expliquen los cambios de riesgo.</div>
+    <div class="sbullet">NPCs y caballos son proto de código, no ilustrados.</div>
+    <div class="sbullet">Casas: tres siluetas con tinte + overlay (nieve, enredaderas). Falta variante de adobe (Duneshade) y de piedra (Valkeep).</div>
+    <div class="sbullet">Roblox: el puente Cursor↔Studio es oficial; en esta máquina falta probar Vinegar + MCP. Stones sigue Phaser.</div>
+  </div>
+
+  <h3><span class="tag ta">Changes</span> &nbsp;Planned follow-ups</h3>
+  <div class="rblock" style="margin-top:0.5rem;">
+    <div class="sbullet">Un encargo completo: cantera → 2 ámbar adelantados → Ilyra → pago o pérdida de confianza.</div>
+    <div class="sbullet">Sólo después: atajo de montañas 1–3 (cómo se cruza), barco 1–5, monedas regionales.</div>
+  </div>
+</div>
+
+<div id="s-llm-opinions" class="sec">
+  <h2>LLM Opinions</h2>
+  <p class="sub" style="margin-bottom:1rem;">
+    Multi-LLM review log. Each model that reviews this guide appends a new <code>&lt;h3&gt;</code> block below with its name and date.
+    <strong>Append only — never edit prior LLMs' opinions.</strong> If you disagree, write it in your own block and reference theirs by name and date.
+    Verify claims against the code (cite <code>path:line</code>) before opining.
+  </p>
+
+  <div class="rule">
+    <div class="rt">Convention</div>
+    <div class="rb">Sign each block as <code>Model Name — YYYY-MM-DD</code>. Cover: <strong>Verified</strong>, <strong>Disagreements</strong>, <strong>Gaps the guide misses</strong>, <strong>Recommended priority</strong>. Keep it terse — bullets over prose.</div>
+  </div>
+
+  <h3>Codex — 2026-09-18</h3>
+  <div class="rblock" style="margin-top:0.5rem;">
+    <div class="sbullet"><strong>Verified:</strong> el viaje lleno anterior tenía valor esperado negativo; la ruta ahora depende de la posición X y el balance permite llegar al clavo jugando normal.</div>
+    <div class="sbullet"><strong>Disagreements:</strong> no conviene agregar caballo, ayudante ni más piedras todavía; sumar contenido no arregla un viaje sin decisión.</div>
+    <div class="sbullet"><strong>Gaps:</strong> falta telemetría de 10 viajes y una pista previa que permita escoger ruta con intención.</div>
+    <div class="sbullet"><strong>Priority:</strong> P0 probar lectura visual y calzada/monte → P1 rumor de ruta → P2 preparación de carga.</div>
+  </div>
+
+  <h3>Cursor Grok 4.6 — 2026-09-18 (encuentros)</h3>
+  <div class="rblock" style="margin-top:0.5rem;">
+    <div class="sbullet"><strong>Verified:</strong> Picker en <code>src/events.js</code>, escenas en <code>src/encounters.js</code>, NPCs en <code>src/gfx/npcs.js</code>, <code>RoadScene.rollEvent</code> ya no es solo flash+texto.</div>
+    <div class="sbullet"><strong>Disagreements:</strong> ninguno. El picker es de prueba, no canon de UI final.</div>
+    <div class="sbullet"><strong>Gaps al momento de esa revisión:</strong> sin colisión con NPCs; el caballo propio se resolvió después y ahora acompaña al jugador en las rutas.</div>
+    <div class="sbullet"><strong>Priority:</strong> P0 que Leo recargue y pruebe los cuatro encuentros → P1 pulir siluetas si no se leen.</div>
+  </div>
+
+  <h3>Cursor Grok 4.6 — 2026-09-18</h3>
+  <div class="rblock" style="margin-top:0.5rem;">
+    <div class="sbullet"><strong>Verified:</strong> Phaser 4.2.1 en <code>package.json</code>. Piedras proto y umbral en <code>src/scenes/play.js</code> + <code>src/gfx/protoStones.js</code>. Studio files y skills existen.</div>
+    <div class="sbullet"><strong>Disagreements:</strong> ninguno previo. La premisa es propuesta, no canon.</div>
+    <div class="sbullet"><strong>Gaps:</strong> falta el sí de Leo; no hay segundo cuarto ni verbos distintos.</div>
+    <div class="sbullet"><strong>Priority:</strong> P0 confirmar o tirar la historia → P1 soltar/usar piedra → P2 segundo cuarto.</div>
+  </div>
+
+  <h3>Codex — 2026-09-18 (loop y música)</h3>
+  <div class="rblock" style="margin-top:0.5rem;">
+    <div class="sbullet"><strong>Verified:</strong> Ashfen, camino y Valkeep cargan pistas distintas en <code>src/scenes/boot.js</code> y cambian con fundido mediante <code>src/music.js</code>; el herrero no vende ni muestra progreso.</div>
+    <div class="sbullet"><strong>Disagreements:</strong> el balance positivo no vuelve interesante por sí solo a comprar por 8 y vender por 16; esa economía queda como andamio.</div>
+    <div class="sbullet"><strong>Gaps:</strong> falta un motivo personal, un primer contratante y un comprador con nombre.</div>
+    <div class="sbullet"><strong>Priority:</strong> P0 primer encargo completo → P1 pista de ruta → P2 comercio propio → P3 red clandestina y herrero.</div>
+  </div>
+
+  <h3>Codex — 2026-09-18 (mundo comercial)</h3>
+  <div class="rblock" style="margin-top:0.5rem;">
+    <div class="sbullet"><strong>Verified:</strong> la visión de Leo es una red recurrente de ciudades y biomas, no una progresión lineal de pueblos.</div>
+    <div class="sbullet"><strong>Disagreements:</strong> varias monedas desde el inicio añaden contabilidad antes de que el comercio básico sea divertido; conviene empezar con un oro común.</div>
+    <div class="sbullet"><strong>Gaps:</strong> falta cerrar causa de la prohibición, motivo personal y postura frente al combate.</div>
+    <div class="sbullet"><strong>Priority:</strong> P0 encargo tutorial → P1 dos pedidos limitados + mapa → P2 calor local → P3 circuito de cuatro biomas.</div>
+  </div>
+
+  <h3>Codex — 2026-09-18 (corrección de recorrido)</h3>
+  <div class="rblock" style="margin-top:0.5rem;">
+    <div class="sbullet"><strong>Verified:</strong> no existe escena de mapa; las cinco ciudades se conectan por puertas y caminos físicos en <code>src/world.js</code> y <code>src/scenes/town.js</code>.</div>
+    <div class="sbullet"><strong>Disagreements:</strong> la propuesta anterior de seleccionar destinos desde un mapa contradice la referencia Pokémon de Leo y queda descartada.</div>
+    <div class="sbullet"><strong>Gaps:</strong> las mejoras modifican resultados, pero el jugador todavía no elige una respuesta durante el encuentro.</div>
+    <div class="sbullet"><strong>Priority:</strong> P0 recorrer y leer los cinco biomas → P1 decisiones de retén/asalto → P2 comprador con nombre → P3 atajo físico.</div>
+  </div>
+
+  <h3>Cursor Grok 4.6 — 2026-09-19 (Roblox desde Cursor)</h3>
+  <div class="rblock" style="margin-top:0.5rem;">
+    <div class="sbullet"><strong>Verified:</strong> docs oficiales de MCP y coding harness listan Cursor, Claude Code y Codex CLI. Vinegar Flatpak 1.9.4 está instalado en esta máquina. El MCP Rust de GitHub está deprecado.</div>
+    <div class="sbullet"><strong>Disagreements:</strong> no conviene meter Roblox dentro de <code>stones_Game</code>. El molde Phaser y el loop Roblox son dos repos.</div>
+    <div class="sbullet"><strong>Gaps:</strong> MCP oficial no documenta Linux; Vinegar necesita workaround Wine → <code>StudioMCP.exe</code>. No se probó la conexión todavía.</div>
+    <div class="sbullet"><strong>Priority:</strong> P0 si Leo quiere Roblox: abrir Studio con Vinegar y conectar MCP. P1 Script Sync + repo nuevo. Stones no se toca.</div>
+  </div>
+
+  <h3>Cursor Grok 4.6 — 2026-09-19 (Roblox análisis)</h3>
+  <div class="rblock" style="margin-top:0.5rem;">
+    <div class="sbullet"><strong>Verified:</strong> DevForum 2026 confirma MCP built-in, playtest, límites y caídas. Vinegar tiene Studio + <code>StudioMCP.exe</code> en <code>version-ff6341faef444107</code>. Studio/MCP/mesh = $0; Cursor Pro ~$20.</div>
+    <div class="sbullet"><strong>Disagreements:</strong> no pagar WEPPY ni API Anthropic para el primer intento. Un cliente de IA basta. Dual-boot es más estable que Vinegar, pero Vinegar es el experimento barato.</div>
+    <div class="sbullet"><strong>Gaps:</strong> no se abrió Studio ni se conectó MCP todavía. Precio exacto de WEPPY Pro no está en la tabla pública.</div>
+    <div class="sbullet"><strong>Priority:</strong> si Leo dice sí: probar Vinegar+MCP. Si se cae: Windows. Stones intacto.</div>
+  </div>
+
+  <h3>Cursor Grok 4.6 — 2026-09-19 (prueba MCP)</h3>
+  <div class="rblock" style="margin-top:0.5rem;">
+    <div class="sbullet"><strong>Verified:</strong> wrapper + handshake MCP OK. Servidor <code>RobloxStudio</code> 1.0.0. Reinstal LIVE 0.739 y pin 0.732: ambas cuelgan en splash. <code>list_roblox_studios</code> vacío.</div>
+    <div class="sbullet"><strong>Disagreements:</strong> reinstalar no arregla. La 0.732 que andaba en agosto ya no arranca en esta PC.</div>
+    <div class="sbullet"><strong>Gaps:</strong> falta Windows o un update de Vinegar/Wine. Cursor no recargó MCP en esta sesión.</div>
+    <div class="sbullet"><strong>Priority:</strong> no seguir reinstalando. Camino estable: Windows.</div>
+  </div>
+</div>
+
+<script>
+function show(id, el) {
+  document.querySelectorAll('.sec').forEach(function (s) { s.classList.remove('on'); });
+  document.querySelectorAll('.pill').forEach(function (b) { b.classList.remove('on'); });
+  var target = document.getElementById('s-' + id);
+  if (target) target.classList.add('on');
+  if (el) el.classList.add('on');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+---
+description: Sync studio/ (story, mechanics, art, sessions) after design talks; Phaser 4 only.
+alwaysApply: true
+---
+
+# AI game studio
+
+This repo is a Phaser 4 game **and** a small studio for making games with the agent.
+
+- After a design conversation, update `studio/story.md`, `studio/mechanics.md`, `studio/art.md`, `studio/decisions.md`, and add `studio/sessions/YYYY-MM-DD-<topic>.md`. Then refresh `docs/guides/stones-studio.html`.
+- Before coding a feature, read those studio files. Do not contradict a dated decision.
+- Generated / test art: `src/gfx/` or `public/assets/proto/`. Locked art: `public/assets/final/`.
+- Phaser 4.2.1 + Arcade. No Three.js, Unity, or a visual editor unless Leo asks for that by name.
