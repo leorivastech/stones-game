@@ -33,9 +33,96 @@ export function freshRun() {
     stock: townRecord(MAX_STOCK),
     demand: townRecord(MAX_DEMAND),
     upgrades: { horse: false, escort: false, hideout: false },
-    lastEvent: null,
-    nextEvent: "random",
+    // Vida en medios corazones.
+    hp: 6,
+    maxHp: 6,
+    flags: {},
+    mapId: "ashfen",
   };
+}
+
+// ---------- Vida ----------
+
+export function hp(registry) {
+  return registry.get("hp") ?? 6;
+}
+
+export function maxHp(registry) {
+  return registry.get("maxHp") ?? 6;
+}
+
+export function hurt(registry, halves) {
+  const next = Math.max(0, hp(registry) - halves);
+  registry.set("hp", next);
+  return next;
+}
+
+export function heal(registry, halves = 99) {
+  registry.set("hp", Math.min(maxHp(registry), hp(registry) + halves));
+}
+
+export function addHeartContainer(registry) {
+  registry.set("maxHp", maxHp(registry) + 2);
+  registry.set("hp", maxHp(registry));
+}
+
+// ---------- Banderas del mundo (cofres, rejas) ----------
+
+export function flag(registry, id) {
+  return Boolean(getRecord(registry, "flags", {})[id]);
+}
+
+export function setFlag(registry, id, value = true) {
+  registry.set("flags", { ...getRecord(registry, "flags", {}), [id]: value });
+}
+
+// ---------- Guardado ----------
+
+const SAVE_KEY = "stones-save-v2";
+const SAVED = ["gold", "cargo", "baseCapacity", "reputation", "trips", "currentTown", "heat", "stock", "demand", "upgrades", "hp", "maxHp", "flags", "mapId"];
+
+export function saveGame(registry) {
+  try {
+    const data = Object.fromEntries(SAVED.map((k) => [k, registry.get(k)]));
+    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function hasSave() {
+  try {
+    return Boolean(localStorage.getItem(SAVE_KEY));
+  } catch {
+    return false;
+  }
+}
+
+export function loadGame(registry) {
+  try {
+    const data = JSON.parse(localStorage.getItem(SAVE_KEY));
+    if (!data) return false;
+    registry.set({ ...freshRun(), ...data });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Calor que importa donde está el jugador: el del pueblo, o el promedio de la ruta. */
+export function localHeat(registry, def) {
+  if (!def) return 0;
+  if (def.kind === "town") return heat(registry, def.town);
+  const [a, b] = def.between ?? [];
+  return a && b ? routeHeat(registry, a, b) : 0;
+}
+
+export function heatLevel(value) {
+  if (value >= 70) return 3;
+  if (value >= 45) return 2;
+  if (value >= 20) return 1;
+  return 0;
 }
 
 export function resetRun(registry) {

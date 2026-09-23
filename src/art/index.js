@@ -1,0 +1,155 @@
+/** Catálogo de todo el arte. Boot lo sube a Phaser; lab.html lo muestra ampliado. */
+
+import { castSheet, flashSheet, rollSheet, koFrame, CASTS } from "./actors.js";
+import { paintGround, T } from "./terrain.js";
+import * as props from "./props.js";
+import * as creatures from "./creatures.js";
+import * as fx from "./fx.js";
+import * as ui from "./ui.js";
+import { fontPreview } from "./font.js";
+import { Buf } from "./pixel.js";
+
+export function buildArt() {
+  const out = [];
+  const add = (key, entry) => out.push({ key, ...entry });
+  for (const cast of Object.keys(CASTS)) {
+    const sheet = castSheet(cast);
+    add(`cast-${cast}`, sheet);
+    add(`cast-${cast}-flash`, flashSheet(sheet));
+    add(`ko-${cast}`, { buf: koFrame(cast) });
+  }
+  add("roll", rollSheet());
+
+  // Vegetación y objetos
+  [0, 1, 2].forEach((v) => add(`tree-${v}`, { buf: props.tree(v) }));
+  add("tree-autumn", { buf: props.tree(3, { autumn: true }) });
+  add("pine", { buf: props.pine() });
+  add("pine-snow", { buf: props.pine(true) });
+  add("bush", { buf: props.bush() });
+  add("bush-berries", { buf: props.bush(true) });
+  add("tallgrass", props.tallGrass());
+  add("cutgrass", { buf: props.cutGrass() });
+  add("rock", { buf: props.rock() });
+  add("boulder", { buf: props.rock(true) });
+  add("stump", { buf: props.stump() });
+  add("log", { buf: props.log() });
+  add("fence", { buf: props.fence() });
+  add("fence-v", { buf: props.fence(true) });
+  add("sign", { buf: props.sign() });
+  add("barrel", { buf: props.barrel() });
+  add("crate", { buf: props.crate() });
+  add("hay", { buf: props.hay() });
+  add("lamp", { buf: props.lamp() });
+  add("well", { buf: props.well() });
+  add("stall-amber", { buf: props.stall(["e2", "c4"], ["y3", "r4", "y4"]) });
+  add("stall-rune", { buf: props.stall(["v2", "c4"], ["v4", "v3", "b4"]) });
+  add("stall-green", { buf: props.stall(["g3", "c3"], ["e3", "y4", "g5"]) });
+  add("chest", props.chest());
+  add("gate", props.gate());
+  add("lever", props.lever());
+  add("barrier", props.barrier());
+  add("tent", { buf: props.tent() });
+  add("campfire", props.campfire());
+  add("rubble", { buf: props.rubble() });
+  add("anvil", { buf: props.anvil() });
+  add("forge", props.forge());
+  add("banner", { buf: props.banner() });
+  add("bridge-rail", { buf: props.bridgeRail() });
+  add("ledge", { buf: props.ledge() });
+  add("blank16", { buf: new Buf(16, 16) });
+  add("smoke", props.smoke());
+  const houses = {
+    "house-thatch": { roof: "thatch", wall: "plaster", seed: 1 },
+    "house-thatch-b": { roof: "thatch", wall: "timber", seed: 2, w: 56, h: 58 },
+    "house-red": { roof: "red", wall: "plaster", seed: 3, w: 72, h: 66 },
+    "house-slate": { roof: "slate", wall: "stone", seed: 4 },
+    "house-slate-b": { roof: "slate", wall: "stone", seed: 5, w: 56, h: 60, windows: 1 },
+    "house-smithy": { roof: "red", wall: "stone", seed: 6, w: 64, h: 62, chimney: true },
+    "house-stable": { roof: "moss", wall: "timber", seed: 7, w: 80, h: 60, chimney: false },
+  };
+  for (const [key, spec] of Object.entries(houses)) {
+    const h = props.house(spec);
+    add(key, { buf: h.buf, meta: { door: h.door, roofH: h.roofH } });
+  }
+
+  // Criaturas
+  add("boar", creatures.boarSheet());
+  add("horse", creatures.horseSheet());
+
+  // Efectos: el barrido se dibuja a la derecha y se rota (abajo = 1 giro, izquierda = 2, arriba = 3).
+  const slash = fx.slashSheet();
+  add("slash-right", slash);
+  add("slash-down", fx.rotateSheet(slash, 1));
+  add("slash-left", fx.rotateSheet(slash, 2));
+  add("slash-up", fx.rotateSheet(slash, 3));
+  const clawSlash = fx.slashSheet(["e4", "e3", "e2", "o1"]);
+  add("claw-right", clawSlash);
+  add("claw-down", fx.rotateSheet(clawSlash, 1));
+  add("claw-left", fx.rotateSheet(clawSlash, 2));
+  add("claw-up", fx.rotateSheet(clawSlash, 3));
+  add("dust", fx.dustSheet());
+  add("spark", fx.sparkSheet());
+  add("spark-red", fx.sparkSheet("e4", "e2"));
+  add("shadow", { buf: fx.shadowBlob(12, 5) });
+  add("shadow-big", { buf: fx.shadowBlob(22, 6) });
+  add("bubble-alert", { buf: fx.alertBubble() });
+  add("bubble-ask", { buf: fx.askBubble() });
+  add("bubble-talk", { buf: fx.talkBubble() });
+  for (const good of Object.keys(fx.GEM_COLORS)) add(`gem-${good}`, { buf: fx.gem(good) });
+  add("coin", fx.coinSheet());
+  add("heart-full", { buf: fx.heartIcon(2) });
+  add("heart-half", { buf: fx.heartIcon(1) });
+  add("heart-empty", { buf: fx.heartIcon(0) });
+  add("grass-bits", fx.grassBits());
+  add("leaf-bit", { buf: fx.leafBits() });
+  add("glint", fx.glintSheet());
+  add("sparkle", { buf: fx.sparkleDot() });
+  add("stone-burst", fx.stoneBurst());
+
+  // Interfaz
+  add("ui-dark", { buf: ui.panelDark() });
+  add("ui-paper", { buf: ui.panelPaper() });
+  add("ui-tag", { buf: ui.panelTag() });
+  add("ui-slot", { buf: ui.slotIcon(false) });
+  add("ui-slot-hidden", { buf: ui.slotIcon(true) });
+  [0, 1, 2, 3].forEach((lvl) => add(`ui-eye-${lvl}`, { buf: ui.eyeIcon(lvl) }));
+  add("ui-star", { buf: ui.starIcon(true) });
+  add("ui-pip-on", { buf: ui.pipIcon(true) });
+  add("ui-pip-off", { buf: ui.pipIcon(false) });
+  add("ui-key", { buf: ui.keycap(false) });
+  add("ui-key-wide", { buf: ui.keycap(true) });
+  add("worldmap", { buf: ui.worldMap() });
+  add("logo", { buf: ui.logo() });
+  return out;
+}
+
+// ---------- Solo para el laboratorio ----------
+const DEMO = [
+  "GGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+  "GGGGCCCCCCCCCCGGGGGFFFFFGGGG",
+  "GGGGCCCCCCCCCCGGGGGFFFFFGGGG",
+  "GGGGCCCCCCCCCCGGGGGFFFFFGGGG",
+  "GGGGGGGGGGGGGGGGGDDDDGGGGGGG",
+  "GGGGGGGGDDDDDDDDDDDDGGGGGGGG",
+  "GGGGGGGGDDDDDGGGGGGGGGGGEEEG",
+  "GGGGGGGGDDDDGGGGKKKKGGGGEEEG",
+  "GGGGGDDDDDGGGGGKOOOOKKGGEEEG",
+  "GGGGGDDDDGGGGGGKOOOOOKGGGGGG",
+  "GGGGGDDDDGGGGGGKOOOOOKGGGGGG",
+  "GGGGDDDDDGGGGGGGGGGGGGGGGGGG",
+  "SSSSSSDDDSSSSSSSSSSSSSSSSSSS",
+  "SSSSSSSSSSSSSSSSSSSSSSSSSSSS",
+  "WWWWWWWWBBBWWWWWWWWWWWWWWWWW",
+  "WWWWWWWWBBBWWWWWWWWWWWWWWWWW",
+  "WWWWWWWWWWWWWWWWWWWWWWWWWWWW",
+];
+const DEMO_KEY = { G: T.GRASS, C: T.CLIFF, F: T.FIELD, D: T.DIRT, E: T.FOREST, K: T.GRAVEL, O: T.COBBLE, S: T.SAND, W: T.WATER, B: T.BRIDGE };
+
+export function buildLabExtras() {
+  const grid = DEMO.map((row) => [...row].map((ch) => DEMO_KEY[ch]));
+  return [
+    { key: "terrain-demo", buf: paintGround(grid).buf },
+    { key: "font-o", buf: fontPreview("font-o") },
+    { key: "font-shadow", buf: fontPreview("font") },
+  ];
+}
