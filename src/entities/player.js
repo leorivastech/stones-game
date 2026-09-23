@@ -1,7 +1,7 @@
 /** El caminante. Estados: move, attack, roll, jump, slide, hurt, ko, frozen. */
 
 import Phaser from "phaser";
-import { SHEET_INDEX } from "../art/actors.js";
+import { SHEET_INDEX, POSE } from "../art/actors.js";
 import { DEPTH, PLAYER, TILE } from "../config.js";
 import { tone } from "../sfx.js";
 
@@ -63,9 +63,14 @@ export class Player {
 
   faceIdle() {
     const view = viewOf(this.facing);
-    this.sprite.anims.stop();
-    this.sprite.setTexture(this.flashing ? "cast-player-flash" : "cast-player", SHEET_INDEX[view] + (this.crouching ? 4 : 0));
     this.sprite.setFlipX(this.facing === "left");
+    // Quieto y sin nada raro: respira. Agachado, con destello o en otro estado: cuadro fijo.
+    if (!this.crouching && !this.flashing && (this.state === "move" || this.state === "frozen")) {
+      this.sprite.play(`player-idle-${view}`, true);
+      return;
+    }
+    this.sprite.anims.stop();
+    this.sprite.setTexture(this.flashing ? "cast-player-flash" : "cast-player", SHEET_INDEX[view] + (this.crouching ? POSE.crouch : POSE.idle));
   }
 
   freeze() {
@@ -169,7 +174,7 @@ export class Player {
       }
     } else if (moving && this.crouching) {
       s.anims.stop();
-      s.setTexture("cast-player", SHEET_INDEX[view] + 4);
+      s.setTexture("cast-player", SHEET_INDEX[view] + POSE.crouch);
       this.stepTimer -= dt;
       if (this.stepTimer <= 0 && this.inGrass) {
         this.stepTimer = 420;
@@ -195,8 +200,9 @@ export class Player {
     this.snapToLane(dir === "left" || dir === "right" ? "y" : "x");
     const d = DIRS[dir];
     this.body.setVelocity(d.x * SLIDE_SPEED, d.y * SLIDE_SPEED);
-    this.faceIdle();
-    s.setFrame(SHEET_INDEX[viewOf(dir)] + 1);
+    s.setFlipX(dir === "left");
+    s.anims.stop();
+    s.setFrame(SHEET_INDEX[viewOf(dir)] + POSE.walk[0]);
   }
 
   updateSlide(world) {

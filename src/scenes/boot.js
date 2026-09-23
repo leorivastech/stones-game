@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { buildArt } from "../art/index.js";
 import { registerFonts } from "../art/font.js";
-import { CASTS, SHEET_INDEX } from "../art/actors.js";
+import { CASTS, SHEET_INDEX, POSE } from "../art/actors.js";
 import { preloadSfx } from "../sfx.js";
 
 export class BootScene extends Phaser.Scene {
@@ -37,8 +37,15 @@ export class BootScene extends Phaser.Scene {
     });
     for (const cast of Object.keys(CASTS)) {
       for (const [dir, base] of Object.entries(SHEET_INDEX)) {
-        a.create({ key: `${cast}-walk-${dir}`, frames: [0, 1, 2, 3].map((f) => ({ key: `cast-${cast}`, frame: base + f })), frameRate: 8, repeat: -1 });
-        a.create({ key: `${cast}-run-${dir}`, frames: [0, 1, 2, 3].map((f) => ({ key: `cast-${cast}`, frame: base + f })), frameRate: 13, repeat: -1 });
+        const walk = POSE.walk.map((f) => ({ key: `cast-${cast}`, frame: base + f }));
+        a.create({ key: `${cast}-walk-${dir}`, frames: walk, frameRate: 9, repeat: -1 });
+        a.create({ key: `${cast}-run-${dir}`, frames: walk, frameRate: 14, repeat: -1 });
+        // Respirar: quieto un rato, cabeza abajo un momento.
+        a.create({
+          key: `${cast}-idle-${dir}`,
+          frames: [{ key: `cast-${cast}`, frame: base + POSE.idle, duration: 700 }, { key: `cast-${cast}`, frame: base + POSE.breathe, duration: 380 }],
+          frameRate: 1000, repeat: -1,
+        });
       }
     }
     a.create({ key: "roll", frames: [0, 1, 2, 3].map((f) => ({ key: "roll", frame: f })), frameRate: 18, repeat: -1 });
@@ -51,7 +58,10 @@ export class BootScene extends Phaser.Scene {
     a.create({ key: "wolf-walk", frames: [0, 1].map((f) => ({ key: "wolf", frame: f })), frameRate: 7, repeat: -1 });
     a.create({ key: "wolf-run", frames: [0, 1].map((f) => ({ key: "wolf", frame: f })), frameRate: 16, repeat: -1 });
     a.create({ key: "scorpion-walk", frames: [0, 1].map((f) => ({ key: "scorpion", frame: f })), frameRate: 8, repeat: -1 });
-    a.create({ key: "horse-walk", frames: [0, 1, 2, 3].map((f) => ({ key: "horse", frame: f })), frameRate: 9, repeat: -1 });
+    // Caballo: 0-3 de lado, 4-7 de frente, 8-11 de espalda.
+    [["side", 0], ["down", 4], ["up", 8]].forEach(([view, base]) => {
+      a.create({ key: `horse-${view}`, frames: [0, 1, 2, 3].map((f) => ({ key: "horse", frame: base + f })), frameRate: 8, repeat: -1 });
+    });
     a.create({ key: "dust", frames: [0, 1, 2, 3].map((f) => ({ key: "dust", frame: f })), frameRate: 16, repeat: 0 });
     a.create({ key: "spark", frames: [0, 1, 2].map((f) => ({ key: "spark", frame: f })), frameRate: 22, repeat: 0 });
     a.create({ key: "spark-red", frames: [0, 1, 2].map((f) => ({ key: "spark-red", frame: f })), frameRate: 22, repeat: 0 });

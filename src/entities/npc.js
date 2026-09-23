@@ -31,8 +31,8 @@ export class Npc {
       const key = `${this.cast}-walk-${view}`;
       if (this.sprite.anims.currentAnim?.key !== key) this.sprite.play(key);
     } else {
-      this.sprite.anims.stop();
-      this.sprite.setFrame(SHEET_INDEX[view]);
+      // Quieto pero vivo: respira.
+      this.sprite.play(`${this.cast}-idle-${view}`, true);
     }
   }
 

@@ -4,7 +4,7 @@
  */
 
 import Phaser from "phaser";
-import { SHEET_INDEX } from "../art/actors.js";
+import { SHEET_INDEX, POSE } from "../art/actors.js";
 import { DEPTH } from "../config.js";
 import { tone, sfx } from "../sfx.js";
 import { viewOf } from "./player.js";
@@ -33,7 +33,12 @@ export class Escort {
       if (this.sprite.anims.currentAnim?.key !== key) this.sprite.play(key);
     } else {
       this.sprite.anims.stop();
-      this.sprite.setFrame(SHEET_INDEX[view] + (this.aimTime > 0 ? 4 : 0));
+      if (this.aimTime > 0) {
+        this.sprite.anims.stop();
+        this.sprite.setFrame(SHEET_INDEX[view] + POSE.act);
+      } else {
+        this.sprite.play(`archer-idle-${view}`, true);
+      }
     }
   }
 

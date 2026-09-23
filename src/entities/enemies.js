@@ -9,7 +9,7 @@
  */
 
 import Phaser from "phaser";
-import { SHEET_INDEX } from "../art/actors.js";
+import { SHEET_INDEX, POSE } from "../art/actors.js";
 import { DEPTH, ENEMY, TILE } from "../config.js";
 import { tone, sfx } from "../sfx.js";
 import { DIRS, viewOf } from "./player.js";
@@ -271,7 +271,7 @@ class Humanoid extends Enemy {
 
   crouchPose() {
     this.sprite.anims.stop();
-    this.sprite.setFrame(SHEET_INDEX[viewOf(this.facing)] + 4);
+    this.sprite.setFrame(SHEET_INDEX[viewOf(this.facing)] + POSE.crouch);
     this.sprite.setFlipX(this.facing === "left");
   }
 

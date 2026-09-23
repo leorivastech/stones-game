@@ -64,45 +64,143 @@ export function boarSheet() {
   return strip([make(0), make(1), make(2), make(3)]);
 }
 
-/** Caballo de carga 32×28 con silla roja y alforjas. 4 cuadros de trote. */
+/** Una pata de caballo: caña de 2 px, rodilla marcada y casco. `lift` la acorta (pie en el aire). */
+function horseLeg(b, x, top, len, lift, far) {
+  const main = far ? "o1" : "o2";
+  const lit = far ? "o2" : "o3";
+  const h = len - lift;
+  b.rect(x, top, 2, h, main);
+  b.vline(x, top, h, lit);
+  b.set(x, top + Math.floor(h / 2), far ? "o0" : "o1");
+  b.rect(x, top + h - 1, 2, 1, "ink2");
+}
+
+/** Mancha de manta con borde claro arriba, pegada al lomo (sin joroba). */
+function blanketOnBack(b, x0, x1, depth, minY = 0) {
+  for (let x = x0; x <= x1; x += 1) {
+    let top = -1;
+    for (let y = minY; y < b.h; y += 1) if ((b.get(x, y) >>> 24) === 255) { top = y; break; }
+    if (top < 0) continue;
+    for (let d = 0; d < depth; d += 1) b.set(x, top + d, d === 0 ? "e3" : "e2");
+  }
+}
+
+/**
+ * Caballo de carga, 32×28. 12 cuadros: 0-3 de lado (mira a la derecha), 4-7 de frente, 8-11 de espalda.
+ * Cuello corto y arqueado con crin, cabeza larga hacia abajo, manta y alforjas: caballo, no camello.
+ */
 export function horseSheet() {
   const ramp = ["o1", "o2", "o3", "o4", "o5"];
-  const legSets = [
-    [[8, 0], [11, 2], [20, 2], [23, 0]],
-    [[9, 1], [11, 0], [21, 0], [23, 2]],
-    [[8, 2], [11, 0], [20, 0], [23, 2]],
-    [[7, 1], [11, 2], [21, 2], [22, 0]],
+  const dark = ["o0", "o1", "o2", "o3", "o4"];
+  const frames = [];
+
+  // --- De lado ---
+  // [x, lift] de: trasera lejana, trasera cercana, delantera lejana, delantera cercana.
+  const sideLegs = [
+    [[10, 0], [8, 2], [23, 2], [21, 0]],
+    [[9, 1], [9, 0], [22, 0], [22, 1]],
+    [[8, 2], [10, 0], [21, 0], [23, 2]],
+    [[9, 0], [9, 1], [22, 1], [22, 0]],
   ];
-  const frames = legSets.map((legs, f) => {
+  sideLegs.forEach((legs, f) => {
     const b = new Buf(32, 28);
     b.ellipse(16, 26, 12, 2, rgba("ink", 80));
-    for (const [x, lift] of legs) {
-      b.rect(x, 15, 2, 10 - lift, "o2");
-      b.vline(x, 15, 10 - lift, "o3");
-      b.rect(x, 24 - lift, 2, 1, "ink2");
-    }
-    const bob = f % 2;
-    body(b, 15, 12 + bob, 10, 5.5, ramp, 4);
-    // Cuello y cabeza
-    for (let i = 0; i < 7; i += 1) body(b, 23 + i * 0.6, 10 + bob - i * 0.9, 2.8, 2.6, ramp, 6 + i);
-    body(b, 28, 5 + bob, 3.6, 2.6, ramp, 12);
-    b.rect(29, 5 + bob, 3, 3, "o3");
-    b.set(31, 6 + bob, "ink2");
+    const bob = f % 2 ? 0 : 1;
+    horseLeg(b, legs[0][0] + 2, 15 + bob, 10 - bob, legs[0][1], true);
+    horseLeg(b, legs[2][0] + 2, 15 + bob, 10 - bob, legs[2][1], true);
+    // Cola que se mece.
+    const sway = f === 1 ? -1 : f === 3 ? 1 : 0;
+    const tail = [[7, 9], [6, 10], [5, 11], [5, 12], [4, 13], [4, 14], [4, 15], [4 + sway, 16], [5 + sway, 17]];
+    for (const [x, y] of tail) { b.set(x, y + bob, "ink2"); b.set(x + 1, y + bob, "o0"); }
+    // Cuerpo: grupa, barriga, pecho.
+    body(b, 9, 12 + bob, 4.2, 4, ramp, 3);
+    body(b, 15.5, 12.5 + bob, 9, 4.2, ramp, 4);
+    body(b, 22, 12.5 + bob, 3.6, 4, ramp, 5);
+    // Cuello arqueado y cabeza larga que baja hacia el hocico.
+    for (let i = 0; i < 5; i += 1) body(b, 22.6 + i * 0.9, 10.5 + bob - i * 1.5, 3.2 - i * 0.15, 3, ramp, 6 + i);
+    for (let i = 0; i < 5; i += 1) body(b, 26.4 + i * 0.9, 4.2 + bob + i * 1.1, 2.4 - i * 0.15, 2.1 - i * 0.1, ramp, 12 + i);
+    b.set(30, 8 + bob, "o1"); b.set(29, 9 + bob, "o1"); b.set(30, 9 + bob, "ink2");
     b.set(27, 4 + bob, "ink");
-    b.set(26, 1 + bob, "o2"); b.set(26, 2 + bob, "o2");
-    // Crin
-    for (let i = 0; i < 8; i += 1) b.set(22 + i * 0.6, 8 + bob - i, "ink2");
-    for (let i = 0; i < 6; i += 1) b.set(23 + i * 0.6, 9 + bob - i, "o0");
-    // Cola
-    for (let i = 0; i < 6; i += 1) b.set(5 - (i > 2 ? 1 : 0) + (f % 2), 10 + bob + i, "ink2");
-    // Silla y alforjas
-    b.rect(12, 6 + bob, 8, 3, "e2");
-    b.hline(12, 6 + bob, 8, "e3");
-    b.rect(10, 9 + bob, 5, 6, "o4");
-    b.hline(10, 9 + bob, 5, "o5");
-    b.rect(11, 11 + bob, 3, 1, "y3");
-    return outlined(b);
+    // Orejas y crin.
+    b.set(25, 1 + bob, "o2"); b.set(25, 2 + bob, "o3"); b.set(26, 2 + bob, "o2");
+    for (let i = 0; i < 7; i += 1) {
+      b.set(Math.round(21.5 + i * 0.75), Math.round(8.5 + bob - i * 1.2), "ink2");
+      b.set(Math.round(22.2 + i * 0.75), Math.round(9 + bob - i * 1.2), "o0");
+    }
+    // Manta sobre el lomo y alforjas colgando del costado.
+    blanketOnBack(b, 12, 18, 3);
+    b.rect(11, 12 + bob, 5, 4, "o4");
+    b.hline(11, 12 + bob, 5, "o5");
+    b.vline(11, 12 + bob, 4, "o3");
+    b.set(13, 14 + bob, "y3");
+    // Patas cercanas, delante del cuerpo.
+    horseLeg(b, legs[1][0], 15 + bob, 10 - bob, legs[1][1], false);
+    horseLeg(b, legs[3][0], 15 + bob, 10 - bob, legs[3][1], false);
+    frames.push(outlined(b));
   });
+
+  // --- De frente ---
+  for (let f = 0; f < 4; f += 1) {
+    const b = new Buf(32, 28);
+    b.ellipse(16, 26, 9, 2, rgba("ink", 80));
+    const bob = f % 2 ? 0 : 1;
+    const liftL = f === 0 ? 2 : 0;
+    const liftR = f === 2 ? 2 : 0;
+    horseLeg(b, 13, 17 + bob, 8 - bob, 0, true);
+    horseLeg(b, 17, 17 + bob, 8 - bob, 0, true);
+    // Alforjas colgando a los lados (redondas, pegadas al cuerpo).
+    for (const x of [10, 22]) {
+      b.ellipse(x, 14.5 + bob, 1.8, 2.6, "o4");
+      b.set(x, 13 + bob, "o5");
+      b.set(x, 15 + bob, "y3");
+    }
+    body(b, 16, 13.5 + bob, 6, 4.5, ramp, 21);
+    body(b, 16, 8.5 + bob, 3.2, 3, ramp, 22);
+    horseLeg(b, 11, 16 + bob, 10 - bob, liftL, false);
+    horseLeg(b, 19, 16 + bob, 10 - bob, liftR, false);
+    // Cabeza larga de frente, con lucero blanco.
+    for (let i = 0; i < 6; i += 1) body(b, 16, 3.8 + bob + i * 1.5, 2.6 - i * 0.15, 2, ramp, 23 + i);
+    for (let y = 3; y <= 9; y += 1) b.set(16, y + bob, "c3");
+    b.rect(15, 11 + bob, 3, 2, "o1");
+    b.set(15, 12 + bob, "ink2"); b.set(17, 12 + bob, "ink2");
+    b.set(14, 4 + bob, "ink"); b.set(18, 4 + bob, "ink");
+    b.set(13, 1 + bob, "o2"); b.set(14, 1 + bob, "o3");
+    b.set(18, 1 + bob, "o3"); b.set(19, 1 + bob, "o2");
+    b.set(16, 1 + bob, "ink2"); b.set(15, 2 + bob, "ink2"); b.set(17, 2 + bob, "ink2");
+    frames.push(outlined(b));
+  }
+
+  // --- De espalda ---
+  for (let f = 0; f < 4; f += 1) {
+    const b = new Buf(32, 28);
+    b.ellipse(16, 26, 9, 2, rgba("ink", 80));
+    const bob = f % 2 ? 0 : 1;
+    const liftL = f === 0 ? 2 : 0;
+    const liftR = f === 2 ? 2 : 0;
+    // Cabeza y cuello asoman detrás, más oscuros.
+    body(b, 16, 6 + bob, 2.8, 3, dark, 31);
+    b.set(14, 2 + bob, "o2"); b.set(18, 2 + bob, "o2");
+    for (let y = 3; y <= 8; y += 1) b.set(16, y + bob, "ink2");
+    horseLeg(b, 14, 17 + bob, 8 - bob, 0, true);
+    horseLeg(b, 17, 17 + bob, 8 - bob, 0, true);
+    for (const x of [10, 22]) {
+      b.ellipse(x, 14.5 + bob, 1.8, 2.6, "o4");
+      b.set(x, 13 + bob, "o5");
+    }
+    // Grupa redonda con la raya del medio.
+    body(b, 13.2, 13.5 + bob, 3.8, 4.6, ramp, 32);
+    body(b, 18.8, 13.5 + bob, 3.8, 4.6, ramp, 33);
+    blanketOnBack(b, 12, 20, 2, 9);
+    horseLeg(b, 11, 16 + bob, 10 - bob, liftL, false);
+    horseLeg(b, 19, 16 + bob, 10 - bob, liftR, false);
+    // Cola al centro, meciéndose.
+    const sway = f === 1 ? -1 : f === 3 ? 1 : 0;
+    for (let y = 11; y <= 20; y += 1) {
+      const x = 15 + (y > 16 ? sway : 0);
+      b.set(x, y + bob, "o0"); b.set(x + 1, y + bob, "ink2"); b.set(x + 2, y + bob, "o0");
+    }
+    frames.push(outlined(b));
+  }
   return strip(frames);
 }
 

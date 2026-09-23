@@ -45,6 +45,7 @@ export class WorldScene extends Phaser.Scene {
     // La escena se reutiliza entre mapas: nada del mapa anterior debe sobrevivir.
     this.horse = null;
     this.horseShadow = null;
+    this.horseView = "side";
     this.trail = [];
     this.barrier = null;
     this.gates = {};
@@ -219,11 +220,20 @@ export class WorldScene extends Phaser.Scene {
     if (!last || Math.hypot(last.x - p.x, last.y - p.y) > 2) this.trail.push({ x: p.x, y: p.y });
     if (this.trail.length > 16) {
       const t = this.trail.shift();
-      const dx = t.x - this.horse.x;
+      // Hacia dónde va: se mira unos pasos adelante para no parpadear en diagonales.
+      const ahead = this.trail[Math.min(4, this.trail.length - 1)] ?? t;
+      const dx = ahead.x - this.horse.x;
+      const dy = ahead.y - this.horse.y;
       this.horse.setPosition(t.x, t.y);
-      if (Math.abs(dx) > 0.2) this.horse.setFlipX(dx < 0);
-      if (this.horse.anims.currentAnim?.key !== "horse-walk") this.horse.play("horse-walk");
-    } else this.horse.anims.stop();
+      if (Math.abs(dx) > Math.abs(dy) * 1.4) this.horseView = "side";
+      else if (Math.abs(dy) > Math.abs(dx) * 1.4) this.horseView = dy < 0 ? "up" : "down";
+      const view = this.horseView ?? "side";
+      if (view === "side" && Math.abs(dx) > 0.2) this.horse.setFlipX(dx < 0);
+      if (view !== "side") this.horse.setFlipX(false);
+      this.horse.play(`horse-${view}`, true);
+    } else {
+      this.horse.anims.stop();
+    }
     this.horse.setDepth(this.horse.y - 1);
     this.horseShadow.setPosition(this.horse.x, this.horse.y);
   }
