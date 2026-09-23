@@ -30,6 +30,8 @@ Abre http://127.0.0.1:5181/
 | Estado de la partida (guardar, deuda, fama, refugios, tu gente) | `src/state.js` + `src/world.js` |
 | Refugios (mapas chicos) | `src/maps/refugios.js` |
 | Qué está decidido / construido / pendiente | `studio/panorama.md` |
+| Música, ambientes y efectos | `public/assets/music/`, `ambience/`, `sfx/` — cuál suena dónde: `src/music.js`; créditos: `public/assets/CREDITS.md` |
+| Escuchar y elegir música | http://127.0.0.1:5181/escuchar.html — guía en `studio/musica/README.md` |
 | Trailer (grabar el juego + voz + HyperFrames) | `trailer/` — skill `trailer-juego` |
 | Historia, mecánicas, arte | `studio/` |
 | Guía viva (pestañas) | `docs/guides/stones-studio.html` |

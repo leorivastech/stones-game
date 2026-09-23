@@ -171,6 +171,7 @@ export class Player {
         this.stepTimer = this.running ? 170 : 260;
         if (this.inGrass) this.rustle(world);
         else if (this.running) this.scene.fx?.dust(s.x, s.y);
+        this.scene.stepSound?.(s.x, s.y, this.running);
       }
     } else if (moving && this.crouching) {
       s.anims.stop();

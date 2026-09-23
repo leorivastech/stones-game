@@ -90,7 +90,7 @@ export default {
   between: ["valkeep", "verdelume"],
   biome: "mountain",
   biomeAt,
-  music: "road",
+  music: "road-mountain",
   grid: build(),
   objects: [
     { type: "sign", x: 20.8, y: 76.5, text: ["RUTA 2 · PASO ALTO", "↑ Verdelume   ↓ Valkeep"] },

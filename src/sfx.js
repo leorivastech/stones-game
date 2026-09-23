@@ -1,6 +1,7 @@
 /**
- * Efectos. Muestras CC0 en public/assets/proto/sfx/ + tonitos sintetizados (WebAudio)
- * para golpes, daño, rodada y menús: suenan a 8 bits y no pesan nada.
+ * Efectos. Muestras CC0 (public/assets/sfx/ y proto/sfx/, créditos en public/assets/CREDITS.md)
+ * + tonitos sintetizados (WebAudio) para lo que no tiene muestra: texto, salto, alertas.
+ * Si un tono tiene muestra (SAMPLE_TONES), suena la muestra.
  */
 
 import { getCurrentMusic, musicVolume } from "./music.js";
@@ -18,6 +19,26 @@ export const SFX = {
   click: "assets/proto/sfx/click.mp3",
 };
 
+// Muestras nuevas (Kenney, OpenGameArt; CC0). Nombre = archivo en assets/sfx/.
+const NEW = [
+  "bow", "arrow-hit", "swing", "swing2", "hit", "hit2", "armor", "bump", "die", "wolf", "growl", "boar", "scorpion",
+  "step-grass", "step-grass2", "step-snow", "step-snow2", "step-stone", "step-stone2", "step-wood", "step-wood2",
+  "step-sand", "step-sand2", "door-open", "door-close", "chest", "lever", "splash", "coin", "coins-sell", "gem",
+  "ui-move", "ui-ok", "ui-back", "ui-error", "jingle-mission", "jingle-fame", "jingle-free", "jingle-buy",
+];
+for (const n of NEW) SFX[n] = `assets/sfx/${n}.ogg`;
+
+/** Tonos que suenan con muestra: [nombres posibles, volumen]. Se elige una al azar. */
+const SAMPLE_TONES = {
+  swing: [["swing", "swing2"], 0.35],
+  hit: [["hit", "hit2"], 0.5],
+  bump: [["bump"], 0.5],
+  select: [["ui-move"], 0.3],
+  confirm: [["ui-ok"], 0.4],
+  deny: [["ui-error"], 0.4],
+  pickup: [["coin"], 0.35],
+};
+
 export function preloadSfx(scene) {
   for (const [name, url] of Object.entries(SFX)) scene.load.audio(`sfx-${name}`, url);
 }
@@ -26,6 +47,17 @@ export function sfx(scene, name, extra = {}) {
   const key = `sfx-${name}`;
   if (!scene.cache.audio.exists(key)) return;
   scene.sound.play(key, { volume: 0.55, ...extra });
+}
+
+/** Una de varias muestras, con un poco de variación de tono para que no suene repetida. */
+export function sfxVary(scene, names, volume = 0.5, spread = 120) {
+  const name = names[Math.floor(Math.random() * names.length)];
+  sfx(scene, name, { volume, detune: (Math.random() - 0.5) * 2 * spread });
+}
+
+/** Paso según el suelo: pasto, nieve, piedra, madera, arena. */
+export function footstep(scene, ground, volume = 0.16) {
+  sfxVary(scene, [`step-${ground}`, `step-${ground}2`], volume, 150);
 }
 
 const TONES = {
@@ -52,6 +84,11 @@ const TONES = {
 let noiseBuffer = null;
 
 export function tone(scene, name) {
+  const sample = SAMPLE_TONES[name];
+  if (sample && sample[0].every((n) => scene.cache.audio.exists(`sfx-${n}`))) {
+    sfxVary(scene, sample[0], sample[1], 80);
+    return;
+  }
   const ctx = scene.sound.context;
   if (!ctx || scene.sound.locked || !TONES[name]) return;
   const now = ctx.currentTime;

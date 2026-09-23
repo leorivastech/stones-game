@@ -169,6 +169,16 @@ Cuartitos privados, como las bases secretas de Pokémon. Se entra caminando.
 
 Entrar a un pueblo **guarda la partida** y cura.
 
+## Sonido
+
+- Cada pueblo, ruta y refugio tiene su música; debajo suena un ambiente (selva, viento, cueva, olas).
+  Tabla completa en `studio/musica/README.md`.
+- Si un guardia te persigue suena la música de persecución; 3 s después de perderlo vuelve la del lugar.
+- Pasos según el suelo (pasto, piedra, madera, arena, nieve). Arco y flecha de Sahra, gruñidos al
+  embestir, escorpión al salir de la arena, armadura del guardia al alarmarse, puertas, cofre,
+  palanca, gema al comprar y monedas al vender, fanfarrias de encargo, de nuevo título de fama y de
+  deuda pagada.
+
 ## Interfaz
 
 - **HUD**: corazones · oro · casillas de carga (la perla ocupa dos; las del fondo falso, rayadas)

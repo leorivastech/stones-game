@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Stones · escuchar música</title>
+<link rel="icon" href="data:," />
+<style>
+  :root { --bg: #1b1422; --panel: #2b2233; --ink: #faf3e1; --dim: #b9ab98; --gold: #e6b736; --green: #8bbf55; --line: #3d3247; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 system-ui, sans-serif; }
+  main { max-width: 980px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { color: var(--gold); margin: 0 0 4px; font-size: 26px; }
+  h2 { color: var(--gold); margin: 32px 0 10px; font-size: 19px; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+  p.sub { color: var(--dim); margin: 0 0 16px; }
+  .group { background: var(--panel); border-radius: 10px; padding: 12px 14px; margin: 12px 0; }
+  .group h3 { margin: 0 0 8px; font-size: 16px; }
+  .row { display: grid; grid-template-columns: 1fr 300px; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+  .row:first-of-type { border-top: 0; }
+  .t { font-weight: 600; }
+  .m { color: var(--dim); font-size: 13px; }
+  .m a { color: var(--dim); }
+  .chosen { color: var(--green); font-weight: 700; font-size: 12px; margin-left: 6px; }
+  .id { font-family: ui-monospace, monospace; color: var(--gold); font-size: 12px; }
+  audio { width: 100%; height: 34px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; }
+  .sfx { background: var(--panel); border-radius: 8px; padding: 8px 10px; display: flex; justify-content: space-between; align-items: center; }
+  button { background: #8c5e13; color: var(--ink); border: 0; border-radius: 6px; padding: 5px 10px; cursor: pointer; font-weight: 600; }
+  @media (max-width: 640px) { .row { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Stones · escuchar música</h1>
+  <p class="sub">Candidatas por lugar. <b style="color:var(--green)">EN USO</b> es la que suena hoy en el juego. Para cambiar una, dile a Claude el código (por ejemplo <span class="id">duneshade-b</span>). Todas tienen licencia libre: CC0 o CC-BY (con crédito).</p>
+  <div id="music"></div>
+  <h2>Ambientes (van debajo de la música)</h2>
+  <div class="grid" id="amb"></div>
+  <h2>Efectos</h2>
+  <div class="grid" id="sfx"></div>
+</main>
+<script type="module">
+  const LUGAR = {
+    title: "Título y trailer", verdelume: "Verdelume (selva)", duneshade: "Duneshade (desierto)", frostholm: "Frostholm (nieve y muelle)",
+    "road-mountain": "Ruta 2 · Paso Alto (montaña)", "road-desert": "Ruta 3 · selva → desierto", "road-snow": "Ruta 4 · Paso del Hielo",
+    refuge: "Cuevas (refugios)", "refuge-plot": "Tierra escondida (refugio)", chase: "Persecución de guardias",
+  };
+  const list = await (await fetch("studio/musica/candidatas.json")).json();
+  const groups = {};
+  for (const m of list) (groups[m.for] ??= []).push(m);
+  const root = document.getElementById("music");
+  const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  for (const [area, items] of Object.entries(groups)) {
+    const g = document.createElement("div");
+    g.className = "group";
+    g.innerHTML = `<h3>${LUGAR[area] ?? area}</h3>`;
+    for (const m of items) {
+      const row = document.createElement("div");
+      row.className = "row";
+      row.innerHTML = `<div><span class="t">${m.title}</span>${m.chosen ? '<span class="chosen">EN USO</span>' : ""}
+        <div class="m"><span class="id">${m.id}</span> · ${m.author} · ${m.license} · ${mmss(m.duration)} · <a href="${m.page}" target="_blank" rel="noopener">página</a></div></div>
+        <audio controls preload="none" src="studio/musica/candidatas/${m.file}"></audio>`;
+      g.appendChild(row);
+    }
+    root.appendChild(g);
+  }
+  const AMB = { jungle: "Selva (pájaros)", desert: "Viento del desierto", snow: "Viento de nieve", cave: "Cueva", sea: "Olas (muelle)", fire: "Fogata" };
+  const amb = document.getElementById("amb");
+  for (const [k, name] of Object.entries(AMB)) {
+    const d = document.createElement("div");
+    d.className = "sfx";
+    d.innerHTML = `<div><div class="t">${name}</div><audio controls preload="none" src="assets/ambience/${k}.ogg"></audio></div>`;
+    amb.appendChild(d);
+  }
+  const SFX = ["bow", "arrow-hit", "swing", "hit", "armor", "die", "wolf", "growl", "boar", "scorpion", "step-grass", "step-snow",
+    "step-stone", "step-wood", "step-sand", "door-open", "door-close", "chest", "lever", "splash", "coin", "coins-sell", "gem",
+    "ui-move", "ui-ok", "ui-back", "ui-error", "jingle-mission", "jingle-fame", "jingle-free", "jingle-buy"];
+  const sfx = document.getElementById("sfx");
+  for (const k of SFX) {
+    const d = document.createElement("div");
+    d.className = "sfx";
+    d.innerHTML = `<span class="id">${k}</span><button>▶</button>`;
+    const a = new Audio(`assets/sfx/${k}.ogg`);
+    d.querySelector("button").onclick = () => { a.currentTime = 0; a.play(); };
+    sfx.appendChild(d);
+  }
+</script>
+</body>
+</html>

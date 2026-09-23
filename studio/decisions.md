@@ -137,3 +137,11 @@ Regla: una línea por decisión, con fecha. No borrar: si se revierte, se agrega
 - **Hecho** — La escarcha se derrite con los días (no hay que romper hielo): 9 %/día, 3 % con hielera, 0 en la cueva del lago.
 - **Hecho** — Ámbar con sello paga impuesto en vez de confiscarse; la solar confiscada calienta la ruta.
 - **Hecho** — Valkeep: prados de flores y piedras en vez de manchas de grava.
+
+## 2026-09-23 — música y sonidos
+
+- **Sí / Leo** — Música propia por ciudad (desierto, hielo, selva…) y más sonidos; después, trailer nuevo con esa música.
+- **Sí** — Sólo licencias CC0 o CC-BY (con crédito). Nada de CC-BY-SA, NC, Pixabay ni Sonniss.
+- **Hecho** — 10 pistas nuevas por lugar (elegidas por defecto entre 31 candidatas), 39 efectos, 6 ambientes, música de persecución. Leo puede cambiar cualquiera desde `escuchar.html`.
+- **Pendiente de Leo** — Escuchar y decir qué cambiar.
+

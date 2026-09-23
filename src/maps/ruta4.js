@@ -93,7 +93,8 @@ export default {
   between: ["duneshade", "frostholm"],
   biome: "desert",
   biomeAt,
-  music: "road",
+  music: "road-snow",
+  ambience: "snow",
   grid: build(),
   objects: [
     { type: "sign", x: 21.2, y: 3.4, text: ["RUTA 4 · PASO DEL HIELO", "↑ Duneshade   ↓ Frostholm"] },

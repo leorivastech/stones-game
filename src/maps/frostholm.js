@@ -39,7 +39,8 @@ export default {
   kind: "town",
   town: "frostholm",
   biome: "snow",
-  music: "valkeep",
+  music: "frostholm",
+  ambience: "snow",
   grid: build(),
   objects: [
     { type: "house", art: "house-snow", x: 4.5, y: 2.2 },

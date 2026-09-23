@@ -6,7 +6,7 @@
 import Phaser from "phaser";
 import { SHEET_INDEX, POSE } from "../art/actors.js";
 import { DEPTH } from "../config.js";
-import { tone, sfx } from "../sfx.js";
+import { sfx } from "../sfx.js";
 import { viewOf } from "./player.js";
 
 const RANGE = 120;
@@ -32,7 +32,6 @@ export class Escort {
       const key = `archer-walk-${view}`;
       if (this.sprite.anims.currentAnim?.key !== key) this.sprite.play(key);
     } else {
-      this.sprite.anims.stop();
       if (this.aimTime > 0) {
         this.sprite.anims.stop();
         this.sprite.setFrame(SHEET_INDEX[view] + POSE.act);
@@ -99,7 +98,7 @@ export class Escort {
     this.cooldown = COOLDOWN;
     const img = this.scene.add.image(sx, sy, "arrow").setRotation(a).setDepth(DEPTH.fx);
     this.arrows.push({ img, vx: Math.cos(a) * ARROW_SPEED, vy: Math.sin(a) * ARROW_SPEED, life: 700 });
-    tone(this.scene, "swing");
+    sfx(this.scene, "bow", { volume: 0.35, detune: (Math.random() - 0.5) * 200 });
   }
 
   updateArrows(dt) {
@@ -116,6 +115,7 @@ export class Escort {
         if (ar.img.x > b.x - 4 && ar.img.x < b.x + b.width + 4 && ar.img.y > b.y - 14 && ar.img.y < b.y + b.height + 2) { hit = e; break; }
       }
       if (hit) {
+        sfx(this.scene, "arrow-hit", { volume: 0.4 });
         hit.hit(1, ar.img.x - ar.vx * 0.05, ar.img.y - ar.vy * 0.05);
         if (hit.spec.kind === "guard") this.scene.onGuardAttacked(hit);
       }

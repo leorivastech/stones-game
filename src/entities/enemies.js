@@ -111,6 +111,7 @@ class Enemy {
     this.body.enable = false;
     this.bubble?.destroy();
     this.scene.fx.poof(this.x, this.y - 6);
+    sfx(this.scene, "die", { volume: 0.3, detune: (Math.random() - 0.5) * 300 });
     this.scene.onEnemyDefeated(this);
     this.scene.tweens.add({ targets: [this.sprite, this.shadow], alpha: 0, duration: 200, onComplete: () => this.destroy() });
   }
@@ -181,6 +182,7 @@ export class Boar extends Enemy {
           this.body.setVelocity(0, 0);
           this.showBubble("bubble-alert", 500);
           tone(this.scene, "charge");
+          sfx(this.scene, this.kind === "wolf" ? "growl" : "boar", { volume: 0.4, detune: (Math.random() - 0.5) * 200 });
         }
         break;
       }
@@ -691,6 +693,7 @@ export class Guard extends Humanoid {
     this.showBubble("bubble-alert", 900);
     tone(this.scene, "alert");
     sfx(this.scene, "horn", { volume: 0.25 });
+    sfx(this.scene, "armor", { volume: 0.35 });
     this.setState("chase");
     this.lostTime = 0;
     this.scene.onGuardAlarm(this);
@@ -761,6 +764,7 @@ export class Scorpion extends Enemy {
           this.setState("emerge");
           this.scene.fx.dust(this.x, this.y, 0.8);
           tone(this.scene, "suspect");
+          sfx(this.scene, "scorpion", { volume: 0.4 });
         }
         break;
       case "emerge":

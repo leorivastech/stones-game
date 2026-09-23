@@ -42,7 +42,8 @@ export default {
   kind: "town",
   town: "verdelume",
   biome: "tropical",
-  music: "ashfen",
+  music: "verdelume",
+  ambience: "jungle",
   grid: build(),
   objects: [
     { type: "house", art: "house-jungle", x: 4, y: 3.2 },

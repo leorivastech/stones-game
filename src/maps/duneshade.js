@@ -48,7 +48,8 @@ export default {
   kind: "town",
   town: "duneshade",
   biome: "desert",
-  music: "valkeep",
+  music: "duneshade",
+  ambience: "desert",
   grid: build(),
   objects: [
     { type: "house", art: "house-adobe", x: 3, y: 3.4 },

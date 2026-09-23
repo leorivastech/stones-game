@@ -60,7 +60,7 @@ export class TitleScene extends Phaser.Scene {
 
     this.controls = new Controls(this);
     this.controls.lock(10);
-    startMusic(this, "ashfen");
+    startMusic(this, "title");
     this.busy = false;
   }
 

@@ -68,7 +68,10 @@ queda en la historia de git (`be15c32`).
 
 ## Música y SFX
 
-- Música CC0 (sin cambios): `public/assets/proto/music/` — Ashfen, camino, Valkeep.
+- Música por lugar (CC0 y CC-BY, normalizada a -18 LUFS): `public/assets/music/` + las tres de antes en
+  `public/assets/proto/music/`. Qué suena dónde: `studio/musica/README.md`. Se elige en `escuchar.html`.
+- Ambientes (selva, viento, cueva, olas, fogata): `public/assets/ambience/`.
+- Efectos Kenney + OpenGameArt (CC0): `public/assets/sfx/`; créditos en `public/assets/CREDITS.md`.
 - Muestras CC0 de encuentros: `public/assets/proto/sfx/`. Créditos en `CREDITS.md`.
 - **Nuevo**: tonitos sintetizados de 8 bits en `src/sfx.js` (`tone()`): golpe, impacto, daño, rodada,
   corte, recoger, corazón, menú, alerta, sospecha, salto, texto, cofre. No pesan nada.

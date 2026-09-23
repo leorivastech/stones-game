@@ -2,3 +2,12 @@ node_modules
 dist
 .DS_Store
 .claude/worktrees/
+
+# Candidatas de música (pesan ~50 MB; se bajan con el script de studio/musica/README.md)
+studio/musica/candidatas/
+studio/musica/herramientas/raw/
+studio/musica/herramientas/out/
+studio/musica/herramientas/packs/
+studio/musica/herramientas/zips/
+studio/musica/herramientas/sfx_out/
+studio/musica/herramientas/amb_out/

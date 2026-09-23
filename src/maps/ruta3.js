@@ -73,7 +73,8 @@ export default {
   between: ["verdelume", "duneshade"],
   biome: "tropical",
   biomeAt,
-  music: "road",
+  music: "road-desert",
+  ambience: "jungle",
   grid: build(),
   objects: [
     { type: "sign", x: 4, y: 15.6, text: ["RUTA 3 · SELVA DEL TRÁNSITO", "← Verdelume   → Duneshade"] },

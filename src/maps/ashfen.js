@@ -55,6 +55,7 @@ export default {
   town: "ashfen",
   biome: "temperate",
   music: "ashfen",
+  ambience: "sea",
   grid: build(),
   objects: [
     { type: "house", art: "house-thatch", x: 6, y: 5 },

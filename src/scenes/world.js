@@ -5,7 +5,7 @@
 
 import Phaser from "phaser";
 import { MAPS } from "../maps/index.js";
-import { buildMap, BUSH } from "../engine/mapbuild.js";
+import { buildMap, BUSH, biomeOf } from "../engine/mapbuild.js";
 import { Controls } from "../engine/input.js";
 import { Fx } from "../engine/fx.js";
 import { Player, DIRS } from "../entities/player.js";
@@ -13,8 +13,12 @@ import { Npc } from "../entities/npc.js";
 import { makeEnemy, Guard } from "../entities/enemies.js";
 import { Escort } from "../entities/escort.js";
 import { DEPTH, TILE, VIEW_W, VIEW_H } from "../config.js";
-import { startMusic } from "../music.js";
-import { sfx, tone, duckTheme, restoreTheme } from "../sfx.js";
+import { startMusic, startAmbience } from "../music.js";
+
+// Sonido de los pasos según la letra de la celda (si no está, según el bioma).
+const STEP_BY_CELL = { "=": "stone", B: "wood", _: "sand", s: "snow", i: "snow", "#": "stone", g: "stone" };
+const STEP_BY_BIOME = { desert: "sand", snow: "snow" };
+import { sfx, tone, duckTheme, restoreTheme, footstep } from "../sfx.js";
 import {
   GOODS, TOWNS, UPGRADES, STONE, TRAVEL_DAYS, DEBT, AMBER_TAX, addHeartContainer, addHeat, ambushProtection, cargo, cargoOf,
   flag, gold, hasUpgrade, heal, heatLevel, hp, hurt, localHeat, loseStones, maxHp, pay, purchaseUpgrade, reputation,
@@ -52,6 +56,7 @@ export class WorldScene extends Phaser.Scene {
     this.horse = null;
     this.horseShadow = null;
     this.horseView = "side";
+    this.chaseOn = false;
     this.trail = [];
     this.barrier = null;
     this.gates = {};
@@ -126,6 +131,7 @@ export class WorldScene extends Phaser.Scene {
     cam.fadeIn(260, 18, 14, 23);
 
     startMusic(this, def.music);
+    startAmbience(this, def.ambience);
     this.ui.enterMap(def);
     if (this.arrival) this.time.delayedCall(700, () => this.onArrival());
 
@@ -316,6 +322,7 @@ export class WorldScene extends Phaser.Scene {
 
     if (this.controls.pressed("tonic")) this.useTonic();
     this.keepHorseOffIce();
+    this.updateChaseMusic(dt);
     this.player.update(dt, this.controls, this.world);
     this.escort?.update(dt);
     for (const e of this.enemies) if (!e.dead) e.update(dt);
@@ -457,7 +464,7 @@ export class WorldScene extends Phaser.Scene {
     it.hidden = true;
     setFlag(reg, `chest-${spec.id}`);
     tone(this, "chest");
-    sfx(this, "latch", { volume: 0.4 });
+    sfx(this, "chest", { volume: 0.5 });
     const lines = [];
     if (spec.loot.gold) {
       reg.inc("gold", spec.loot.gold);
@@ -480,7 +487,7 @@ export class WorldScene extends Phaser.Scene {
     img.setFrame(1);
     it.hidden = true;
     setFlag(this.registry, spec.id);
-    sfx(this, "latch");
+    sfx(this, "lever", { volume: 0.6 });
     const gate = this.gates?.[spec.id];
     if (gate) {
       const cam = this.cameras.main;
@@ -1016,9 +1023,14 @@ export class WorldScene extends Phaser.Scene {
   async claimHere() {
     const reg = this.registry;
     if (this.def.kind !== "town") return;
+    const titleBefore = fameTitle(reputation(reg));
     const done = claimMissions(reg, this.def.town);
+    if (done.length) {
+      duckTheme(this, 0.06);
+      sfx(this, fameTitle(reputation(reg)) !== titleBefore ? "jingle-fame" : "jingle-mission", { volume: 0.5 });
+      this.time.delayedCall(2200, () => restoreTheme());
+    }
     for (const m of done) {
-      tone(this, "chest");
       sfx(this, "coins");
       await this.ui.say([`Encargo cumplido: ${m.title}.`, `+${m.reward} oro · +${m.fame} fama. Ahora eres ${fameTitle(reputation(reg))}.`], { name: m.giver });
     }
@@ -1041,7 +1053,9 @@ export class WorldScene extends Phaser.Scene {
       sfx(this, "coins");
       if (debt(reg).owed <= 0) {
         setFlag(reg, "debt-paid");
-        tone(this, "chest");
+        duckTheme(this, 0.05);
+        sfx(this, "jingle-free", { volume: 0.55 });
+        this.time.delayedCall(3500, () => restoreTheme());
         await this.ui.say(["—Cuenta saldada. El Gremio ya no te busca.", "(Eres libre. Lo que ganes ahora es tuyo.)"], { name });
       } else {
         await this.ui.say([`—Quedan ${debt(reg).owed}. Nos vemos el día ${debt(reg).due}.`], { name });
@@ -1325,7 +1339,7 @@ export class WorldScene extends Phaser.Scene {
   /** Cambia de mapa con un fundido. */
   enterMap(map, entry) {
     this.leaving = true;
-    sfx(this, "latch", { volume: 0.3 });
+    sfx(this, "door-open", { volume: 0.45 });
     this.cameras.main.fadeOut(220, 18, 14, 23);
     this.cameras.main.once("camerafadeoutcomplete", () => this.scene.restart({ map, entry }));
   }
@@ -1373,6 +1387,31 @@ export class WorldScene extends Phaser.Scene {
     this.ui.toast(`Dormiste. Día ${day(reg)}`, "font-gold");
     if (report.melted) this.ui.toast("Se te derritió la escarcha", "font-red");
     saveGame(reg);
+  }
+
+  /** Paso del jugador: pasto, piedra, madera, arena o nieve según dónde pisa. */
+  stepSound(x, y, running) {
+    const ch = this.world.cellAt(x, y - 2);
+    const cx = Math.floor(x / TILE);
+    const cy = Math.floor((y - 2) / TILE);
+    let ground = STEP_BY_CELL[ch] ?? STEP_BY_BIOME[biomeOf(this.def, cx, cy)] ?? "grass";
+    if (this.def.kind === "refuge" && this.def.dark && ground === "grass") ground = "stone";
+    footstep(this, ground, running ? 0.2 : 0.14);
+  }
+
+  /**
+   * Si un guardia te persigue suena la música de persecución; cuando ninguno te sigue por 3 s,
+   * vuelve la del lugar.
+   */
+  updateChaseMusic(dt) {
+    const chased = this.enemies.some((e) => e instanceof Guard && !e.dead && (e.state === "chase" || e.hostile) && e.distToPlayer() < 260);
+    if (chased) {
+      this.calmFor = 0;
+      if (!this.chaseOn) { this.chaseOn = true; startMusic(this, "chase"); }
+    } else if (this.chaseOn) {
+      this.calmFor = (this.calmFor ?? 0) + dt;
+      if (this.calmFor > 3000) { this.chaseOn = false; startMusic(this, this.def.music); }
+    }
   }
 
   /** La yegua no pisa el hielo: con ella no se cruza el lago. */

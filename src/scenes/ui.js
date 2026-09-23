@@ -440,7 +440,7 @@ export class UIScene extends Phaser.Scene {
       this.tweens.add({ targets: cell, x: cell.x + 2, duration: 40, yoyo: true, repeat: 2 });
       return;
     }
-    sfx(this, buying ? "sack" : "coins", { volume: 0.5 });
+    sfx(this, buying ? "gem" : "coins-sell", { volume: 0.5 });
     tone(this, "pickup");
     const t = this.add.bitmapText(cell.x, row.y - 2, buying ? "font-red" : "font-gold", buying ? `-${res.price}` : `+${res.price}`)
       .setOrigin(0.5, 1).setDepth(D + 20);
