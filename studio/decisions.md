@@ -119,3 +119,12 @@ Regla: una línea por decisión, con fecha. No borrar: si se revierte, se agrega
 - **Sí / Leo** — Arreglar animaciones: personaje tieso, caballo que parece camello y sin vista de frente/espalda, arquera sin arco.
 - **Para después** — En línea sin juego simultáneo: mercado compartido y refugios donde otros dejan o salvan cosas.
 - **Propuesto, espera a Leo** — Economía con carácter de piedras, segunda demanda por pueblo, noticias, precio de la Corona y fama por encargos (`panorama.md` §8).
+
+## 2026-09-23 — rumbo del juego
+
+- **Sí / Leo** — Sin final forzoso: juego abierto como los de granjita y comercio.
+- **Sí / Leo** — La fama sube con misiones y funciona como las medallas (abre cosas por nivel). Falta decidir si es por pueblo o global.
+- **Sí / Leo** — Tiempo por días.
+- **Sí / Leo (en principio)** — Mercado tipo bolsa con oferta y demanda, y mundo vivo con sucesos y rumores.
+- **No (recomendación aceptada sin objeción)** — Jev decidiendo sucesos; se usan reglas con azar.
+- Estado completo en `panorama.md`.
