@@ -167,3 +167,22 @@ comprar una licencia, armar su propia red) que da un final a la muestra.
 - **En línea (después):** jugadores como parte de la oferta y la demanda, acaparar, grupos con
   refugios compartidos. La meta en línea sería ser la red de comercio más fuerte.
 - **Meta para un jugador:** sin decidir (romper el monopolio de la Corona, pagar una deuda, armar tu red).
+
+### Actualización 2026-09-23 (tarde)
+
+- **Decidido (Leo):** tiempo por días (cruzar una ruta o tomar la barca pasa días; el mundo cambia).
+- **Jev (TypeSafe) para los sucesos — recomendación de Claude: no.** Jev elige entre opciones; los
+  sucesos necesitan azar con probabilidades que controlemos. Además cuesta por llamada, necesita
+  internet, sus porcentajes no están calibrados (auditoría externa) y no deja simular miles de
+  partidas para balancear. Encaje futuro posible: decisiones de personajes (¿acepta el soborno?)
+  detrás de reglas que funcionan solas.
+- **Meta propuesta (espera a Leo):** mezcla de Pokémon y Patrician.
+  - Un **sello por pueblo** (las "medallas"): la cabeza de la red local te da un encargo difícil
+    que enseña la gracia del lugar (aduana con vidrio frágil, escarcha antes de que se derrita,
+    solares bajo el sol). Cada sello abre algo (refugio, posada, acero, precios).
+  - **La Feria de la Corona** (la "Liga"): con los 5 sellos, ganarle el mercado a la Corona en esos
+    días. Prueba de comercio, no de pelea.
+  - **Deuda con el Gremio** como motivo inicial; al pagarla, el caminante juega en grande.
+  - En línea: sellos como rangos, Feria como evento entre jugadores.
+- Referencias revisadas: Pokémon, Zelda, Moonlighter, Recettear, Potionomics, Patrician/Port Royale,
+  Stardew Valley, Sunless Sea, Mount & Blade, EVE/Albion.
