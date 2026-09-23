@@ -16,18 +16,22 @@ import { DEPTH, TILE } from "../config.js";
 import { startMusic } from "../music.js";
 import { sfx, tone, duckTheme, restoreTheme } from "../sfx.js";
 import {
-  GOODS, TOWNS, UPGRADES, addHeartContainer, addHeat, advanceMarket, ambushProtection, cargo, flag, gold, hasUpgrade,
-  heal, heatLevel, hp, hurt, localHeat, loseStones, maxHp, pay, purchaseUpgrade, reputation, saveGame, setFlag,
-  stones, visibleStones, capacity, stashCount, emptyStash, STASH_RAID_HEAT, buyTonic, drinkTonic, tonics, TONIC,
-  BOAT_FARE,
+  GOODS, TOWNS, UPGRADES, STONE, TRAVEL_DAYS, DEBT, AMBER_TAX, addHeartContainer, addHeat, ambushProtection, cargo, cargoOf,
+  flag, gold, hasUpgrade, heal, heatLevel, hp, hurt, localHeat, loseStones, maxHp, pay, purchaseUpgrade, reputation,
+  saveGame, setFlag, stones, visibleStones, contrabandVisible, confiscateVisible, capacity, fits, stashCount, emptyStash,
+  STASH_RAID_HEAT, buyTonic, drinkTonic, tonics, TONIC, BOAT_FARE, passDays, recordSeen, maybeBreakRune, day, debt,
+  debtDue, payDebt, missDebt, claimMissions, fameTitle, load, missions, acceptMission, hearRumor, econ, chill,
 } from "../state.js";
+import { storyFor, orderFor } from "../missions.js";
 
 const INTRO = [
   "Las piedras de hechizo calientan casas, guardan el agua y salvan la cosecha.",
   "La Corona y su Gremio las venden caras, pocas y tarde.",
   "Por eso los pueblos le compran a quien se atreva a llevarlas por la calzada.",
+  "Tu padre le debía 500 al Gremio. Murió el invierno pasado y la deuda ahora es tuya.",
+  "Cada diez días pasa el cobrador.",
   "Tienes 40 de oro, un bastón y una mochila con cuatro lugares.",
-  "Brena vende ámbar en la plaza. En Valkeep, al norte, lo pagan bien.",
+  "Tomasa, al norte de la plaza, busca a alguien que lleve ámbar a Valkeep.",
 ];
 
 export class WorldScene extends Phaser.Scene {
@@ -49,9 +53,10 @@ export class WorldScene extends Phaser.Scene {
     this.trail = [];
     this.barrier = null;
     this.gates = {};
+    this.stashes = [];
   }
 
-  create() {
+  create(data) {
     const reg = this.registry;
     this.def = MAPS[this.mapId];
     const def = this.def;
@@ -60,15 +65,23 @@ export class WorldScene extends Phaser.Scene {
     this.fx = new Fx(this);
     this.controls = new Controls(this);
 
-    // Llegar a un pueblo distinto cierra un viaje: los mercados se mueven.
-    let arrivedFrom = null;
+    // Llegar a un pueblo desde una ruta pasa días: el mercado se mueve y la escarcha se derrite.
+    this.arrival = null;
+    if (def.kind === "route") reg.set("lastRoute", this.mapId);
     if (def.kind === "town") {
       const prev = reg.get("currentTown");
-      if (prev && prev !== def.town) {
-        advanceMarket(reg, prev, def.town);
-        arrivedFrom = prev;
+      const route = reg.get("lastRoute");
+      const boat = data?.boat;
+      if (route || boat) {
+        const days = boat ? TRAVEL_DAYS.boat : prev === def.town ? TRAVEL_DAYS.back : TRAVEL_DAYS.route;
+        const cold = route === "ruta4" ? 0.5 : 0;
+        const report = passDays(reg, days, { cold });
+        if (prev !== def.town) reg.inc("trips", 1);
+        this.arrival = { days, from: prev !== def.town ? prev : null, ...report };
       }
+      reg.set("lastRoute", null);
       reg.set("currentTown", def.town);
+      recordSeen(reg, def.town);
       heal(reg);
       saveGame(reg);
     }
@@ -107,9 +120,7 @@ export class WorldScene extends Phaser.Scene {
 
     startMusic(this, def.music);
     this.ui.enterMap(def);
-    if (arrivedFrom) {
-      this.time.delayedCall(900, () => this.ui.toast(`Viaje cerrado · los mercados se movieron`, "font-gold"));
-    }
+    if (this.arrival) this.time.delayedCall(700, () => this.onArrival());
 
     this.debugOn = false;
     this.input.keyboard.on("keydown", this.onDebugKey, this);
@@ -148,7 +159,7 @@ export class WorldScene extends Phaser.Scene {
           this.world.addSolid(px - 9, py - 6, 18, 8);
           const it = { x: px, y: py, r: 20, label: "Alijo", act: () => this.useStash(spec, img) };
           this.interactables.push(it);
-          (this.stashes ??= []).push({ spec, img });
+          this.stashes.push({ spec, img });
           break;
         }
         case "sign": {
@@ -317,7 +328,11 @@ export class WorldScene extends Phaser.Scene {
     try {
       switch (npc.spec.role) {
         case "market":
+          await this.offerFrom(npc);
           await this.ui.shop(this.def.town, name, npc.spec.talk);
+          recordSeen(reg, this.def.town);
+          await this.claimHere();
+          if (this.def.town === "frostholm" && !hasUpgrade(reg, "icebox")) await this.iceboxOffer(npc);
           break;
         case "smith":
           await this.smithTalk(npc);
@@ -340,8 +355,16 @@ export class WorldScene extends Phaser.Scene {
           await this.ui.say([...npc.spec.talk, extra], { name });
           break;
         }
-        default:
+        case "tutorial":
           await this.ui.say(npc.spec.talk, { name });
+          await this.offerFrom(npc);
+          break;
+        default: {
+          // La gente del pueblo cuenta rumores; unos dicen la verdad más que otros.
+          const honest = 0.6 + (name.length % 4) * 0.12;
+          const r = hearRumor(reg, honest);
+          await this.ui.say([...npc.spec.talk, r.text], { name });
+        }
       }
     } finally {
       npc.talking = false;
@@ -478,6 +501,11 @@ export class WorldScene extends Phaser.Scene {
     const s = source.center ? source.center() : source;
     if (!this.player.hurt(halves, s.x, s.y)) return;
     hurt(reg, halves);
+    if (maybeBreakRune(reg)) {
+      this.fx.float(this.player.x, this.player.y - 26, "¡crac!", "font-red");
+      this.ui.toast("Se rompió un vidrio rúnico", "font-red");
+      sfx(this, "chop", { volume: 0.3 });
+    }
     if (steal && stones(reg) > 0) {
       const keep = 0.35 * ambushProtection(reg);
       if (Math.random() >= keep) this.dropStone(s);
@@ -538,7 +566,7 @@ export class WorldScene extends Phaser.Scene {
       const d = Math.hypot(p.x - pl.x, p.y - pl.y + 4);
       if (d < 12) {
         if (p.kind === "stone") {
-          if (stones(reg) >= capacity(reg)) continue;
+          if (!fits(reg, p.good)) continue;
           const c = cargo(reg);
           reg.set("cargo", { ...c, [p.good]: (c[p.good] ?? 0) + 1 });
           this.fx.float(p.x, p.y - 12, `+1 ${GOODS[p.good].short}`, "font-gold");
@@ -669,7 +697,26 @@ export class WorldScene extends Phaser.Scene {
   }
 
   bribeCost() {
-    return 4 + Math.floor(localHeat(this.registry, this.def) / 25) * 2 + visibleStones(this.registry);
+    const reg = this.registry;
+    // La piedra solar está muy vigilada: comprar el silencio cuesta más.
+    const suns = Math.min(cargoOf(reg, "sun"), contrabandVisible(reg));
+    return 4 + Math.floor(localHeat(reg, this.def) / 25) * 2 + contrabandVisible(reg) + suns * 2;
+  }
+
+  /** Sólo ámbar a la vista: tiene sello, así que la Corona cobra impuesto en vez de confiscar. */
+  async amberTax(guard, source, amber) {
+    const reg = this.registry;
+    const tax = amber * AMBER_TAX;
+    await this.ui.say(["Ámbar con sello. Eso paga impuesto, no cárcel.", `Son ${tax} de oro por ${amber} ${amber === 1 ? "piedra" : "piedras"}.`], { name: "Guardia" });
+    if (pay(reg, tax)) {
+      sfx(this, "coins");
+      await this.ui.say(["—Circula."], { name: "Guardia" });
+    } else {
+      loseStones(reg, 1, true);
+      await this.ui.say(["—¿No traes con qué? Me quedo con una."], { name: "Guardia" });
+    }
+    this.passCleared = true;
+    this.clearGuard(guard, source);
   }
 
   /** Revisión: dejar revisar, sobornar o escapar. */
@@ -683,19 +730,29 @@ export class WorldScene extends Phaser.Scene {
     sfx(this, "horn", { volume: 0.3 });
     const vis = visibleStones(reg);
     const hidden = stones(reg) - vis;
+    const contra = contrabandVisible(reg);
+    if (contra === 0) {
+      restoreTheme(this);
+      await this.amberTax(guard, source, vis);
+      return;
+    }
     const cost = this.bribeCost();
-    await this.ui.say(["¡Alto ahí! Revisión de la Corona.", `Llevas ${vis} ${vis === 1 ? "piedra" : "piedras"} a la vista. Eso se declara.`], { name: "Guardia" });
+    const suns = Math.min(cargoOf(reg, "sun"), contra);
+    await this.ui.say(["¡Alto ahí! Revisión de la Corona.", `Llevas ${contra} ${contra === 1 ? "piedra" : "piedras"} sin sello a la vista. Eso se confisca.`], { name: "Guardia" });
     const pick = await this.ui.choose("¿Qué haces?", [
-      { label: "Dejar que revisen", note: `Confiscan ${vis} · el calor baja` },
+      { label: "Dejar que revisen", note: suns ? `Confiscan ${contra} · con solar el calor sube` : `Confiscan ${contra} · el calor baja` },
       { label: `Sobornar · ${cost} oro`, disabled: gold(reg) < cost, note: gold(reg) < cost ? "No te alcanza" : "Te dejan pasar con todo" },
       { label: source === "barrier" ? "Dar media vuelta" : "Empujar y correr", note: source === "barrier" ? "Buscar otro camino" : "El calor sube mucho" },
     ], { name: "Guardia" });
     restoreTheme(this);
     if (pick === 0) {
-      const lost = loseStones(reg, vis, true);
-      this.addRouteHeat(-5);
+      const taken = confiscateVisible(reg);
+      // Agarrar piedra solar es noticia: la Corona se pone más atenta.
+      this.addRouteHeat(taken.sun ? taken.sun * 8 : -5);
       sfx(this, "sack");
-      const lines = [`Confiscan ${lost} ${lost === 1 ? "piedra" : "piedras"}.`];
+      const what = Object.entries(taken).filter(([, n]) => n).map(([g, n]) => `${n} ${GOODS[g].short}`).join(", ");
+      const lines = [`Confiscan ${what}.`];
+      if (cargoOf(reg, "amber")) lines.push("El ámbar con sello te lo dejan.");
       if (hidden > 0) lines.push(`El fondo falso aguantó: no encontraron ${hidden}.`);
       lines.push("—Circula.");
       await this.ui.say(lines, { name: "Guardia" });
@@ -825,18 +882,122 @@ export class WorldScene extends Phaser.Scene {
       setFlag(reg, "met-ferry");
       await this.ui.say(["¿Vienes a pie desde Duneshade? Qué valiente.", `Mi barca cruza el golfo hasta ${TOWNS[to].name} en una tarde. Desde hoy también paro en tu muelle.`], { name });
     }
+    // Con caballo, la barca cobra el doble: ocupa lo que dos pasajeros.
+    const fare = BOAT_FARE * (hasUpgrade(reg, "horse") ? 2 : 1);
     const pick = await this.ui.choose(`Cruzar el golfo a ${TOWNS[to].name}`, [
-      { label: `Subir a la barca · ${BOAT_FARE} oro`, disabled: gold(reg) < BOAT_FARE, note: "Sin retenes ni bandidos. Cuenta como un viaje." },
+      { label: `Subir a la barca · ${fare} oro`, disabled: gold(reg) < fare, note: `Sin retenes ni bandidos. Son ${TRAVEL_DAYS.boat} días de mar.` },
       { label: "Ahora no" },
     ], { name });
     if (pick !== 0) return;
-    pay(reg, BOAT_FARE);
+    pay(reg, fare);
     sfx(this, "coins");
     this.leaving = true;
     this.cameras.main.fadeOut(600, 18, 14, 23);
     await new Promise((r) => this.time.delayedCall(650, r));
     await this.ui.say(["La barca se aparta del muelle. El golfo está en calma.", `Al caer la tarde asoma ${TOWNS[to].name}.`]);
-    this.scene.restart({ map: to, entry: "dock" });
+    this.scene.restart({ map: to, entry: "dock", boat: true });
+  }
+
+  /** En Frostholm venden hieleras de serrín: la escarcha aguanta el viaje. */
+  async iceboxOffer(npc) {
+    const reg = this.registry;
+    const item = UPGRADES.icebox;
+    const pick = await this.ui.choose(`${item.name} · ${item.cost} oro`, [
+      { label: "Comprarla", disabled: gold(reg) < item.cost, note: "La escarcha se derrite tres veces más lento" },
+      { label: "No, gracias" },
+    ], { name: npc.spec.name });
+    if (pick !== 0) return;
+    const res = purchaseUpgrade(reg, "icebox");
+    tone(this, res.ok ? "chest" : "deny");
+    if (res.ok) sfx(this, "coins");
+    await this.ui.say([res.ok ? "Serrín seco y tablas gruesas. Con esto llega fría hasta Ashfen." : res.reason], { name: npc.spec.name });
+    saveGame(reg);
+  }
+
+  // ---------------------------------------------------------------- llegada, deuda y encargos
+
+  /** Al llegar a un pueblo: días que pasaron, escarcha, encargos cumplidos y el cobrador. */
+  onArrival() {
+    const reg = this.registry;
+    const a = this.arrival;
+    if (!a) return;
+    this.ui.toast(`Pasaron ${a.days} ${a.days === 1 ? "día" : "días"} · día ${day(reg)}`, "font-gold");
+    if (a.melted) this.time.delayedCall(500, () => this.ui.toast(`Se te derritió la escarcha (${a.melted})`, "font-red"));
+    this.runModal(async () => {
+      await this.claimHere();
+      if (debtDue(reg)) await this.debtCollector();
+    });
+  }
+
+  /** Si este personaje tiene un encargo para ti (de historia o un pedido), te lo ofrece. */
+  async offerFrom(npc) {
+    const reg = this.registry;
+    const town = this.def.town;
+    const name = npc.spec.name;
+    const active = missions(reg);
+    let m = storyFor(town, npc.spec.role, { fame: reputation(reg), done: reg.get("missionsDone") ?? {}, active });
+    if (!m && npc.spec.role === "market") {
+      const declined = (reg.get("ordersDeclined") ?? {})[town];
+      const busy = active.some((a) => a.from === town);
+      if (!busy && declined !== day(reg)) m = orderFor(econ(reg), town, { day: day(reg), seed: day(reg) });
+    }
+    if (!m) return;
+    const deadline = m.days ? day(reg) + m.days : m.deadline;
+    await this.ui.say(m.lines, { name });
+    const pick = await this.ui.choose(`Encargo: ${m.title}`, [
+      { label: "Aceptar", note: `${m.reward} oro + ${m.fame} fama${deadline ? ` · antes del día ${deadline}` : ""}` },
+      { label: "Ahora no" },
+    ], { name });
+    if (pick === 0) {
+      acceptMission(reg, { ...m, giver: m.giver ?? name, deadline });
+      tone(this, "confirm");
+      this.ui.toast(`Encargo: ${m.title}`, "font-gold");
+      saveGame(reg);
+    } else if (!m.id.startsWith("historia")) {
+      reg.set("ordersDeclined", { ...(reg.get("ordersDeclined") ?? {}), [town]: day(reg) });
+    }
+  }
+
+  /** Cobra los encargos cumplidos en este pueblo. */
+  async claimHere() {
+    const reg = this.registry;
+    if (this.def.kind !== "town") return;
+    const done = claimMissions(reg, this.def.town);
+    for (const m of done) {
+      tone(this, "chest");
+      sfx(this, "coins");
+      await this.ui.say([`Encargo cumplido: ${m.title}.`, `+${m.reward} oro · +${m.fame} fama. Ahora eres ${fameTitle(reputation(reg))}.`], { name: m.giver });
+    }
+    if (done.length) saveGame(reg);
+  }
+
+  async debtCollector() {
+    const reg = this.registry;
+    const d = debt(reg);
+    const cuota = Math.min(DEBT.cuota, d.owed);
+    const name = "Cobrador del Gremio";
+    await this.ui.say(["Un hombre con el sello del Gremio te cierra el paso.", `—Le debes ${d.owed} al Gremio. Toca la cuota: ${cuota}.`], { name });
+    const pick = await this.ui.choose("Deuda con el Gremio", [
+      { label: `Pagar la cuota · ${cuota}`, disabled: gold(reg) < cuota, note: `Vuelvo en ${DEBT.every} días` },
+      { label: `Pagar todo · ${d.owed}`, disabled: gold(reg) < d.owed, note: "Y quedas libre" },
+      { label: "No tengo", note: `La deuda sube ${DEBT.interest} y vuelvo pronto` },
+    ], { name });
+    if (pick === 0 || pick === 1) {
+      payDebt(reg, pick === 0 ? cuota : d.owed);
+      sfx(this, "coins");
+      if (debt(reg).owed <= 0) {
+        setFlag(reg, "debt-paid");
+        tone(this, "chest");
+        await this.ui.say(["—Cuenta saldada. El Gremio ya no te busca.", "(Eres libre. Lo que ganes ahora es tuyo.)"], { name });
+      } else {
+        await this.ui.say([`—Quedan ${debt(reg).owed}. Nos vemos el día ${debt(reg).due}.`], { name });
+      }
+    } else {
+      missDebt(reg);
+      tone(this, "deny");
+      await this.ui.say([`—Mala respuesta. Ahora son ${debt(reg).owed}.`, `—Vuelvo el día ${debt(reg).due}. Ten el oro.`], { name });
+    }
+    saveGame(reg);
   }
 
   // ---------------------------------------------------------------- alijos
@@ -941,7 +1102,8 @@ export class WorldScene extends Phaser.Scene {
       case 1: reg.inc("gold", 50); say("+50 oro"); break;
       case 2: {
         const good = TOWNS[reg.get("currentTown") ?? "ashfen"].produce;
-        reg.set("cargo", { ...cargo(reg), [good]: (cargo(reg)[good] ?? 0) + Math.max(0, capacity(reg) - stones(reg)) });
+        const room = Math.floor((capacity(reg) - load(reg)) / STONE[good].slots);
+        reg.set("cargo", { ...cargo(reg), [good]: (cargo(reg)[good] ?? 0) + Math.max(0, room) });
         say(`Carga llena de ${GOODS[good].short}`);
         break;
       }

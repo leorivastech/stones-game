@@ -1,53 +1,191 @@
-/** Estado económico de la corrida. Vive en this.registry. */
+/**
+ * Estado de la partida. Vive en this.registry de Phaser.
+ * El mercado (precios, existencias, días) es lógica pura en economy.js; aquí sólo se guarda y se lee.
+ */
 
 import { GOODS, TOWNS, TOWN_IDS } from "./world.js";
+import {
+  GOOD_IDS, STONE, TRAVEL_DAYS, freshEconomy, quote, takeFromMarket, giveToMarket, stepDay, meltAfter, mixChill,
+} from "./economy.js";
+import { rollDay, rumor as makeRumor, activeEvents } from "./director.js";
 
 export { GOODS, TOWNS } from "./world.js";
-
-export const MAX_STOCK = 8;
-export const MAX_DEMAND = 6;
+export { STONE, TRAVEL_DAYS, GOOD_IDS } from "./economy.js";
 
 export const UPGRADES = {
-  stashKit: { id: "stashKit", name: "Herrajes de alijo", cost: 40, reputation: 3, effect: "abre los alijos de los caminos" },
-  horse: { id: "horse", name: "Caballo de carga", cost: 90, reputation: 4, effect: "+2 carga · más rápido · salva piedras" },
-  escort: { id: "escort", name: "Arquera escolta", cost: 150, reputation: 8, effect: "dispara a bandidos y bestias" },
-  hideout: { id: "hideout", name: "Fondo falso", cost: 240, reputation: 14, effect: "oculta 2 piedras ante guardias" },
+  stashKit: { id: "stashKit", name: "Herrajes de alijo", cost: 40, reputation: 2, effect: "abre los alijos de los caminos" },
+  horse: { id: "horse", name: "Caballo de carga", cost: 90, reputation: 3, effect: "+2 lugares · más rápido · salva piedras" },
+  icebox: { id: "icebox", name: "Hielera de serrín", cost: 25, reputation: 0, effect: "la escarcha se derrite mucho más lento" },
+  escort: { id: "escort", name: "Arquera escolta", cost: 150, reputation: 6, effect: "dispara a bandidos y bestias" },
+  hideout: { id: "hideout", name: "Fondo falso", cost: 240, reputation: 10, effect: "oculta 2 piedras ante guardias" },
 };
+
+/** Niveles de fama: las "medallas" del caminante. La fama sólo sube con misiones. */
+export const FAME_TITLES = [
+  { min: 0, name: "Desconocido" },
+  { min: 2, name: "Mensajero" },
+  { min: 6, name: "Contrabandista" },
+  { min: 10, name: "Mercader de sombra" },
+  { min: 16, name: "Leyenda del golfo" },
+];
 
 export const STASH_CAPACITY = 6;
 export const STASH_RAID_HEAT = 60;
 export const TONIC = { cost: 12, max: 3, heal: 4 };
 export const BOAT_FARE = 15;
-
-function townRecord(value) {
-  return Object.fromEntries(TOWN_IDS.map((id) => [id, value]));
-}
+/** La deuda con el Gremio: el motivo para empezar. Un cobrador pasa cada `every` días. */
+export const DEBT = { start: 500, cuota: 40, every: 10, interest: 25 };
+/** El ámbar con sello: la Corona no lo confisca, cobra impuesto. */
+export const AMBER_TAX = 2;
+/** Probabilidad de que un golpe rompa un vidrio rúnico. */
+export const RUNE_BREAK = 0.3;
 
 function cargoRecord() {
-  return Object.fromEntries(Object.keys(GOODS).map((id) => [id, 0]));
+  return Object.fromEntries(GOOD_IDS.map((id) => [id, 0]));
 }
 
 export function freshRun() {
+  const eco = freshEconomy();
   return {
     gold: 40,
     cargo: cargoRecord(),
+    chill: 100,
     baseCapacity: 4,
     reputation: 0,
     trips: 0,
     currentTown: "ashfen",
-    heat: townRecord(0),
-    stock: townRecord(MAX_STOCK),
-    demand: townRecord(MAX_DEMAND),
-    upgrades: { stashKit: false, horse: false, escort: false, hideout: false },
+    lastRoute: null,
+    day: eco.day,
+    market: eco.market,
+    mods: eco.mods,
+    heat: eco.heat,
+    seen: {},
+    rumors: [],
+    debt: { owed: DEBT.start, due: 1 + DEBT.every, missed: 0 },
+    missions: [],
+    missionsDone: {},
+    upgrades: { stashKit: false, horse: false, icebox: false, escort: false, hideout: false },
     // Vida en medios corazones.
     hp: 6,
     maxHp: 6,
     tonics: 0,
-    // Alijos de los caminos: { id: { amber: 2, … } }
+    // Alijos de los caminos: { id: { amber: 2, …, chill } }
     stashes: {},
     flags: {},
     mapId: "ashfen",
   };
+}
+
+// ---------- Registro ----------
+
+function getRecord(registry, key, fallback) {
+  return registry.get(key) ?? fallback;
+}
+
+function setRecordValue(registry, key, id, value, fallback = {}) {
+  registry.set(key, { ...getRecord(registry, key, fallback), [id]: value });
+}
+
+/** Copia del estado económico para trabajar con economy.js. */
+export function econ(registry) {
+  const fresh = freshEconomy();
+  return {
+    day: registry.get("day") ?? 1,
+    market: structuredClone(registry.get("market") ?? fresh.market),
+    mods: structuredClone(registry.get("mods") ?? []),
+    heat: { ...fresh.heat, ...(registry.get("heat") ?? {}) },
+  };
+}
+
+function commit(registry, st) {
+  registry.set("day", st.day);
+  registry.set("market", st.market);
+  registry.set("mods", st.mods);
+  registry.set("heat", st.heat);
+}
+
+// ---------- Básicos ----------
+
+export function gold(registry) {
+  return registry.get("gold") ?? 0;
+}
+
+export function day(registry) {
+  return registry.get("day") ?? 1;
+}
+
+export function reputation(registry) {
+  return registry.get("reputation") ?? 0;
+}
+
+export function fameTitle(value) {
+  return [...FAME_TITLES].reverse().find((t) => value >= t.min).name;
+}
+
+export function nextFameTitle(value) {
+  return FAME_TITLES.find((t) => t.min > value) ?? null;
+}
+
+export function addFame(registry, amount) {
+  registry.set("reputation", reputation(registry) + amount);
+}
+
+export function cargo(registry) {
+  return getRecord(registry, "cargo", cargoRecord());
+}
+
+export function cargoOf(registry, goodId) {
+  return cargo(registry)[goodId] ?? 0;
+}
+
+/** Número de piedras. */
+export function stones(registry) {
+  return Object.values(cargo(registry)).reduce((sum, amount) => sum + amount, 0);
+}
+
+/** Lugares ocupados: la perla de lluvia pesa por dos. */
+export function load(registry) {
+  const c = cargo(registry);
+  return GOOD_IDS.reduce((sum, g) => sum + (c[g] ?? 0) * STONE[g].slots, 0);
+}
+
+export function fits(registry, good) {
+  return load(registry) + STONE[good].slots <= capacity(registry);
+}
+
+export function hasUpgrade(registry, id) {
+  return Boolean(getRecord(registry, "upgrades", {})[id]);
+}
+
+export function capacity(registry) {
+  return (registry.get("baseCapacity") ?? 4) + (hasUpgrade(registry, "horse") ? 2 : 0);
+}
+
+export function hiddenCapacity(registry) {
+  return hasUpgrade(registry, "hideout") ? 2 : 0;
+}
+
+export function visibleStones(registry) {
+  return Math.max(0, stones(registry) - hiddenCapacity(registry));
+}
+
+/** Piedras a la vista que no son ámbar (el ámbar con sello sólo paga impuesto). */
+export function contrabandVisible(registry) {
+  return Math.max(0, visibleStones(registry) - cargoOf(registry, "amber"));
+}
+
+export function ambushProtection(registry) {
+  return (hasUpgrade(registry, "horse") ? 1 : 0) + (hasUpgrade(registry, "escort") ? 1 : 0);
+}
+
+export function chill(registry) {
+  return registry.get("chill") ?? 100;
+}
+
+export function pay(registry, amount) {
+  if (gold(registry) < amount) return 0;
+  registry.inc("gold", -amount);
+  return amount;
 }
 
 // ---------- Tónicos ----------
@@ -78,19 +216,22 @@ export function stashOf(registry, id) {
 }
 
 export function stashCount(registry, id) {
-  return Object.values(stashOf(registry, id)).reduce((s, n) => s + n, 0);
+  const st = stashOf(registry, id);
+  return GOOD_IDS.reduce((s, g) => s + (st[g] ?? 0), 0);
 }
 
-/** Pasa una piedra entre la carga y el alijo. dir = +1 guarda, −1 saca. */
+/** Pasa una piedra entre la carga y el alijo. dir = +1 guarda, −1 saca. La escarcha lleva su frío. */
 export function moveStash(registry, id, good, dir) {
   const st = { ...stashOf(registry, id) };
   const c = { ...cargo(registry) };
   if (dir > 0) {
     if (!(c[good] > 0) || stashCount(registry, id) >= STASH_CAPACITY) return false;
+    if (good === "frost") st.chill = mixChill(st.frost ?? 0, st.chill ?? 100, 1, chill(registry));
     c[good] -= 1;
     st[good] = (st[good] ?? 0) + 1;
   } else {
-    if (!(st[good] > 0) || stones(registry) >= capacity(registry)) return false;
+    if (!(st[good] > 0) || !fits(registry, good)) return false;
+    if (good === "frost") registry.set("chill", mixChill(c.frost ?? 0, chill(registry), 1, st.chill ?? 100));
     st[good] -= 1;
     c[good] = (c[good] ?? 0) + 1;
   }
@@ -130,6 +271,13 @@ export function addHeartContainer(registry) {
   registry.set("hp", maxHp(registry));
 }
 
+/** El vidrio rúnico es frágil: un golpe puede romper uno. Devuelve true si se rompió. */
+export function maybeBreakRune(registry, roll = Math.random()) {
+  if (!cargoOf(registry, "rune") || roll >= RUNE_BREAK) return false;
+  setRecordValue(registry, "cargo", "rune", cargoOf(registry, "rune") - 1, cargoRecord());
+  return true;
+}
+
 // ---------- Banderas del mundo (cofres, rejas) ----------
 
 export function flag(registry, id) {
@@ -140,10 +288,284 @@ export function setFlag(registry, id, value = true) {
   registry.set("flags", { ...getRecord(registry, "flags", {}), [id]: value });
 }
 
+// ---------- Calor ----------
+
+export function heat(registry, townId) {
+  return getRecord(registry, "heat", {})[townId] ?? 0;
+}
+
+export function routeHeat(registry, fromId, toId) {
+  return Math.round((heat(registry, fromId) + heat(registry, toId)) / 2);
+}
+
+export function addHeat(registry, townId, amount) {
+  setRecordValue(registry, "heat", townId, Math.min(100, Math.max(0, heat(registry, townId) + amount)));
+}
+
+/** Calor que importa donde está el jugador: el del pueblo, o el promedio de la ruta. */
+export function localHeat(registry, def) {
+  if (!def) return 0;
+  if (def.kind === "town") return heat(registry, def.town);
+  const [a, b] = def.between ?? [];
+  return a && b ? routeHeat(registry, a, b) : 0;
+}
+
+export function heatLevel(value) {
+  if (value >= 70) return 3;
+  if (value >= 45) return 2;
+  if (value >= 20) return 1;
+  return 0;
+}
+
+// ---------- Mercado ----------
+
+/** Precio de una piedra en un pueblo, hoy. */
+export function priceOf(registry, townId, good) {
+  return quote(econ(registry), townId, good, chill(registry));
+}
+
+export function canBuy(registry, townId, good) {
+  const q = priceOf(registry, townId, good);
+  return q.stock >= 1 && gold(registry) >= q.buy && fits(registry, good);
+}
+
+export function canSell(registry, townId, good) {
+  return cargoOf(registry, good) > 0;
+}
+
+export function buy(registry, townId, good) {
+  if (!canBuy(registry, townId, good)) return null;
+  const st = econ(registry);
+  const q = quote(st, townId, good);
+  registry.inc("gold", -q.buy);
+  if (good === "frost") registry.set("chill", mixChill(cargoOf(registry, "frost"), chill(registry), 1, 100));
+  setRecordValue(registry, "cargo", good, cargoOf(registry, good) + 1, cargoRecord());
+  takeFromMarket(st, townId, good);
+  st.heat[townId] = Math.min(100, st.heat[townId] + 1);
+  commit(registry, st);
+  return { good: GOODS[good], price: q.buy };
+}
+
+export function sell(registry, townId, good) {
+  if (!canSell(registry, townId, good)) return null;
+  const st = econ(registry);
+  const q = quote(st, townId, good, chill(registry));
+  registry.inc("gold", q.sell);
+  setRecordValue(registry, "cargo", good, cargoOf(registry, good) - 1, cargoRecord());
+  if (good === "frost" && !cargoOf(registry, "frost")) registry.set("chill", 100);
+  giveToMarket(st, townId, good);
+  st.heat[townId] = Math.min(100, st.heat[townId] + STONE[good].sellHeat);
+  commit(registry, st);
+  progressMissions(registry, townId, good);
+  return { good: GOODS[good], price: q.sell };
+}
+
+/** Lo que el jugador sabe de un mercado: los precios del día en que lo vio. */
+export function recordSeen(registry, townId) {
+  const st = econ(registry);
+  const prices = Object.fromEntries(GOOD_IDS.map((g) => [g, quote(st, townId, g).sell]));
+  setRecordValue(registry, "seen", townId, { day: st.day, prices });
+}
+
+export function seenOf(registry, townId) {
+  return getRecord(registry, "seen", {})[townId] ?? null;
+}
+
+// ---------- Días ----------
+
+/**
+ * Pasan `n` días: el mercado se mueve, el calor baja, caducan sucesos y la escarcha se derrite
+ * (en la carga y en los alijos que no están en tierra fría). `cold` (0-1): qué tanto del viaje fue frío.
+ */
+export function passDays(registry, n, { cold = 0 } = {}) {
+  const st = econ(registry);
+  const ended = [];
+  const started = [];
+  for (let i = 0; i < n; i += 1) {
+    ended.push(...stepDay(st));
+    started.push(...rollDay(st));
+  }
+  commit(registry, st);
+  const icebox = hasUpgrade(registry, "icebox");
+  let melted = 0;
+  if (cargoOf(registry, "frost")) {
+    const next = meltAfter(chill(registry), n, { icebox, cold });
+    registry.set("chill", next);
+    if (next <= 0) {
+      melted = cargoOf(registry, "frost");
+      setRecordValue(registry, "cargo", "frost", 0, cargoRecord());
+      registry.set("chill", 100);
+    }
+  }
+  const stashes = { ...getRecord(registry, "stashes", {}) };
+  for (const [id, s] of Object.entries(stashes)) {
+    if (!s.frost || s.cold) continue;
+    const next = meltAfter(s.chill ?? 100, n);
+    stashes[id] = next <= 0 ? { ...s, frost: 0, chill: 100 } : { ...s, chill: next };
+  }
+  registry.set("stashes", stashes);
+  expireMissions(registry);
+  return { ended, started, melted };
+}
+
+// ---------- Rumores ----------
+
+/** Un rumor de la gente. Se guardan los últimos que oíste. */
+export function hearRumor(registry, honest) {
+  const r = makeRumor(econ(registry), { honest });
+  const list = [{ day: day(registry), text: r.text }, ...getRecord(registry, "rumors", [])].slice(0, 5);
+  registry.set("rumors", list);
+  return r;
+}
+
+export function rumors(registry) {
+  return getRecord(registry, "rumors", []);
+}
+
+export function worldEvents(registry) {
+  return activeEvents(econ(registry));
+}
+
+// ---------- Deuda con el Gremio ----------
+
+export function debt(registry) {
+  return registry.get("debt") ?? { owed: 0, due: Infinity, missed: 0 };
+}
+
+export function debtDue(registry) {
+  const d = debt(registry);
+  return d.owed > 0 && day(registry) >= d.due;
+}
+
+/** Abona a la deuda. Si cubre la cuota, el cobrador vuelve en `every` días. */
+export function payDebt(registry, amount) {
+  const d = { ...debt(registry) };
+  const paid = Math.min(amount, d.owed, gold(registry));
+  if (paid <= 0) return 0;
+  registry.inc("gold", -paid);
+  d.owed -= paid;
+  if (paid >= Math.min(DEBT.cuota, d.owed + paid)) d.due = day(registry) + DEBT.every;
+  registry.set("debt", d);
+  return paid;
+}
+
+/** No pagaste: la deuda crece y el cobrador vuelve pronto. */
+export function missDebt(registry) {
+  const d = { ...debt(registry) };
+  d.owed += DEBT.interest;
+  d.missed += 1;
+  d.due = day(registry) + Math.ceil(DEBT.every / 2);
+  registry.set("debt", d);
+  return d;
+}
+
+// ---------- Misiones (encargos) ----------
+
+export function missions(registry) {
+  return getRecord(registry, "missions", []);
+}
+
+export function acceptMission(registry, m) {
+  registry.set("missions", [...missions(registry), { ...m, delivered: 0 }]);
+}
+
+/** Vender la piedra pedida en el pueblo pedido cuenta para el encargo. */
+export function progressMissions(registry, townId, good) {
+  let changed = false;
+  const list = missions(registry).map((m) => {
+    if (m.to !== townId || m.good !== good || m.delivered >= m.count) return m;
+    changed = true;
+    return { ...m, delivered: m.delivered + 1 };
+  });
+  if (changed) registry.set("missions", list);
+}
+
+/** Encargos cumplidos en este pueblo: se cobran (oro y fama) y salen de la lista. */
+export function claimMissions(registry, townId) {
+  const done = missions(registry).filter((m) => m.to === townId && m.delivered >= m.count);
+  if (!done.length) return [];
+  registry.set("missions", missions(registry).filter((m) => !done.includes(m)));
+  const record = { ...getRecord(registry, "missionsDone", {}) };
+  for (const m of done) {
+    registry.inc("gold", m.reward);
+    addFame(registry, m.fame);
+    record[m.id] = true;
+  }
+  registry.set("missionsDone", record);
+  return done;
+}
+
+function expireMissions(registry) {
+  const today = day(registry);
+  const list = missions(registry);
+  const alive = list.filter((m) => !m.deadline || m.deadline >= today || m.delivered >= m.count);
+  if (alive.length !== list.length) {
+    registry.set("missions", alive);
+    registry.set("missionsFailed", (registry.get("missionsFailed") ?? 0) + list.length - alive.length);
+  }
+}
+
+// ---------- Mejoras ----------
+
+export function purchaseUpgrade(registry, id) {
+  const item = UPGRADES[id];
+  if (!item) return { ok: false, reason: "Mejora desconocida." };
+  if (hasUpgrade(registry, id)) return { ok: false, reason: `${item.name}: ya comprado.` };
+  if (reputation(registry) < item.reputation) return { ok: false, reason: `${item.name}: requiere fama ${item.reputation}.` };
+  if (gold(registry) < item.cost) return { ok: false, reason: `${item.name}: faltan ${item.cost - gold(registry)} oro.` };
+  registry.inc("gold", -item.cost);
+  registry.set("upgrades", { ...getRecord(registry, "upgrades", {}), [id]: true });
+  return { ok: true, reason: `${item.name}: tuyo.` };
+}
+
+export function loseStones(registry, amount, visibleOnly = false) {
+  let remaining = Math.min(amount, visibleOnly ? visibleStones(registry) : stones(registry));
+  const next = { ...cargo(registry) };
+  let lost = 0;
+  // Se pierden primero las más caras.
+  for (const goodId of [...GOOD_IDS].reverse()) {
+    if (remaining <= 0) break;
+    const take = Math.min(next[goodId] ?? 0, remaining);
+    next[goodId] -= take;
+    remaining -= take;
+    lost += take;
+  }
+  if (lost) registry.set("cargo", next);
+  if (!next.frost) registry.set("chill", 100);
+  return lost;
+}
+
+/** Revisión de la Corona: confisca lo visible que no sea ámbar; el ámbar paga impuesto. */
+export function confiscateVisible(registry) {
+  const hidden = hiddenCapacity(registry);
+  const next = { ...cargo(registry) };
+  let toTake = Math.max(0, stones(registry) - hidden);
+  const taken = cargoRecord();
+  // El fondo falso esconde primero las más caras.
+  let shelter = hidden;
+  for (const g of [...GOOD_IDS].reverse()) {
+    const keep = Math.min(next[g], shelter);
+    shelter -= keep;
+    const visible = next[g] - keep;
+    if (g === "amber" || !visible || toTake <= 0) continue;
+    const take = Math.min(visible, toTake);
+    next[g] -= take;
+    taken[g] = take;
+    toTake -= take;
+  }
+  registry.set("cargo", next);
+  if (!next.frost) registry.set("chill", 100);
+  return taken;
+}
+
 // ---------- Guardado ----------
 
-const SAVE_KEY = "stones-save-v3";
-const SAVED = ["gold", "cargo", "baseCapacity", "reputation", "trips", "currentTown", "heat", "stock", "demand", "upgrades", "hp", "maxHp", "tonics", "stashes", "flags", "mapId"];
+const SAVE_KEY = "stones-save-v4";
+const SAVED = [
+  "gold", "cargo", "chill", "baseCapacity", "reputation", "trips", "currentTown", "lastRoute", "day", "market", "mods",
+  "heat", "seen", "rumors", "debt", "missions", "missionsDone", "missionsFailed", "upgrades", "hp", "maxHp", "tonics",
+  "stashes", "flags", "mapId",
+];
 
 export function saveGame(registry) {
   try {
@@ -174,223 +596,12 @@ export function loadGame(registry) {
   }
 }
 
-/** Calor que importa donde está el jugador: el del pueblo, o el promedio de la ruta. */
-export function localHeat(registry, def) {
-  if (!def) return 0;
-  if (def.kind === "town") return heat(registry, def.town);
-  const [a, b] = def.between ?? [];
-  return a && b ? routeHeat(registry, a, b) : 0;
-}
-
-export function heatLevel(value) {
-  if (value >= 70) return 3;
-  if (value >= 45) return 2;
-  if (value >= 20) return 1;
-  return 0;
-}
-
 export function resetRun(registry) {
   registry.set(freshRun());
 }
 
 export function ensureRun(registry) {
-  if (registry.get("cargo") == null) resetRun(registry);
+  if (registry.get("cargo") == null || registry.get("market") == null) resetRun(registry);
 }
 
-function getRecord(registry, key, fallback) {
-  return registry.get(key) ?? fallback;
-}
-
-function setRecordValue(registry, key, id, value, fallback = {}) {
-  registry.set(key, { ...getRecord(registry, key, fallback), [id]: value });
-}
-
-export function gold(registry) {
-  return registry.get("gold") ?? 0;
-}
-
-export function reputation(registry) {
-  return registry.get("reputation") ?? 0;
-}
-
-export function cargo(registry) {
-  return getRecord(registry, "cargo", cargoRecord());
-}
-
-export function cargoOf(registry, goodId) {
-  return cargo(registry)[goodId] ?? 0;
-}
-
-export function stones(registry) {
-  return Object.values(cargo(registry)).reduce((sum, amount) => sum + amount, 0);
-}
-
-export function hasUpgrade(registry, id) {
-  return Boolean(getRecord(registry, "upgrades", {})[id]);
-}
-
-export function capacity(registry) {
-  return (registry.get("baseCapacity") ?? 4) + (hasUpgrade(registry, "horse") ? 2 : 0);
-}
-
-export function hiddenCapacity(registry) {
-  return hasUpgrade(registry, "hideout") ? 2 : 0;
-}
-
-export function visibleStones(registry) {
-  return Math.max(0, stones(registry) - hiddenCapacity(registry));
-}
-
-export function ambushProtection(registry) {
-  return (hasUpgrade(registry, "horse") ? 1 : 0) + (hasUpgrade(registry, "escort") ? 1 : 0);
-}
-
-export function heat(registry, townId) {
-  return getRecord(registry, "heat", townRecord(0))[townId] ?? 0;
-}
-
-export function routeHeat(registry, fromId, toId) {
-  return Math.round((heat(registry, fromId) + heat(registry, toId)) / 2);
-}
-
-export function addHeat(registry, townId, amount) {
-  setRecordValue(registry, "heat", townId, Math.min(100, Math.max(0, heat(registry, townId) + amount)));
-}
-
-export function stock(registry, townId) {
-  return getRecord(registry, "stock", townRecord(MAX_STOCK))[townId] ?? MAX_STOCK;
-}
-
-export function demand(registry, townId) {
-  return getRecord(registry, "demand", townRecord(MAX_DEMAND))[townId] ?? MAX_DEMAND;
-}
-
-export function marketQuote(registry, townId) {
-  const town = TOWNS[townId];
-  const localStock = stock(registry, townId);
-  const localDemand = demand(registry, townId);
-  const localHeat = heat(registry, townId);
-  const buyPrice = town.buyBase + (MAX_STOCK - localStock) * 1 + Math.floor(localHeat / 30);
-  const sellPrice = Math.max(
-    Math.ceil(town.sellBase * 0.55),
-    town.sellBase - (MAX_DEMAND - localDemand) * 2 - Math.floor(localHeat / 25),
-  );
-  return { town, produce: GOODS[town.produce], need: GOODS[town.need], stock: localStock, demand: localDemand, heat: localHeat, buyPrice, sellPrice };
-}
-
-export function canBuy(registry, townId) {
-  const quote = marketQuote(registry, townId);
-  return quote.stock > 0 && gold(registry) >= quote.buyPrice && stones(registry) < capacity(registry);
-}
-
-export function canSell(registry, townId) {
-  const quote = marketQuote(registry, townId);
-  return quote.demand > 0 && cargoOf(registry, quote.town.need) > 0;
-}
-
-export function buy(registry, townId) {
-  if (!canBuy(registry, townId)) return null;
-  const quote = marketQuote(registry, townId);
-  registry.inc("gold", -quote.buyPrice);
-  setRecordValue(registry, "cargo", quote.town.produce, cargoOf(registry, quote.town.produce) + 1, cargoRecord());
-  setRecordValue(registry, "stock", townId, quote.stock - 1, townRecord(MAX_STOCK));
-  addHeat(registry, townId, 1);
-  return { good: quote.produce, price: quote.buyPrice };
-}
-
-export function sell(registry, townId) {
-  if (!canSell(registry, townId)) return null;
-  const quote = marketQuote(registry, townId);
-  registry.inc("gold", quote.sellPrice);
-  registry.inc("reputation", 1);
-  setRecordValue(registry, "cargo", quote.town.need, cargoOf(registry, quote.town.need) - 1, cargoRecord());
-  setRecordValue(registry, "demand", townId, quote.demand - 1, townRecord(MAX_DEMAND));
-  addHeat(registry, townId, 5);
-  return { good: quote.need, price: quote.sellPrice };
-}
-
-export function loseStones(registry, amount, visibleOnly = false) {
-  let remaining = Math.min(amount, visibleOnly ? visibleStones(registry) : stones(registry));
-  const next = { ...cargo(registry) };
-  let lost = 0;
-  for (const goodId of Object.keys(GOODS).reverse()) {
-    if (remaining <= 0) break;
-    const take = Math.min(next[goodId] ?? 0, remaining);
-    next[goodId] -= take;
-    remaining -= take;
-    lost += take;
-  }
-  if (lost) registry.set("cargo", next);
-  return lost;
-}
-
-export function pay(registry, amount) {
-  if (gold(registry) < amount) return 0;
-  registry.inc("gold", -amount);
-  return amount;
-}
-
-export function purchaseUpgrade(registry, id) {
-  const item = UPGRADES[id];
-  if (!item) return { ok: false, reason: "Mejora desconocida." };
-  if (hasUpgrade(registry, id)) return { ok: false, reason: `${item.name}: ya comprado.` };
-  if (reputation(registry) < item.reputation) return { ok: false, reason: `${item.name}: requiere reputación ${item.reputation}.` };
-  if (gold(registry) < item.cost) return { ok: false, reason: `${item.name}: faltan ${item.cost - gold(registry)} oro.` };
-  registry.inc("gold", -item.cost);
-  registry.set("upgrades", { ...getRecord(registry, "upgrades", {}), [id]: true });
-  return { ok: true, reason: `${item.name} incorporado a la caravana.` };
-}
-
-export function advanceMarket(registry, fromId, toId) {
-  registry.inc("trips", 1);
-  registry.set("currentTown", toId);
-  const nextStock = { ...getRecord(registry, "stock", townRecord(MAX_STOCK)) };
-  const nextDemand = { ...getRecord(registry, "demand", townRecord(MAX_DEMAND)) };
-  const nextHeat = { ...getRecord(registry, "heat", townRecord(0)) };
-  for (const id of TOWN_IDS) {
-    if (id !== fromId) nextStock[id] = Math.min(MAX_STOCK, (nextStock[id] ?? MAX_STOCK) + 2);
-    if (id !== toId) nextDemand[id] = Math.min(MAX_DEMAND, (nextDemand[id] ?? MAX_DEMAND) + 2);
-    const cooling = id === fromId || id === toId ? 1 : 8;
-    nextHeat[id] = Math.max(0, (nextHeat[id] ?? 0) - cooling);
-  }
-  registry.set("stock", nextStock);
-  registry.set("demand", nextDemand);
-  registry.set("heat", nextHeat);
-}
-
-export function cargoSummary(registry) {
-  const parts = Object.entries(cargo(registry))
-    .filter(([, amount]) => amount > 0)
-    .map(([id, amount]) => `${GOODS[id].short} ${amount}`);
-  return parts.length ? parts.join(" · ") : "vacía";
-}
-
-export function heatLabel(value) {
-  if (value >= 70) return "CRÍTICO";
-  if (value >= 45) return "ALTO";
-  if (value >= 20) return "MEDIO";
-  return "BAJO";
-}
-
-export function goalLine(registry, townId) {
-  if (!townId) return stones(registry) ? "Piedras en el camino · el poste puede cortar" : "Vas sin piedras";
-  const quote = marketQuote(registry, townId);
-  if (canSell(registry, townId)) return `Q vende ${quote.need.short} por ${quote.sellPrice} · pedido ${quote.demand}/${MAX_DEMAND}`;
-  if (stones(registry) >= capacity(registry)) return "Carga llena · salí por el arco y elegí destino";
-  if (canBuy(registry, townId)) return `E compra ${quote.produce.short} por ${quote.buyPrice} · stock ${quote.stock}/${MAX_STOCK}`;
-  if (cargoOf(registry, quote.town.need) && quote.demand <= 0) return "Pedido agotado · buscá otra ciudad";
-  return "Revisá el mapa: esta ciudad no necesita tu carga";
-}
-
-export function arrivalLine(registry, townId) {
-  const quote = marketQuote(registry, townId);
-  const last = registry.get("lastEvent");
-  const eventText = last === "seize"
-    ? " La autoridad te cortó el paso."
-    : last === "ambush"
-      ? " El monte dejó marcas."
-      : last === "checkpoint"
-        ? " Un retén en el camino."
-        : "";
-  return `${quote.town.name}: produce ${quote.produce.short} y pide ${quote.need.short}.${eventText}`;
-}
+export { TOWN_IDS };
