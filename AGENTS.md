@@ -20,7 +20,7 @@ Abre http://127.0.0.1:5181/
 | Escenas: arranque, título, mundo, interfaz | `src/scenes/` (`world.js` es el juego; `ui.js` HUD, diálogos, mercado, pausa) |
 | Mapas (pueblos y rutas, trazados con letras) | `src/maps/` — leyenda en `src/maps/grid.js` |
 | Jugador, enemigos, gente | `src/entities/` |
-| Controles, constructor de mapas, efectos | `src/engine/` |
+| Controles (teclado, control y táctil), constructor de mapas, efectos | `src/engine/` |
 | Pixel art hecho en código | `src/art/` — paleta en `palette.js`, catálogo en `index.js` |
 | Laboratorio de arte (sprites ampliados) | http://127.0.0.1:5181/lab.html?z=4 |
 | Números que se ajustan jugando | `src/config.js` |
@@ -48,6 +48,7 @@ Abre http://127.0.0.1:5181/
 - Un lugar nuevo = un archivo en `src/maps/` (y agregarlo a `src/maps/index.js`). No montes un editor, MCP ni Unity.
 - Arte: sólo pixel art con la paleta de `src/art/palette.js`. Nada de antialias ni formas vectoriales.
 - Revisar arte nuevo en `lab.html` antes de meterlo al juego. Verificar en WebGL y en Canvas (`?renderer=canvas`).
+- Controles: teclas juntas (WASD + J K L I, o flechas + Z X C V), un solo botón de acción. En celular, botones en pantalla (`src/engine/touch.js`; `?touch=1` para verlos en la compu). Todo pasa por `Controls` en `src/engine/input.js`: no leer teclas sueltas en otro lado.
 - F1 en el juego: depuración (1 oro · 2 carga · 3 calor · 4 vida · 5 fama · 6 caballo · 7 arquera y herrajes · 8 tónicos). Números de arriba o del teclado numérico; sigue prendido al cambiar de mapa.
 - Historia y plan viven en `studio/`, no solo en el chat. Actualizarlos después de cada plática.
 - Después de cambiar código, Leo recarga el navegador.

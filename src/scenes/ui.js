@@ -4,17 +4,18 @@
  */
 
 import Phaser from "phaser";
-import { Controls } from "../engine/input.js";
+import { Controls, keyName } from "../engine/input.js";
 import { VIEW_H, VIEW_W } from "../config.js";
 import { centerX, textWidth } from "../art/font.js";
 import { WORLD_PINS, WORLD_ROADS, panelDark, panelPaper, panelTag } from "../art/ui.js";
 import { ninePatch } from "../art/pixel.js";
+import { touch } from "../engine/touch.js";
 import { tone, sfx } from "../sfx.js";
 import {
   GOODS, GOOD_IDS, STONE, TOWNS, UPGRADES, buy, canBuy, capacity, cargo, cargoOf, chill, day, debt, flag, gold,
   hasUpgrade, heatLevel, hiddenCapacity, hp, load, localHeat, maxHp, priceOf, reputation, saveGame, sell, setFlag,
   seenOf, stones, missions, rumors, fameTitle, nextFameTitle, moveStash, stashOf, stashCount, STASH_CAPACITY, STASH_RAID_HEAT,
-  tonics, TONIC,
+  tonics, TONIC, townTips,
 } from "../state.js";
 
 const D = 20000;
@@ -56,6 +57,28 @@ export class UIScene extends Phaser.Scene {
     this.tonicIcon = this.add.image(7, 28, "tonic").setOrigin(0, 0);
     this.tonicText = this.add.bitmapText(18, 29, "font-o", "");
     this.hud.add([this.coinIcon, this.goldText, this.eye, ...this.pips, this.star, this.fameText, this.dayText, this.tonicIcon, this.tonicText]);
+    this.orderRows = [];
+  }
+
+  /** Tus pedidos, siempre a la vista: piedra, cuántas llevas entregadas, a dónde y hasta qué día. */
+  drawOrders() {
+    const list = missions(this.registry).slice(0, 2);
+    while (this.orderRows.length < list.length) {
+      const y = 41 + this.orderRows.length * 12;
+      const r = { gem: this.add.image(7, y, "gem-amber").setOrigin(0, 0), text: this.add.bitmapText(19, y + 1, "font-o", "") };
+      this.hud.add([r.gem, r.text]);
+      this.orderRows.push(r);
+    }
+    this.orderRows.forEach((r, i) => {
+      const m = list[i];
+      r.gem.setVisible(Boolean(m));
+      r.text.setVisible(Boolean(m));
+      if (!m) return;
+      r.gem.setTexture(`gem-${m.good}`);
+      const done = m.delivered >= m.count;
+      r.text.setText(done ? `¡Listo! cóbralo en ${TOWNS[m.to].name}` : `${m.delivered}/${m.count} → ${TOWNS[m.to].name} · antes del día ${m.deadline}`);
+      r.text.setFont(done ? "font-gold" : "font-o");
+    });
   }
 
   refresh() {
@@ -113,7 +136,7 @@ export class UIScene extends Phaser.Scene {
     // Tónicos: sólo si llevas.
     const tn = tonics(reg);
     this.tonicIcon.setVisible(tn > 0);
-    this.tonicText.setVisible(tn > 0).setText(`${tn} · Q`);
+    this.tonicText.setVisible(tn > 0).setText(`${tn} · ${keyName("tonic")}`);
 
     // Alerta
     const heat = localHeat(reg, this.def);
@@ -123,6 +146,7 @@ export class UIScene extends Phaser.Scene {
     this.pips.forEach((p, i) => p.setTexture(i < on ? "ui-pip-on" : "ui-pip-off"));
     this.fameText.setText(String(reputation(reg)));
     this.dayText.setText(`Día ${day(reg)}`);
+    this.drawOrders();
   }
 
   /** Cierra cualquier ventana abierta (por si el mapa cambió con una abierta). */
@@ -157,6 +181,43 @@ export class UIScene extends Phaser.Scene {
     this.tweens.add({ targets: c, y: -40, delay: 2400, duration: 280, ease: "Quad.In", onComplete: () => c.destroy() });
   }
 
+  /**
+   * Lo que conviene en este pueblo hoy, con sus gemas: tus pedidos de aquí, lo tuyo que aquí
+   * pagan bien, lo que ocupan y lo que sobra. Sale solo al llegar y se va.
+   */
+  townNeeds(townId, delay = 0) {
+    this.needsObj?.destroy();
+    const tips = townTips(this.registry, townId);
+    const short = (g) => GOODS[g].short.toLowerCase();
+    const rows = [];
+    for (const m of tips.orders) {
+      rows.push({ good: m.good, font: "font-gold", text: m.delivered >= m.count ? "Tu pedido está listo: cóbralo" : `Tu pedido: vende aquí ${m.count - m.delivered} ${short(m.good)}` });
+    }
+    const mine = tips.yours.find((q) => !tips.orders.some((m) => m.good === q.good));
+    if (mine) rows.push({ good: mine.good, font: "font-gold", text: `Vende aquí tu ${short(mine.good)}: ${mine.sell} c/u` });
+    const want = tips.wanted.find((q) => q.good !== mine?.good);
+    if (want) rows.push({ good: want.good, font: "font-green", text: `Ocupan ${short(want.good)} · pagan ${want.sell}` });
+    const cheap = tips.cheap.find((q) => q.good !== want?.good);
+    if (cheap) rows.push({ good: cheap.good, font: "font", text: `Sobra ${short(cheap.good)} · cuesta ${cheap.buy}` });
+    if (!rows.length) rows.push({ good: null, font: "font-dim", text: "Hoy no hay gran negocio aquí" });
+    const list = rows.slice(0, 3);
+    const title = `HOY EN ${TOWNS[townId].name.toUpperCase()}`;
+    const w = even(Math.max(textWidth(title), ...list.map((r) => textWidth(r.text) + 14)) + 16);
+    const h = 18 + list.length * 13;
+    const x = VIEW_W - w - 6;
+    const c = this.add.container(VIEW_W + 4, 44).setDepth(D + 4);
+    c.add(this.panel(0, 0, "ui-dark", w, h));
+    c.add(this.add.bitmapText(8, 5, "font-gold", title));
+    list.forEach((r, i) => {
+      const y = 18 + i * 13;
+      if (r.good) c.add(this.add.image(8, y, `gem-${r.good}`).setOrigin(0, 0));
+      c.add(this.add.bitmapText(r.good ? 21 : 8, y + 1, r.font, r.text));
+    });
+    this.needsObj = c;
+    this.tweens.add({ targets: c, x, delay, duration: 280, ease: "Back.Out", onStart: () => sfx(this, "coin", { volume: 0.25 }) });
+    this.tweens.add({ targets: c, x: VIEW_W + 4, delay: delay + 7000, duration: 260, ease: "Quad.In", onComplete: () => c.destroy() });
+  }
+
   // ------------------------------------------------------------------ indicador y avisos
 
   buildPrompt() {
@@ -177,6 +238,7 @@ export class UIScene extends Phaser.Scene {
       return;
     }
     const w = even(textWidth(label) + 26);
+    this.promptKeyText.setText(keyName("interact"));
     this.promptBg.setTexture(this.panelKey("ui-tag", w, 16));
     this.promptKey.setPosition(-w / 2 + 3, 0);
     this.promptKeyText.setPosition(-w / 2 + 6, -6);
@@ -225,7 +287,8 @@ export class UIScene extends Phaser.Scene {
       this.tweens.add({ targets: arrow, y: VIEW_H - 20, duration: 300, yoyo: true, repeat: -1 });
       box.setAlpha(0);
       this.tweens.add({ targets: box, alpha: 1, duration: 100 });
-      this.dialog = { box, text, arrow, lines: [...lines], page: -1, shown: 0, full: "", resolve, tick: 0 };
+      const keys = (l) => l.replace(/\{(\w+)\}/g, (_, a) => keyName(a) || a);
+      this.dialog = { box, text, arrow, lines: lines.map(keys), page: -1, shown: 0, full: "", resolve, tick: 0 };
       this.nextPage();
     });
   }
@@ -357,13 +420,12 @@ export class UIScene extends Phaser.Scene {
       box.add(this.add.bitmapText(x + 10, y + 7, "font-gold", `MERCADO DE ${TOWNS[townId].name.toUpperCase()}`));
       box.add(this.add.bitmapText(x + w - 10, y + 7, "font-dim", `${merchant} · día ${day(this.registry)}`).setOrigin(1, 0));
       box.add(this.add.bitmapText(x + 10, y + 20, "font-dim", `"${greeting?.[0] ?? "¿Qué llevas?"}"`).setMaxWidth(w - 20));
-      const col = { name: x + 34, carry: x + 150, buy: x + 214, sell: x + 280, crown: x + 340, stock: x + 392 };
+      const col = { name: x + 34, carry: x + 150, buy: x + 214, sell: x + 280, tag: x + 360 };
       const hy = y + 38;
       box.add(this.add.bitmapText(col.carry, hy, "font-dim", "Llevas").setOrigin(0.5, 0));
-      box.add(this.add.bitmapText(col.buy, hy, "font-dim", "Comprar").setOrigin(0.5, 0));
-      box.add(this.add.bitmapText(col.sell, hy, "font-dim", "Vender").setOrigin(0.5, 0));
-      box.add(this.add.bitmapText(col.crown, hy, "font-dim", "Corona").setOrigin(0.5, 0));
-      box.add(this.add.bitmapText(col.stock, hy, "font-dim", "Hay").setOrigin(0.5, 0));
+      box.add(this.add.bitmapText(col.buy, hy, "font-dim", "Te cobran").setOrigin(0.5, 0));
+      box.add(this.add.bitmapText(col.sell, hy, "font-dim", "Te pagan").setOrigin(0.5, 0));
+      box.add(this.add.bitmapText(col.tag, hy, "font-dim", "Aquí").setOrigin(0.5, 0));
       const pick = this.add.rectangle(0, 0, 50, 13, 0x8c5e13, 0.55).setOrigin(0.5, 0);
       box.add(pick);
       const rows = GOOD_IDS.map((g, i) => {
@@ -376,16 +438,15 @@ export class UIScene extends Phaser.Scene {
           carry: this.add.bitmapText(col.carry, ry, "font", "").setOrigin(0.5, 0),
           buy: this.add.bitmapText(col.buy, ry, "font", "").setOrigin(0.5, 0),
           sell: this.add.bitmapText(col.sell, ry, "font", "").setOrigin(0.5, 0),
-          crown: this.add.bitmapText(col.crown, ry, "font-dim", "").setOrigin(0.5, 0),
-          stock: this.add.bitmapText(col.stock, ry, "font", "").setOrigin(0.5, 0),
+          tag: this.add.bitmapText(col.tag, ry, "font", "").setOrigin(0.5, 0),
         };
-        box.add([r.icon, r.name, r.carry, r.buy, r.sell, r.crown, r.stock]);
+        box.add([r.icon, r.name, r.carry, r.buy, r.sell, r.tag]);
         return r;
       });
       const cursor = this.add.bitmapText(x + 10, y + 52, "font-gold", "▶");
       const info = this.add.bitmapText(x + 10, y + h - 40, "font-o", "").setMaxWidth(w - 20);
       const footer = this.add.bitmapText(x + 10, y + h - 27, "font-dim", "");
-      const hint = this.add.bitmapText(x + 10, y + h - 14, "font-dim", "←→ comprar o vender · ↑↓ piedra · E confirmar · ESC salir");
+      const hint = this.add.bitmapText(x + 10, y + h - 14, "font-dim", `←→ comprar o vender · ↑↓ piedra · ${keyName("confirm")} confirmar · ${keyName("cancel")} salir`);
       box.add([cursor, info, footer, hint]);
       box.setAlpha(0);
       this.tweens.add({ targets: box, alpha: 1, duration: 120 });
@@ -401,20 +462,22 @@ export class UIScene extends Phaser.Scene {
   drawShop() {
     const s = this.shopState;
     const reg = this.registry;
+    const tips = townTips(reg, s.townId);
     for (const r of s.rows) {
       const q = priceOf(reg, s.townId, r.good);
       const have = cargoOf(reg, r.good);
       r.carry.setText(have ? String(have) : "-").setFont(have ? "font" : "font-dim");
-      r.buy.setText(q.stock >= 1 ? String(q.buy) : "-").setFont(canBuy(reg, s.townId, r.good) ? "font" : "font-dim");
-      r.sell.setText(String(q.sell)).setFont(have ? "font-gold" : "font-dim");
-      r.crown.setText(String(q.crown));
-      r.stock.setText(String(q.stock)).setFont(q.mood === "falta" ? "font-red" : q.mood === "sobra" ? "font-green" : "font");
+      r.buy.setText(q.stock >= 1 ? String(q.buy) : "no hay").setFont(canBuy(reg, s.townId, r.good) ? "font" : "font-dim");
+      const wanted = tips.wanted.some((w) => w.good === r.good);
+      r.sell.setText(wanted ? `${q.sell} ▲` : String(q.sell)).setFont(have ? "font-gold" : wanted ? "font-green" : "font-dim");
+      const cheap = tips.cheap.some((c) => c.good === r.good);
+      r.tag.setText(wanted ? "OCUPAN" : cheap ? "SOBRA" : "·").setFont(wanted ? "font-green" : cheap ? "font-gold" : "font-dim");
     }
     const row = s.rows[s.index];
     s.cursor.setY(row.y);
     s.pick.setPosition(s.side === 0 ? s.col.buy : s.col.sell, row.y - 2);
     const q = priceOf(reg, s.townId, row.good);
-    const mood = q.mood === "falta" ? "Aquí falta: la pagan bien." : q.mood === "sobra" ? "Aquí sobra: se consigue barata." : "";
+    const mood = tips.wanted.some((w) => w.good === row.good) ? "Aquí la ocupan: te la pagan bien." : tips.cheap.some((c) => c.good === row.good) ? "Aquí sobra: cómprala barata y llévala." : "";
     const frost = row.good === "frost" && cargoOf(reg, "frost") ? ` Tu escarcha: ${chill(reg)} % de frío.` : "";
     s.info.setText(`${STONE[row.good].trait} ${mood}${frost}`);
     const d = debt(reg);
@@ -497,7 +560,7 @@ export class UIScene extends Phaser.Scene {
       const cursor = this.add.bitmapText(x + 10, y + 40, "font-gold", "▶");
       const warn = this.add.bitmapText(x + 10, y + h - 28, heat >= STASH_RAID_HEAT ? "font-red" : "font-dim",
         heat >= STASH_RAID_HEAT ? "Ruta caliente: la Corona puede dar con él." : "Lo guardado aquí no lo pierdes al caer.");
-      const hint = this.add.bitmapText(x + 10, y + h - 15, "font-dim", "→ guardar · ← sacar · ↑↓ elegir · ESC salir");
+      const hint = this.add.bitmapText(x + 10, y + h - 15, "font-dim", `→ guardar · ← sacar · ↑↓ elegir · ${keyName("cancel")} salir`);
       box.add([cursor, warn, hint]);
       box.setAlpha(0);
       this.tweens.add({ targets: box, alpha: 1, duration: 120 });
@@ -560,14 +623,14 @@ export class UIScene extends Phaser.Scene {
       const box = this.add.container(0, 0).setDepth(D + 30);
       box.add(this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0x120e17, 0.82).setOrigin(0, 0));
       box.add(this.panel(8, 8, "ui-dark", VIEW_W - 16, VIEW_H - 16).setOrigin(0, 0));
-      const tabs = ["MAPA", "CARGA", "ENCARGOS", "MERCADOS", "CONTROLES"];
+      const tabs = ["MAPA", "CARGA", "PEDIDOS", "MERCADOS", "CONTROLES"];
       const tabTexts = tabs.map((t, i) => {
         const txt = this.add.bitmapText(22 + i * 88, 17, "font-dim", t);
         box.add(txt);
         return txt;
       });
       box.add(this.add.rectangle(16, 31, VIEW_W - 32, 1, 0x8c5e13).setOrigin(0, 0));
-      box.add(this.add.bitmapText(VIEW_W - 22, VIEW_H - 24, "font-dim", "←→ pestañas · ESC volver").setOrigin(1, 0));
+      box.add(this.add.bitmapText(VIEW_W - 22, VIEW_H - 24, "font-dim", `←→ pestañas · ${keyName("cancel")} volver`).setOrigin(1, 0));
       const page = this.add.container(0, 0);
       box.add(page);
       this.pauseState = { box, tabs, tabTexts, page, index: 0, resolve, def };
@@ -707,10 +770,10 @@ export class UIScene extends Phaser.Scene {
         txt(344, 66 + i * 22, owned ? "tuyo" : u.reputation ? `fama ${u.reputation} · ${u.cost} oro` : `${u.cost} oro`, "font-dim");
       });
     } else if (p.index === 2) {
-      // --- Encargos ---
-      txt(24, 42, "ENCARGOS", "font-gold");
+      // --- Pedidos ---
+      txt(24, 42, "PEDIDOS", "font-gold");
       const list = missions(reg);
-      if (!list.length) txt(24, 58, "Ninguno. Los comerciantes de cada plaza te piden llevar piedras.", "font-dim");
+      if (!list.length) txt(24, 58, "Ninguno. Busca el ! sobre los comerciantes: te piden llevar piedras.", "font-dim");
       list.slice(0, 6).forEach((m, i) => {
         const y = 58 + i * 28;
         add(this.add.image(24, y, `gem-${m.good}`).setOrigin(0, 0));
@@ -718,7 +781,7 @@ export class UIScene extends Phaser.Scene {
         const left = m.deadline ? ` · vence día ${m.deadline}` : "";
         txt(38, y + 11, `${m.giver}: ${m.delivered}/${m.count} en ${TOWNS[m.to].name}${left} · ${m.reward} oro + ${m.fame} fama`, "font-dim");
       });
-      txt(24, 196, "La fama sólo sube con encargos. Cada título abre mejoras nuevas.", "font-dim");
+      txt(24, 196, "La fama sólo sube con pedidos. Cada título abre mejoras nuevas.", "font-dim");
       const heard = rumors(reg).slice(0, 2);
       if (heard.length) {
         txt(24, 210, "LO QUE SE DICE", "font-gold");
@@ -746,14 +809,22 @@ export class UIScene extends Phaser.Scene {
       txt(24, 196, "Nadie te paga más que la Corona. Vender sube el calor del pueblo.", "font-dim");
       txt(24, 208, "Los rumores de la gente traen noticias frescas.", "font-dim");
     } else {
-      const rows = [
-        ["Mover", "WASD / flechas"],
-        ["Atacar · cortar", "J / ESPACIO"],
-        ["Rodar (tocar) · correr (mantener)", "K / SHIFT"],
-        ["Agacharse · esconderse en pasto alto", "L / C"],
-        ["Hablar · usar · comerciar", "E"],
-        ["Beber tónico (2 corazones)", "Q"],
-        ["Pausa", "ESC / ENTER"],
+      // Dos grupos iguales: WASD + J K L, o flechas + Z X C. En celular, los botones.
+      const rows = touch.on ? [
+        ["Mover", "palanca (mitad izquierda)"],
+        ["Acción: hablar · usar · golpear · elegir", "A"],
+        ["Rodar (tocar) · correr (mantener) · salir", "B"],
+        ["Agacharse · esconderse en pasto alto", "C"],
+        ["Beber tónico (2 corazones)", "T"],
+        ["Pausa y mapa", "II"],
+        ["Bajar un escalón", "caminar hacia abajo"],
+      ] : [
+        ["Mover", "WASD  o  flechas"],
+        ["Acción: hablar · usar · golpear · elegir", "J  o  Z"],
+        ["Rodar (tocar) · correr (mantener) · salir", "K  o  X"],
+        ["Agacharse · esconderse en pasto alto", "L  o  C"],
+        ["Beber tónico (2 corazones)", "I  o  V"],
+        ["Pausa y mapa", "ESC  o  P"],
         ["Bajar un escalón", "caminar hacia abajo"],
       ];
       txt(24, 42, "CONTROLES", "font-gold");
@@ -761,7 +832,7 @@ export class UIScene extends Phaser.Scene {
         txt(24, 58 + i * 14, a);
         txt(VIEW_W - 26 - textWidth(b), 58 + i * 14, b, "font-gold");
       });
-      txt(24, 180, "Control: A atacar · B rodar · X agacharse · Y usar · LB tónico", "font-dim");
+      txt(24, 180, "Control: A acción · B rodar · X agacharse · Y tónico · Start pausa", "font-dim");
       txt(24, 196, "Guardias: revisan si llevas piedras a la vista.", "font-dim");
       txt(24, 208, "Bandidos: te arrancan piedras; recógelas antes que ellos.", "font-dim");
     }

@@ -14,17 +14,25 @@ dónde dejas qué y por qué camino vas.
 
 ## Controles
 
-| Acción | Teclado | Control |
-|---|---|---|
-| Caminar | WASD / flechas | palanca / cruceta |
-| Golpear con el bastón (también corta pasto y arbustos) | J / ESPACIO | A |
-| Rodar (tocar) · correr (mantener) | K / SHIFT | B |
-| Agacharse · esconderse en el pasto alto | L / C | X |
-| Hablar · usar · comerciar · entrar | E | Y |
-| Beber tónico (2 corazones) | Q | LB |
-| Pausa (mapa, carga, encargos, mercados, controles) | ESC / ENTER | Start |
-| Bajar un escalón | caminar hacia abajo contra el borde | — |
-| Depuración | F1, luego 1-8 (arriba o teclado numérico) | — |
+Las teclas van **juntas**, en dos grupos iguales: WASD + **J K L I**, o flechas + **Z X C V**.
+Un solo botón de **acción**: con alguien o algo enfrente, hablas o usas; si no, golpeas (23-sep,
+pedido de Leo). Las teclas viejas (E, ESPACIO, SHIFT, Q, ENTER) siguen funcionando sin anunciarse.
+
+| Acción | Teclado | Control | Celular |
+|---|---|---|---|
+| Caminar | WASD / flechas | palanca / cruceta | palanca (dedo en la mitad izquierda) |
+| Acción: hablar · usar · comerciar · golpear · elegir en menús | J / Z | A | A |
+| Rodar (tocar) · correr (mantener) · salir de menús | K / X | B | B |
+| Agacharse · esconderse en el pasto alto | L / C | X | C |
+| Beber tónico (2 corazones) | I / V | Y · LB | T |
+| Pausa (mapa, carga, pedidos, mercados, controles) | ESC / P | Start | II |
+| Bajar un escalón | caminar hacia abajo contra el borde | — | — |
+| Depuración | F1, luego 1-8 (arriba o teclado numérico) | — | — |
+
+**Celular y tableta** (`src/engine/touch.js`): los botones salen solos en pantallas táctiles
+(`?touch=1` los fuerza en la compu, `?touch=0` los quita). El juego deja una franja de 100 px a cada
+lado para que la palanca y los botones no tapen nada. De pie pide girar el celular. En Android
+pasa a pantalla completa al primer toque (iPhone no lo permite desde el navegador).
 
 ## Jugador
 
@@ -62,8 +70,14 @@ dónde dejas qué y por qué camino vas.
 - **La Corona** vende a 1,6 × el valor. Un pueblo te paga como mucho el 90 % de eso: por eso te
   compran a ti. El precio de la Corona se ve en la ventana.
 - El pueblo te vende 15 % más caro de lo que te compra. El calor del pueblo encarece y paga menos.
-- Ventana: 5 filas (llevas · comprar · vender · Corona · hay). ←→ comprar o vender, ↑↓ piedra.
-  "Hay" en rojo = falta (la pagan bien), en verde = sobra (barata).
+- Ventana: 5 filas (llevas · te cobran · te pagan · aquí). ←→ comprar o vender, ↑↓ piedra.
+  "Aquí" dice **OCUPAN** (verde: te la pagan bien, con ▲ junto al precio) o **SOBRA** (dorado:
+  cómprala barata y llévala). Ocupan = falta o paga ≥ 110 % del valor; sobra = sobra o cuesta ≤ 85 %.
+- **Se ve sin abrir la ventana** (23-sep, Leo: "no está claro qué puedes vender"):
+  - Al llegar a un pueblo sale el cartel **HOY EN …**: tu pedido de aquí, lo tuyo que aquí pagan
+    bien, lo que ocupan y lo que sobra, con sus gemas. Una vez por pueblo y por día.
+  - Sobre el comerciante flota una burbuja: **!** si tiene un pedido para ti; si no, la gema que
+    ahí ocupan.
 - **Lo que sabes de otros pueblos envejece**: la pausa muestra lo que pagaban "hace N días".
 - Simulación: `node studio/sim/mercado.mjs`. Ir en el sentido del círculo gana más; el contrario
   también deja. El caballo da ~35 % más con más calor.
@@ -81,6 +95,8 @@ dónde dejas qué y por qué camino vas.
 - **Sin misiones de historia** (quitadas el 23-sep: no se entendía cuándo te las piden ni cuándo
   se pierden). Tomasa sólo da consejos de controles.
 - **Pedidos**: los comerciantes piden llevar 2-3 piedras a donde faltan hoy (10 días, +1 fama).
+  Se nota: burbuja **!** sobre el comerciante, cartel "PEDIDO ACEPTADO", línea en el HUD, y si
+  se vence te lo dicen al llegar al siguiente pueblo (sólo pierdes el pago).
 - Se cumplen vendiendo en el pueblo pedido; se cobran al cerrar la tienda o al llegar.
 
 ## Sucesos y rumores (`src/director.js`)
@@ -178,9 +194,10 @@ Entrar a un pueblo **guarda la partida** y cura.
 ## Interfaz
 
 - **HUD**: corazones · oro · casillas de carga (la perla ocupa dos; las del fondo falso, rayadas)
-  · tónicos · ojo de alerta · fama · **día**.
+  · tónicos · ojo de alerta · fama · **día** · tus **pedidos** (piedra, entregadas/pedidas, a dónde
+  y hasta qué día; "¡Listo! cóbralo en …" al completarlo).
 - **Pausa**: MAPA (pueblos, barca) · CARGA (vida, oro, fama con título, tónicos, deuda, carga con
-  frío de la escarcha, refugios, mejoras) · ENCARGOS (misiones y lo que se dice) · MERCADOS (lo que
+  frío de la escarcha, refugios, mejoras) · PEDIDOS (los tuyos y lo que se dice) · MERCADOS (lo que
   pagaban y hace cuántos días) · CONTROLES.
 - **Mercado**, **estante** y **mesa** con ventanas propias; diálogos y elecciones con nota.
 

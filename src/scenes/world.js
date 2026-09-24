@@ -6,7 +6,7 @@
 import Phaser from "phaser";
 import { MAPS } from "../maps/index.js";
 import { buildMap, BUSH, biomeOf } from "../engine/mapbuild.js";
-import { Controls } from "../engine/input.js";
+import { Controls, keyName } from "../engine/input.js";
 import { Fx } from "../engine/fx.js";
 import { Player, DIRS } from "../entities/player.js";
 import { Npc } from "../entities/npc.js";
@@ -26,7 +26,7 @@ import {
   STASH_RAID_HEAT, buyTonic, drinkTonic, tonics, TONIC, BOAT_FARE, passDays, recordSeen, maybeBreakRune, day, debt,
   debtDue, payDebt, missDebt, claimMissions, fameTitle, load, missions, acceptMission, hearRumor, econ, chill,
   REFUGES, REFUGE_UPGRADES, CREW, LODGING, crewAt, setCrewAt, partyHas, partySize, lodgingFee, ownsRefuge, refugeHas,
-  stashCapacity, crewIn,
+  stashCapacity, crewIn, townTips,
 } from "../state.js";
 import { orderFor } from "../missions.js";
 
@@ -133,7 +133,9 @@ export class WorldScene extends Phaser.Scene {
     startMusic(this, def.music);
     startAmbience(this, def.ambience);
     this.ui.enterMap(def);
+    this.refreshSigns();
     if (this.arrival) this.time.delayedCall(700, () => this.onArrival());
+    else if (def.kind === "town") this.time.delayedCall(2900, () => this.showNeeds());
 
     this.debugOn = false;
     this.input.keyboard.on("keydown", this.onDebugKey, this);
@@ -143,7 +145,7 @@ export class WorldScene extends Phaser.Scene {
     if (this.intro) this.time.delayedCall(900, () => this.runModal(() => this.ui.say(INTRO)));
     if (def.kind === "route" && !flag(reg, "hint-route")) {
       setFlag(reg, "hint-route");
-      this.time.delayedCall(2600, () => this.ui.toast("J golpear · K rodar (mantén: correr) · L agacharse", "font-o"));
+      this.time.delayedCall(2600, () => this.ui.toast(`${keyName("attack")} golpear · ${keyName("roll")} rodar (mantén: correr) · ${keyName("hide")} agacharse`, "font-o"));
       this.time.delayedCall(5400, () => this.ui.toast("En el pasto alto, agachado, nadie te ve", "font-green"));
     }
   }
@@ -321,6 +323,12 @@ export class WorldScene extends Phaser.Scene {
     }
 
     if (this.controls.pressed("tonic")) this.useTonic();
+    // Un solo botón de acción: con alguien o algo enfrente, hablas o usas; si no, golpeas.
+    const target = this.interactTarget();
+    if (target && this.controls.pressed("interact")) {
+      this.runModal(() => target.act());
+      return;
+    }
     this.keepHorseOffIce();
     this.updateChaseMusic(dt);
     this.player.update(dt, this.controls, this.world);
@@ -331,18 +339,16 @@ export class WorldScene extends Phaser.Scene {
     this.updatePickups(dt);
     this.updateHorse();
     this.updateBarrier(dt);
-    this.updateInteract();
+    this.ui.prompt(target && this.player.state === "move" ? target.label : null);
     this.checkExits();
   }
 
   // ---------------------------------------------------------------- interacción
 
-  updateInteract() {
+  /** Lo que tienes enfrente para hablar o usar (o nada). */
+  interactTarget() {
     const p = this.player;
-    if (p.state !== "move") {
-      this.ui.prompt(null);
-      return;
-    }
+    if (p.state !== "move") return null;
     const d = DIRS[p.facing];
     const rx = p.x + d.x * 10;
     const ry = p.y - 4 + d.y * 10;
@@ -356,8 +362,7 @@ export class WorldScene extends Phaser.Scene {
         bestD = dist;
       }
     }
-    this.ui.prompt(best ? best.label : null);
-    if (best && this.controls.pressed("interact")) this.runModal(() => best.act());
+    return best;
   }
 
   async runModal(fn) {
@@ -428,6 +433,7 @@ export class WorldScene extends Phaser.Scene {
       }
     } finally {
       npc.talking = false;
+      this.refreshSigns();
     }
   }
 
@@ -914,7 +920,7 @@ export class WorldScene extends Phaser.Scene {
     const name = npc.spec.name;
     await this.ui.say(npc.spec.talk, { name });
     const pick = await this.ui.choose("Tónico de raíz", [
-      { label: `Comprar uno · ${TONIC.cost} oro`, disabled: gold(reg) < TONIC.cost || tonics(reg) >= TONIC.max, note: `Llevas ${tonics(reg)} de ${TONIC.max}. Con Q recuperas 2 corazones.` },
+      { label: `Comprar uno · ${TONIC.cost} oro`, disabled: gold(reg) < TONIC.cost || tonics(reg) >= TONIC.max, note: `Llevas ${tonics(reg)} de ${TONIC.max}. Con ${keyName("tonic")} recuperas 2 corazones.` },
       { label: "Nada" },
     ], { name });
     if (pick !== 0) return;
@@ -984,9 +990,55 @@ export class WorldScene extends Phaser.Scene {
     this.ui.toast(`Pasaron ${a.days} ${a.days === 1 ? "día" : "días"} · día ${day(reg)}`, "font-gold");
     if (a.melted) this.time.delayedCall(500, () => this.ui.toast(`Se te derritió la escarcha (${a.melted})`, "font-red"));
     this.runModal(async () => {
+      for (const m of a.expired ?? []) {
+        tone(this, "deny");
+        await this.ui.say([`Se venció tu pedido: ${m.title}.`, "No llegaste antes del día " + m.deadline + ". No pasa nada más: sólo te quedas sin el pago."], { name: m.giver });
+      }
       await this.claimHere();
       if (debtDue(reg)) await this.debtCollector();
+      this.refreshSigns();
+      this.showNeeds();
     });
+  }
+
+  /** "Oye, aquí ocupan esto": una vez por pueblo y por día, para no repetirlo a cada rato. */
+  showNeeds() {
+    if (this.def.kind !== "town" || !this.scene.isActive()) return;
+    const key = `${this.def.town}-${day(this.registry)}`;
+    if (this.ui.needsShown === key) return;
+    this.ui.needsShown = key;
+    this.ui.townNeeds(this.def.town);
+  }
+
+  /** El pedido que el comerciante de aquí te ofrecería ahora (o null). */
+  pendingOrder() {
+    const reg = this.registry;
+    const town = this.def.town;
+    const declined = (reg.get("ordersDeclined") ?? {})[town];
+    if (missions(reg).some((a) => a.from === town) || declined === day(reg)) return null;
+    return orderFor(econ(reg), town, { day: day(reg), seed: day(reg) });
+  }
+
+  /**
+   * Burbuja sobre cada comerciante, para ver de lejos qué pasa: "!" si tiene un pedido para ti;
+   * si no, la gema que aquí ocupan (te la pagan bien).
+   */
+  refreshSigns() {
+    for (const s of this.signs ?? []) s.destroy();
+    this.signs = [];
+    if (this.def.kind !== "town") return;
+    const order = this.pendingOrder();
+    const want = townTips(this.registry, this.def.town).wanted[0];
+    for (const npc of this.npcs) {
+      if (npc.spec.role !== "market" || (!order && !want)) continue;
+      const box = this.add.container(Math.round(npc.x), Math.round(npc.y - 27)).setDepth(DEPTH.fx);
+      box.add(this.add.image(0, 0, this.ui.panelKey("ui-tag", 16, order ? 22 : 16)).setOrigin(0.5, 1));
+      // El "!" al doble (escala entera: sigue nítido) para verlo desde lejos.
+      if (order) box.add(this.add.bitmapText(-2, -21, "font-gold", "!").setScale(2));
+      else box.add(this.add.image(0, -3, `gem-${want.good}`).setOrigin(0.5, 1));
+      this.tweens.add({ targets: box, y: box.y - 2, duration: 520, yoyo: true, repeat: -1, ease: "Sine.InOut" });
+      this.signs.push(box);
+    }
   }
 
   /** Si el comerciante tiene un pedido para ti, te lo ofrece. */
@@ -995,21 +1047,18 @@ export class WorldScene extends Phaser.Scene {
     const town = this.def.town;
     const name = npc.spec.name;
     if (npc.spec.role !== "market") return;
-    const declined = (reg.get("ordersDeclined") ?? {})[town];
-    const busy = missions(reg).some((a) => a.from === town);
-    if (busy || declined === day(reg)) return;
-    const m = orderFor(econ(reg), town, { day: day(reg), seed: day(reg) });
+    const m = this.pendingOrder();
     if (!m) return;
     const deadline = m.deadline;
     await this.ui.say(m.lines, { name });
-    const pick = await this.ui.choose(`Encargo: ${m.title}`, [
+    const pick = await this.ui.choose(`Pedido: ${m.title}`, [
       { label: "Aceptar", note: `${m.reward} oro + ${m.fame} fama${deadline ? ` · antes del día ${deadline}` : ""}` },
       { label: "Ahora no" },
     ], { name });
     if (pick === 0) {
       acceptMission(reg, { ...m, giver: m.giver ?? name, deadline });
       tone(this, "confirm");
-      this.ui.toast(`Encargo: ${m.title}`, "font-gold");
+      this.ui.banner("PEDIDO ACEPTADO", `Vende ${m.count} ${GOODS[m.good].short.toLowerCase()} en ${TOWNS[m.to].name} antes del día ${deadline}`);
       saveGame(reg);
     } else {
       reg.set("ordersDeclined", { ...(reg.get("ordersDeclined") ?? {}), [town]: day(reg) });
@@ -1029,7 +1078,7 @@ export class WorldScene extends Phaser.Scene {
     }
     for (const m of done) {
       sfx(this, "coins");
-      await this.ui.say([`Encargo cumplido: ${m.title}.`, `+${m.reward} oro · +${m.fame} fama. Ahora eres ${fameTitle(reputation(reg))}.`], { name: m.giver });
+      await this.ui.say([`¡Pedido cumplido! ${m.title}.`, `+${m.reward} oro · +${m.fame} fama. Ahora eres ${fameTitle(reputation(reg))}.`], { name: m.giver });
     }
     if (done.length) saveGame(reg);
   }

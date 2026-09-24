@@ -156,3 +156,8 @@ Regla: una línea por decisión, con fecha. No borrar: si se revierte, se agrega
 - **Sí / Leo, reemplaza la de misiones de historia** — Se quitan las 5 misiones de historia: no quedaba claro cuándo te las piden ni cuándo se pierden. La fama sale sólo de los pedidos de los comerciantes (+1 cada uno). Tomasa sólo da consejos. El código viejo sigue en git (`519fbb9`, `src/missions.js`).
 - **Falta decidir** — Con +1 por pedido, los títulos piden 2 / 6 / 10 / 16 pedidos (herrajes a fama 2, fondo falso a fama 10). Ver si se siente lento jugando.
 
+## 2026-09-23 — celular, teclas juntas y comercio claro
+
+- **Sí / Leo** — Primera versión para celular: detecta pantalla táctil y pone palanca y botones A/B/C/T/II en franjas a los lados.
+- **Sí / Leo** — Teclas juntas: WASD + J K L I, o flechas + Z X C V. Un solo botón de acción (habla si hay alguien enfrente, si no golpea).
+- **Sí / Leo** — Que se entienda qué vender: cartel "HOY EN …" al llegar, burbuja sobre el comerciante (! = pedido, gema = lo que ocupan), mercado con OCUPAN / SOBRA, pedidos en el HUD, aviso de pedido vencido. "Encargos" pasan a llamarse "pedidos".

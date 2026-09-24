@@ -80,3 +80,7 @@ Pistas de antes (siguen en uso): ver `proto/CREDITS.md` (Ashfen, Valkeep, Ruta 1
 - `ambience/jungle.ogg` — isaiah658 · CC0 · https://opengameart.org/content/ambient-bird-sounds (origen: `single/birds-isaiah658_0.ogg`)
 - `ambience/sea.ogg` — RandomMind · CC0 · https://opengameart.org/content/sea-and-river-wave-sounds (origen: `single/VistulaShort_0.mp3 (recorte de 90 s)`)
 - `ambience/snow.ogg` — Luke.RUSTLTD · CC0 · https://opengameart.org/content/wind1 (origen: `single/wind2.wav`)
+
+## Fuentes
+
+- `fonts/pixelify-sans.woff2` — Pixelify Sans, de Stefie Justprince. SIL Open Font License 1.1. Se usa en los botones táctiles.

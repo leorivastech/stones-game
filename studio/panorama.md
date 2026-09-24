@@ -58,8 +58,9 @@ Lo interesante es **prepararse**: qué llevas, a quién llevas, dónde dejas qu�
 ## 5. Para después
 
 - **Jugar en celular y iPad** (Leo lo pidió anotar):
-  1. Web: palanca y botones táctiles, menús que se tocan, aviso de girar a horizontal, revisar texto
-     en teléfono (queda ×1.4 en iPhone acostado) y tiempo de carga; PWA instalable ("Agregar a
+  1. Web: **hecho 23-sep** palanca y botones táctiles, menús con A/B, aviso de girar, franjas para
+     que no tapen el juego (×1.34 en iPhone 14 acostado). **Falta**: probarlo en un celular de verdad,
+     tiempo de carga; PWA instalable ("Agregar a
      pantalla de inicio", pantalla completa, sin internet; en iOS protege la partida); publicarlo en
      un hosting gratis o en Hostinger.
   2. APK de Android con Capacitor (mismo código). Google Play: 25 USD una vez.

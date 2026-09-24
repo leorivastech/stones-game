@@ -282,7 +282,7 @@ export function buyTonic(registry) {
   if (gold(registry) < TONIC.cost) return { ok: false, reason: `Faltan ${TONIC.cost - gold(registry)} de oro.` };
   registry.inc("gold", -TONIC.cost);
   registry.set("tonics", tonics(registry) + 1);
-  return { ok: true, reason: "Un tónico de raíz. Con Q te lo tomas." };
+  return { ok: true, reason: "Un tónico de raíz. Con el botón de tónico te lo tomas." };
 }
 
 export function drinkTonic(registry) {
@@ -487,8 +487,8 @@ export function passDays(registry, n, { cold = 0 } = {}) {
     stashes[id] = next <= 0 ? { ...s, frost: 0, chill: 100 } : { ...s, chill: next };
   }
   registry.set("stashes", stashes);
-  expireMissions(registry);
-  return { ended, started, melted };
+  const expired = expireMissions(registry);
+  return { ended, started, melted, expired };
 }
 
 // ---------- Rumores ----------
@@ -586,6 +586,26 @@ function expireMissions(registry) {
     registry.set("missions", alive);
     registry.set("missionsFailed", (registry.get("missionsFailed") ?? 0) + list.length - alive.length);
   }
+  return list.filter((m) => !alive.includes(m));
+}
+
+/**
+ * Lo que conviene en este pueblo hoy, para decirlo claro al llegar y en la burbuja del comerciante:
+ * - `wanted`: lo que aquí pagan bien (falta), de mejor a peor.
+ * - `cheap`: lo que aquí sobra y se compra barato.
+ * - `yours`: lo que llevas y aquí te pagan bien.
+ * - `orders`: tus pedidos que se entregan aquí.
+ */
+export function townTips(registry, townId) {
+  const all = GOOD_IDS.map((g) => {
+    const q = priceOf(registry, townId, g);
+    return { good: g, ...q, rate: q.sell / STONE[g].value, cost: q.buy / STONE[g].value };
+  });
+  const wanted = all.filter((q) => q.mood === "falta" || q.rate >= 1.1).sort((a, b) => b.rate - a.rate);
+  const cheap = all.filter((q) => q.stock >= 1 && (q.mood === "sobra" || q.cost <= 0.85)).sort((a, b) => a.cost - b.cost);
+  const yours = all.filter((q) => cargoOf(registry, q.good) > 0 && q.rate >= 1).sort((a, b) => b.sell - a.sell);
+  const orders = missions(registry).filter((m) => m.to === townId);
+  return { wanted, cheap, yours, orders };
 }
 
 // ---------- Mejoras ----------

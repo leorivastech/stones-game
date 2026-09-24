@@ -3,7 +3,7 @@
 import Phaser from "phaser";
 import { MAPS } from "../maps/index.js";
 import { buildMap } from "../engine/mapbuild.js";
-import { Controls } from "../engine/input.js";
+import { Controls, keyName } from "../engine/input.js";
 import { VIEW_H, VIEW_W } from "../config.js";
 import { startMusic } from "../music.js";
 import { tone } from "../sfx.js";
@@ -50,7 +50,7 @@ export class TitleScene extends Phaser.Scene {
     });
     this.cursor = this.add.bitmapText(0, 190, "font-gold", "▶");
     top.add(this.cursor);
-    top.add(centerX(this.add.bitmapText(VIEW_W / 2, VIEW_H - 16, "font-dim", "E / ENTER elegir · ↑↓ mover")));
+    top.add(centerX(this.add.bitmapText(VIEW_W / 2, VIEW_H - 16, "font-dim", `${keyName("confirm")} elegir · ↑↓ mover`)));
     this.index = 0;
     this.moveCursor(0);
 

@@ -98,9 +98,9 @@ export default {
       type: "npc", cast: "villager2", name: "Tomasa", x: 17.4, y: 5.4, dir: "down", role: "tutorial",
       talk: [
         "¿Vas a la calzada? Escucha a esta vieja.",
-        "Con J o ESPACIO golpeas con el bastón. Sirve también para cortar pasto y arbustos.",
-        "K o SHIFT: si lo tocas, ruedas. Si lo mantienes, corres.",
-        "L o C te agacha. En el pasto alto nadie te ve.",
+        "{attack} es tu botón de acción: con alguien enfrente, hablas; si no, golpeas con el bastón y cortas pasto.",
+        "{roll}: si lo tocas, ruedas. Si lo mantienes, corres.",
+        "{hide} te agacha. En el pasto alto nadie te ve.",
         "Los guardias de la Corona revisan a quien lleva piedras a la vista. Los bandidos, en cambio, te las arrancan.",
       ],
     },

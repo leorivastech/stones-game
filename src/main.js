@@ -4,6 +4,7 @@ import { TitleScene } from "./scenes/title.js";
 import { WorldScene } from "./scenes/world.js";
 import { UIScene } from "./scenes/ui.js";
 import { VIEW_H, VIEW_W } from "./config.js";
+import { SIDE, setupTouch, touch } from "./engine/touch.js";
 
 const params = new URLSearchParams(location.search);
 // ?capture=1 → modo grabación para trailers (trailer/capture.mjs): tamaño nativo, sin audio.
@@ -14,10 +15,17 @@ const CAPTURE = params.has("capture");
  * Si el múltiplo entero deja demasiado borde en una pantalla chica, se estira un poco.
  */
 function fitZoom() {
-  const r = Math.min(window.innerWidth / VIEW_W, window.innerHeight / VIEW_H);
+  // En celular se deja una franja a cada lado para la palanca y los botones: no tapan el juego.
+  const w = touch.on ? window.innerWidth - SIDE * 2 : window.innerWidth;
+  const r = Math.min(w / VIEW_W, window.innerHeight / VIEW_H);
   const z = Math.max(1, Math.floor(r + 0.001));
+  // En celular la pantalla es chica: se usa todo lo que cabe (entero sólo si casi llega).
+  if (touch.on) return z >= 2 && r - z < 0.15 ? z : r;
   return z < 3 && r - z > 0.35 ? r : z;
 }
+
+// Celular y tableta: palanca y botones en pantalla (o ?touch=1 para probarlos en la compu).
+setupTouch();
 
 const game = new Phaser.Game({
   type: params.get("renderer") === "canvas" ? Phaser.CANVAS : Phaser.AUTO,
@@ -35,6 +43,9 @@ const game = new Phaser.Game({
 });
 
 if (!CAPTURE) window.addEventListener("resize", () => game.scale.setZoom(fitZoom()));
+
+// Si los botones se prenden después (primer toque en una compu con pantalla táctil), se hace lugar.
+window.addEventListener("touchcontrols", () => game.scale.setZoom(fitZoom()));
 
 // Mano para revisar escenas desde el navegador y para grabar trailers.
 if (import.meta.env.DEV) {
