@@ -1,4 +1,4 @@
-# Panorama — Stones (actualizado 2026-09-23, noche)
+# Panorama — Stones (actualizado 2026-09-24, cierre de la sesión larga)
 
 La fuente de verdad de **qué se decidió, qué está construido, qué se descartó y qué falta decidir**.
 El historial fechado vive en `decisions.md`; cómo se juega hoy, en `mechanics.md`.
@@ -6,7 +6,8 @@ El historial fechado vive en `decisions.md`; cómo se juega hoy, en `mechanics.m
 ## La idea en una frase
 
 Un juego de comercio y contrabando **sin final forzoso** (como los de granjita y comercio): vas
-armando tu red de piedras de hechizo en un mundo vivo que cambia día a día, ganando fama con misiones.
+armando tu red de piedras de hechizo en un mundo vivo que cambia día a día, ganando fama al vender
+lo que cada pueblo ocupa. Ahora también **en línea**: varias personas en el mismo mundo.
 Lo interesante es **prepararse**: qué llevas, a quién llevas, dónde dejas qué y por qué camino vas.
 
 ## 1. Construido (se puede jugar hoy)
@@ -25,10 +26,16 @@ Lo interesante es **prepararse**: qué llevas, a quién llevas, dónde dejas qu�
 | Buhonero de camino | A veces (35 %) anda uno por la ruta: compra caro y vende barato, pocas piezas. |
 | Refugios secretos | Cueva del Paso Alto, tierra escondida de Aurelio (con corral), cueva del lago (fría). Estante, mesa de mejoras, catre, cerrojo; redadas. |
 | Gente física | Yegua y Sahra te siguen; se dejan en refugio, posada o establo y se recogen ahí. Yegua sin hielo ni cuevas sin corral. Más gente = te ven de más lejos. |
+| Precios revueltos | Sin orden fijo: las ganas de comprar y lo que llega de cada piedra se mueven al azar en todos los pueblos, día con día. |
+| Qué vender, claro | Cartel "HOY EN …" al llegar, burbuja con la gema sobre el comerciante, mercado con OCUPAN / SOBRA. |
+| Controles | Teclas juntas (WASD + J K L I, o flechas + Z X C V), un solo botón de acción. Celular: palanca y botones en pantalla. |
+| Barca | Mapa animado con la barquita cruzando el golfo (~4 s). |
+| En línea | Mundo 100 % compartido para varias personas, voz y chat. Rama `online`; ver `online.md`. |
 
 ## 2. Decidido con Leo
 
-- Sin final forzoso. Fama **global**, sube con misiones, funciona como medallas.
+- Sin final forzoso. Fama **global**, funciona como medallas. Sin misiones ni pedidos: sube al
+  vender lo que un pueblo ocupa (esto último es provisional).
 - Tiempo por días. Mercado tipo bolsa. Mundo vivo con sucesos por reglas y rumores.
 - Deuda como motivo para empezar (por ahora).
 - Refugios tipo base secreta (cueva forjada, tierra escondida), con mejoras; la Corona los
@@ -36,6 +43,11 @@ Lo interesante es **prepararse**: qué llevas, a quién llevas, dónde dejas qu�
 - Gente que se lleva y se deja caminando; máximo 2 personas y un caballo; caballo en la barca
   pagando más; caminos donde el caballo no pasa.
 - La escarcha **no** se rompe con hielo: se derrite con los días (hielera y refugio frío la cuidan).
+- Precios sin orden: cualquier piedra puede estar cara o barata en cualquier pueblo.
+- Un pueblo de bosque entre el desierto y la nieve (Mossgrove), sin piedra propia.
+- Buhonero que aparece al azar en los caminos, como personita.
+- En línea: **todo** es del mismo mundo (enemigos, cofres, rejas, refugios con dueño que invita,
+  Sahra única). Voz con "mantén para hablar", por cercanía.
 
 ## 3. Propuesto, falta el sí de Leo
 
@@ -50,7 +62,11 @@ Lo interesante es **prepararse**: qué llevas, a quién llevas, dónde dejas qu�
 
 - Menú de "quién va" al salir del pueblo → la gente se lleva físicamente.
 - Final forzoso (Liga, jefe final) → mundo abierto.
-- Fama por cada piedra vendida → por misiones.
+- Fama por cada piedra vendida → por vender lo que un pueblo ocupa (una vez por pueblo y día).
+- Misiones de historia (23-sep) y pedidos de los comerciantes (23-sep) → no se entendían.
+- "A cada pueblo le falta la piedra del vecino" (el orden en círculo) → precios revueltos.
+- En línea, enemigos y refugios "de cada quien" → todo compartido.
+- Voz directa de aparato a aparato (WebRTC) → no conectaba entre compu y celular; ahora va por el servidor.
 - Jev u otro modelo decidiendo los sucesos → cuesta por llamada, necesita internet, sus
   probabilidades no están calibradas y no deja simular para balancear.
 - "Cada pueblo compra una sola piedra" → mercado tipo bolsa.
@@ -67,7 +83,9 @@ Lo interesante es **prepararse**: qué llevas, a quién llevas, dónde dejas qu�
   2. APK de Android con Capacitor (mismo código). Google Play: 25 USD una vez.
   3. iPhone/iPad en App Store con Capacitor: 99 USD al año, Mac o compilación en la nube
      (Codemagic), TestFlight para probar. Sólo cuando se publique.
-- **En línea — PRIMERA PRUEBA HECHA (23-sep, rama `online`)**: mundo compartido de verdad, voz, chat; ver `studio/online.md`. Ideas que siguen: jugadores como parte de la oferta y la demanda; acaparar;
+- **En línea — PRIMERA PRUEBA HECHA (23-24 sep, rama `online`)**. Pendiente: que la voz desde la
+  compu de Leo funcione (probablemente no tiene micrófono real: ver `online.md`), un servidor que no
+  dependa de su compu, y cuentas si se abre al público.: mundo compartido de verdad, voz, chat; ver `studio/online.md`. Ideas que siguen: jugadores como parte de la oferta y la demanda; acaparar;
   grupos con refugios compartidos; "alguien salvó tus cosas". `economy.js` y `director.js` ya son
   lógica pura: se pueden mover a un servidor.
 - Misiones de historia: quitadas el 23-sep porque no se entendían. Si vuelven, con aviso claro de cuándo te las piden, cuánto tiempo hay y cuándo se pierden.
@@ -76,7 +94,9 @@ Lo interesante es **prepararse**: qué llevas, a quién llevas, dónde dejas qu�
 ## 6. Falta decidir
 
 0. **Sesión para dejar claras las reglas del mercado** (Leo, 23-sep): el vaivén de precios, la fama por vender y el buhonero son provisionales, "para ver cómo se ve".
+0b. **Qué rama queda**: `online` tiene todo (sale de `pixel-remake`); ninguna está en `master`. Mezclar cuando Leo diga.
 
 1. Tono del lore y el resto de la historia (por qué cada pueblo tiene su piedra, quién manda en los caminos).
 2. Las propuestas de la sección 3.
-3. Si los números se sienten bien jugando (días por ruta, precio de la deuda, fama de cada misión).
+3. Si los números se sienten bien jugando (días por ruta, precio de la deuda, fama por vender, día de 3 min en línea).
+4. Llevar la skill del trailer al molde `~/Development/framework-ia-videojuegos`.

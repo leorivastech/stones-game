@@ -43,7 +43,11 @@ En desarrollo: `npm run server` y el `npm run dev` de siempre (Vite pasa `/net` 
 - **Voz**: mantener el botón **🎤 Mantén para hablar** (abajo a la izquierda) o la tecla **T**; en
   celular, el botón redondo 🎤. La primera vez el navegador pide permiso del micrófono. En el mismo
   mapa se oye más fuerte mientras más cerca; si están en lugares distintos, bajito como radio.
-  Arriba dice "hablando…", "acepta el permiso" o "sin permiso: dale permiso en el candado".
+  Arriba dice "hablando ▮▮▮▯▯" (las barritas se mueven si te oye), "acepta el permiso" o "sin
+  permiso". Si sueltas y no se captó sonido, el chat dice **"No se oyó nada"**.
+- **Revisar la voz desde afuera**: `…/estado` muestra quién está conectado, qué aparato, cómo va su
+  micrófono (listo, sin permiso, sin micrófono, ocupado), cuánto audio mandó y qué tan fuerte se oyó
+  la última vez (`nivelUltimaVez`: casi 0 = el micrófono no capta nada).
 - **Chat**: **Enter** abre la caja (en celular 💬). Mientras escribes el juego no oye el teclado.
 - **Barra de arriba**: en línea o no, el día del mundo con su barrita, con quién estás y quién habla.
 - **Pausa → mapa**: dónde anda cada jugador. **Rumores**: también cuentan lo que hacen los jugadores.
@@ -65,10 +69,15 @@ En desarrollo: `npm run server` y el `npm run dev` de siempre (Vite pasa `/net` 
 
 ## Pruebas (2026-09-23)
 
-Con dos navegadores reales (Playwright): 24 + 4 comprobaciones del mundo compartido (mercado,
-noticias, verse, chat, enemigos, piedras, cofre, reja, voz con audio llegando, refugio, estante,
-invitación, reloj, revisión a otro jugador, Sahra única, buhonero igual, celular), 3 de traspaso de
-mando y 3 de reconexión. Las del juego de un jugador siguen pasando.
+Con dos navegadores reales (Playwright): 26 + 5 comprobaciones del mundo compartido (mercado,
+noticias, verse, chat, enemigos, piedras, cofre, reja, voz con la tecla T, con el botón de la compu y
+desde el celular, refugio, estante, invitación, reloj, revisión a otro jugador, Sahra única,
+buhonero igual, celular), 3 de traspaso de mando y 3 de reconexión; más el caso de una entrada que
+graba silencio. Las del juego de un jugador siguen pasando. Los scripts vivían en el tmp de la
+sesión (two.mjs, two3.mjs, handoff.mjs, reconnect.mjs, nomic.mjs): si se pierden, rehacerlos igual.
+
+**Prueba real (23-sep, Leo y MAR, compu y celular)**: se conectaron, se vieron en Verdelume.
+La voz desde el celular llegó; desde la compu no. Pendiente leer `/estado` con la compu de Leo.
 
 ## Límites conocidos
 
@@ -78,4 +87,5 @@ mando y 3 de reconexión. Las del juego de un jugador siguen pasando.
 - **Lag**: con internet lento, el que no manda ve a los enemigos brincar un poco.
 - **Sin cuentas ni contraseñas**: el nombre es la identidad (prueba entre conocidos). Nada impide
   que alguien use tu nombre. Para abrirlo al público hace falta todo eso.
-- El servidor corre en la compu de Leo: si se apaga, se cae el mundo (se guarda cada 4 s).
+- El servidor corre en la compu de Leo: si se apaga, se cae el mundo (se guarda cada 4 s). El
+  enlace del túnel cambia cada vez que se levanta de nuevo.

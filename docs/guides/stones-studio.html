@@ -146,7 +146,7 @@
 
 <h2 style="border:none;margin-top:0;margin-bottom:2px;font-size:18px;">Stones — studio y biblia</h2>
 <p class="sub">Proyecto base para hacer juegos con IA: la plática actualiza <code>studio/</code>, el código vive en <code>src/</code>, el navegador muestra el resultado.</p>
-<p class="doc-meta">Last updated — 2026-09-19 13:42 · Markdown fuente: <code>studio/*.md</code> · Molde portable: <code>~/Development/framework-ia-videojuegos</code></p>
+<p class="doc-meta">Last updated — 2026-09-24 · Markdown fuente: <code>studio/*.md</code> · Molde portable: <code>~/Development/framework-ia-videojuegos</code></p>
 
 <div class="banner" role="note">
   <div class="banner-t">Propuesta: golfo, no línea</div>
@@ -440,6 +440,10 @@
     <thead><tr><th>Item</th><th>Detail</th></tr></thead>
     <tbody>
       <tr><td>Juego</td><td><code>http://127.0.0.1:5181/</code></td></tr>
+      <tr><td>Juego en línea</td><td><code>npm run online</code> → <code>http://127.0.0.1:5190/?online=1&amp;nombre=Leo</code> + túnel de Cloudflare. Guía: <code>studio/online.md</code></td></tr>
+      <tr><td>Estado de voz en línea</td><td><code>…/estado</code> (quién está, su micrófono, cuánto audio mandó)</td></tr>
+      <tr><td>Rama con todo</td><td><code>online</code> (sale de <code>pixel-remake</code>; nada en <code>master</code>)</td></tr>
+      <tr><td>Qué hay y qué falta</td><td><code>studio/panorama.md</code>; cierre de sesión: <code>studio/sessions/2026-09-24-cierre.md</code></td></tr>
       <tr><td>Guía</td><td><code>docs/guides/stones-studio.html</code> (abrir en el navegador)</td></tr>
       <tr><td>Historia</td><td><code>studio/story.md</code></td></tr>
       <tr><td>Mecánicas</td><td><code>studio/mechanics.md</code></td></tr>
@@ -459,34 +463,34 @@
   <h2>Code status</h2>
   <p class="sub" style="margin-bottom:1rem;">Guide vs repository. Update when behavior changes.</p>
 
-  <h3><span class="tag tgr">Aligned</span> &nbsp;Matches code / intent today (mundo vivo, 2026-09-23)</h3>
+  <h3><span class="tag tgr">Aligned</span> &nbsp;Matches code / intent today (2026-09-24, rama <code>online</code>)</h3>
   <div class="rblock" style="margin-top:0.5rem;">
-    <div class="sbullet"><strong>Vite + Phaser 4.2.1, 480×270 con escala entera</strong> — <code>src/main.js</code>, <code>src/config.js</code></div>
-    <div class="sbullet"><strong>Pixel art en código</strong> — <code>src/art/</code> (paleta, fuente, personajes, criaturas, terreno, objetos, casas, efectos, interfaz). Revisión en <code>lab.html</code>.</div>
-    <div class="sbullet"><strong>Mapas caminables</strong> — <code>src/maps/</code>: los 5 pueblos (Ashfen, Valkeep, Verdelume, Duneshade, Frostholm) y 4 rutas: Ruta 1 (retén, campamento, reja con palanca), Ruta 2 (aduana, cornisa, lobos), Ruta 3 (selva → desierto, escorpiones, oasis), Ruta 4 (Puerta de la Escarcha, lago helado para patinar). Barca Frostholm ↔ Ashfen. Diseño en <code>studio/diseno-mundo.md</code>.</div>
-    <div class="sbullet"><strong>Acción en tiempo real</strong> — <code>src/entities/player.js</code>: golpe, rodada, carrera, agacharse/esconderse, salto, daño, K.O.</div>
-    <div class="sbullet"><strong>Enemigos visibles</strong> — <code>src/entities/enemies.js</code>: jabalí y lobo que embisten, escorpión enterrado, bandido que roba piedras, guardia con cono de visión, sospecha y revisión.</div>
-    <div class="sbullet"><strong>Mercado vivo</strong> — <code>src/economy.js</code>: oferta y demanda con las 5 piedras en cada pueblo, días, tope de la Corona, carácter de cada piedra; <code>src/director.js</code>: sucesos y rumores; <code>src/missions.js</code>: misiones de historia y pedidos. Simulación: <code>studio/sim/mercado.mjs</code>.</div>
-    <div class="sbullet"><strong>Deuda y fama</strong> — 500 al Gremio con cobrador cada 10 días; fama sólo por misiones, con títulos que abren mejoras.</div>
-    <div class="sbullet"><strong>Refugios y tu gente</strong> — 3 refugios que se entran (<code>src/maps/refugios.js</code>); yegua y Sahra se llevan y se dejan caminando (refugio, posada, establo).</div>
-    <div class="sbullet"><strong>Interfaz</strong> — HUD de corazones/oro/carga/alerta/fama, cartel de lugar, indicador <code>[E]</code>, diálogos, elecciones, pausa con mapa del mundo, título y guardado.</div>
-    <div class="sbullet"><strong>Preparación</strong> — herrajes de cueva (Ashfen), yegua (Valkeep), tónicos (Verdelume), Sahra (Duneshade, <code>src/entities/escort.js</code>), hielera (Frostholm), fondo falso (Ashfen).</div>
-    <div class="sbullet"><strong>Animación</strong> — paso con rebote y brazos, respirar; yegua en 3 vistas; Sahra con arco (<code>POSE</code> en <code>src/art/actors.js</code>).</div>
-    <div class="sbullet"><strong>Música por zona</strong> — tres loops CC0 en <code>src/music.js</code> + tonos 8 bits en <code>src/sfx.js</code>.</div>
-    <div class="sbullet"><strong>Studio</strong> — <code>studio/</code> actualizado: <code>art.md</code>, <code>mechanics.md</code>, <code>decisions.md</code>, <code>diseno-mundo.md</code>, sesiones <code>2026-09-23-pixel-remake.md</code> y <code>2026-09-23-mundo-completo.md</code>.</div>
+    <div class="sbullet"><strong>Vite + Phaser 4.2.1, 480×270</strong> — <code>src/main.js</code>. En celular deja franjas a los lados para los botones.</div>
+    <div class="sbullet"><strong>Pixel art en código</strong> — <code>src/art/</code>. Revisión en <code>lab.html</code>.</div>
+    <div class="sbullet"><strong>Mundo</strong> — 6 pueblos (Ashfen, Valkeep, Verdelume, Duneshade, Mossgrove, Frostholm), 5 rutas, barca con mapa animado, 3 refugios. <code>src/maps/</code>.</div>
+    <div class="sbullet"><strong>Acción y enemigos</strong> — golpe, rodada, carrera, agacharse; jabalí, lobo, escorpión, bandido, guardia con revisión.</div>
+    <div class="sbullet"><strong>Comercio</strong> — mercado vivo sin orden fijo (vaivén al azar), sucesos y rumores con noticias del mercado, buhonero de camino, cartel "HOY EN", OCUPAN/SOBRA. Sin misiones ni pedidos. <code>src/economy.js</code>, <code>src/director.js</code>.</div>
+    <div class="sbullet"><strong>Deuda y fama</strong> — 500 al Gremio; fama al vender lo que un pueblo ocupa (+1 por pueblo y día).</div>
+    <div class="sbullet"><strong>Refugios y tu gente</strong> — yegua y Sahra que se llevan y se dejan caminando.</div>
+    <div class="sbullet"><strong>Controles</strong> — teclas juntas y un botón de acción; celular con palanca y botones (<code>src/engine/touch.js</code>).</div>
+    <div class="sbullet"><strong>Música y sonido</strong> — música por lugar, ambientes y 39 efectos (<code>src/music.js</code>, <code>src/sfx.js</code>).</div>
+    <div class="sbullet"><strong>En línea</strong> — <code>server/</code> + <code>src/net/</code>: mundo compartido (mercado, reloj, enemigos, cofres, rejas, refugios con invitación, Sahra única, buhonero), fantasmas, chat, voz por el servidor con medidor y aviso de silencio. Probado con dos navegadores (37 comprobaciones).</div>
+    <div class="sbullet"><strong>Trailer</strong> — v2 (1:30) y teaser v3 (40 s) en <code>trailer/</code>.</div>
   </div>
 
   <h3><span class="tag tg">Gaps</span> &nbsp;Missing or unclear</h3>
   <div class="rblock" style="margin-top:0.5rem;">
+    <div class="sbullet">Voz desde la compu de Leo sin confirmar (probablemente no tiene micrófono real; ver <code>/estado</code>).</div>
+    <div class="sbullet">El servidor en línea vive en la compu de Leo; sin cuentas ni contraseñas.</div>
+    <div class="sbullet">Reglas del mercado provisionales; tono del lore sin decidir.</div>
     <div class="sbullet">Atajo de montaña Ashfen ↔ Verdelume (sigue cerrado).</div>
-    <div class="sbullet">Motivo personal del caminante, encargos con nombre y rumores.</div>
-    <div class="sbullet">Música propia de Verdelume, Duneshade y Frostholm (reusan los tres loops).</div>
   </div>
 
   <h3><span class="tag ta">Changes</span> &nbsp;Planned follow-ups</h3>
   <div class="rblock" style="margin-top:0.5rem;">
-    <div class="sbullet">Leo juega la vuelta completa y dice si los números se sienten bien (días, deuda, fama por misión). Decide el tono del lore. Ver <code>studio/panorama.md</code>.</div>
-    <div class="sbullet">Un encargo completo: cantera → 2 ámbar adelantados → comprador con nombre → pago o pérdida de confianza.</div>
+    <div class="sbullet">Sesión para dejar claras las reglas del mercado (vaivén, fama, buhonero).</div>
+    <div class="sbullet">Probar en línea con micrófono real en la compu; decidir hosting del servidor.</div>
+    <div class="sbullet">Mezclar las ramas cuando Leo diga; llevar la skill del trailer al molde.</div>
   </div>
 </div>
 

@@ -12,6 +12,8 @@ npm run dev
 
 Abre http://127.0.0.1:5181/
 
+Ramas: el trabajo más nuevo está en `online` (incluye todo lo de `pixel-remake`); nada está en `master` todavía.
+
 En línea (varias personas): `npm run online` → http://127.0.0.1:5190/?online=1&nombre=Leo, y `cloudflared tunnel --url http://127.0.0.1:5190` para el enlace. Detalle en `studio/online.md`.
 
 ## Dónde está cada cosa
