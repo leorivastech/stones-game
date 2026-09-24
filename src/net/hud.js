@@ -2,7 +2,7 @@
  * Lo del modo en línea que va encima del juego, en HTML (acentos, emoji y el teclado del celular):
  *  - arriba: en línea / sin conexión, el día del mundo con su barrita, quién está y quién habla;
  *  - abajo a la izquierda: el chat (Enter para escribir, Esc para cerrar);
- *  - T mantenido: hablar por micrófono. En celular, botones 🎤 (mantener) y 💬.
+ *  - hablar: botón 🎤 (mantener) o la tecla T; escribir: botón 💬 o Enter. En celular, botones redondos.
  *  - el nombre, si el enlace no lo trae.
  */
 
@@ -23,7 +23,7 @@ const CSS = `
 #net .day i b { position: absolute; left: 0; top: 0; bottom: 0; background: ${P.y3}; }
 #net .who span { margin-left: 6px; }
 #net .who .talk { color: ${P.y4}; }
-#net .log { position: absolute; left: 10px; bottom: 44px; max-width: min(46vw, 460px); display: flex; flex-direction: column; gap: 3px; }
+#net .log { position: absolute; left: 10px; bottom: 48px; max-width: min(46vw, 460px); display: flex; flex-direction: column; gap: 3px; }
 #net .msg { background: ${P.ink}c8; padding: 2px 8px 3px; border-radius: 4px; font-size: 14px; transition: opacity 0.6s; }
 #net .msg b { color: ${P.y4}; font-weight: 700; }
 #net .msg.me b { color: ${P.b5}; }
@@ -32,7 +32,10 @@ const CSS = `
 #net form.open { display: flex; gap: 6px; }
 #net input { font: inherit; font-size: 15px; width: min(60vw, 420px); padding: 5px 8px; border: 2px solid ${P.y3}; background: ${P.ink}; color: ${P.c4}; border-radius: 4px; }
 #net button { font: inherit; }
-#net .hint { position: absolute; left: 10px; bottom: 10px; font-size: 12px; opacity: 0.75; background: ${P.ink}aa; padding: 2px 6px; border-radius: 4px; }
+#net .row { position: absolute; left: 10px; bottom: 10px; display: flex; gap: 6px; pointer-events: auto; }
+#net .pbtn { font-size: 14px; padding: 5px 10px 6px; border-radius: 6px; border: 2px solid ${P.y1}; background: ${P.ink}dd; color: ${P.c4}; cursor: pointer; user-select: none; -webkit-user-select: none; }
+#net .pbtn.down { background: ${P.y1}; border-color: ${P.y4}; }
+#net .warn { color: ${P.e4}; }
 #net .tbtn { position: absolute; pointer-events: auto; width: 46px; height: 46px; border-radius: 50%; border: 3px solid ${P.c4}66; background: ${P.ink}aa;
   font-size: 20px; display: flex; align-items: center; justify-content: center; left: 27px; }
 #net .tbtn.down { background: ${P.y1}dd; border-color: ${P.y4}; }
@@ -48,6 +51,7 @@ let form;
 let input;
 let bar;
 let hint;
+let micBtn;
 
 function el(tag, cls, parent, html) {
   const e = document.createElement(tag);
@@ -120,8 +124,21 @@ function renderBar() {
   bar.innerHTML = `<span><i class="dot ${online.connected ? "" : "off"}"></i> ${online.connected ? esc(online.name ?? "") : "sin conexión"}</span>`
     + `<span class="day">Día ${day} <i><b style="width:${Math.round(dayProgress() * 100)}%"></b></i></span>`
     + `<span class="who">${players.length ? `con:${who}` : "solo"}</span>`
-    + (voice.talking ? `<span class="talk">🎤 hablando</span>` : "")
-    + (voice.micError ? `<span>🎤 sin permiso</span>` : "");
+    + micState();
+}
+
+/** Cómo va el micrófono, dicho claro. */
+function micState() {
+  if (voice.mic === "pidiendo") return `<span class="talk">🎤 acepta el permiso del micrófono</span>`;
+  if (voice.mic === "sin permiso") return `<span class="warn">🎤 sin permiso: dale permiso en el candado junto a la dirección</span>`;
+  if (voice.mic === "sin micrófono") return `<span class="warn">🎤 no se encontró micrófono</span>`;
+  if (voice.talking) return `<span class="talk">🎤 hablando…</span>`;
+  return "";
+}
+
+function holdToTalk(btn) {
+  btn.addEventListener("pointerdown", (e) => { e.preventDefault(); btn.classList.add("down"); startTalking(); });
+  for (const ev of ["pointerup", "pointercancel", "pointerleave"]) btn.addEventListener(ev, () => { btn.classList.remove("down"); stopTalking(); });
 }
 
 function touchButtons() {
@@ -129,8 +146,7 @@ function touchButtons() {
   mic.style.top = "64px";
   const chat = el("div", "tbtn", root, "💬");
   chat.style.top = "118px";
-  mic.addEventListener("pointerdown", (e) => { e.preventDefault(); mic.classList.add("down"); startTalking(); });
-  for (const ev of ["pointerup", "pointercancel", "pointerleave"]) mic.addEventListener(ev, () => { mic.classList.remove("down"); stopTalking(); });
+  holdToTalk(mic);
   chat.addEventListener("pointerdown", (e) => { e.preventDefault(); openChat(); });
 }
 
@@ -143,7 +159,12 @@ export function setupHud() {
   root.id = "net";
   bar = el("div", "bar", root);
   log = el("div", "log", root);
-  hint = el("div", "hint", root, "Enter: chat · T mantenido: hablar");
+  // En la compu: botones a la vista (también se puede con T y Enter).
+  hint = el("div", "row", root);
+  micBtn = el("div", "pbtn", hint, "🎤 Mantén para hablar · T");
+  holdToTalk(micBtn);
+  const chatBtn = el("div", "pbtn", hint, "💬 Escribir · Enter");
+  chatBtn.addEventListener("pointerdown", (e) => { e.preventDefault(); openChat(); });
   form = el("form", null, root);
   input = el("input", null, form);
   input.maxLength = 140;
@@ -160,10 +181,10 @@ export function setupHud() {
   window.addEventListener("keydown", (e) => {
     if (document.activeElement === input || root.querySelector(".name")) return;
     if (e.key === "Enter") { e.preventDefault(); e.stopImmediatePropagation(); openChat(); }
-    else if (e.code === "KeyT") { e.preventDefault(); e.stopImmediatePropagation(); if (!e.repeat) startTalking(); }
+    else if (e.code === "KeyT") { e.preventDefault(); e.stopImmediatePropagation(); if (!e.repeat) { micBtn?.classList.add("down"); startTalking(); } }
   }, true);
   window.addEventListener("keyup", (e) => {
-    if (e.code === "KeyT") { e.stopImmediatePropagation(); stopTalking(); }
+    if (e.code === "KeyT") { e.stopImmediatePropagation(); micBtn?.classList.remove("down"); stopTalking(); }
   }, true);
 
   onNet("chat", (m) => addLine(`<b>${esc(m.name)}:</b> ${esc(m.text)}`, m.id === online.id ? "me" : ""));

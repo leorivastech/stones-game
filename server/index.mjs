@@ -5,7 +5,7 @@
  *   cloudflared tunnel --url http://127.0.0.1:5190   # enlace para jugar desde otro lado
  *
  * Sirve el juego compilado (dist/) y, en /net, la conexión en vivo (WebSocket) por el mismo puerto:
- * así basta un túnel. Guarda el mundo en server/data/world.json.
+ * así basta un túnel. La voz también pasa por aquí (audio en pedacitos), así llega en cualquier red. Guarda el mundo en server/data/world.json.
  *
  * Variables: PORT (5190), DAY_SECONDS (180: un día del mundo cada 3 minutos), WORLD_FILE, DIST (carpeta del juego compilado).
  */
@@ -243,7 +243,16 @@ const HANDLERS = {
 wss.on("connection", (ws) => {
   const c = { ws, id: nextId++, name: null, map: null, pos: null };
   clients.set(c.id, c);
-  ws.on("message", (raw) => {
+  ws.on("message", (raw, isBinary) => {
+    // Voz: pedacitos de audio del que habla; se reparten a los demás con su número adelante.
+    if (isBinary) {
+      if (!c.name || raw.length > 32000) return;
+      const out = Buffer.allocUnsafe(raw.length + 2);
+      out.writeUInt16BE(c.id, 0);
+      raw.copy(out, 2);
+      for (const o of clients.values()) if (o !== c && o.name && o.ws.readyState === 1) o.ws.send(out, { binary: true });
+      return;
+    }
     let m;
     try { m = JSON.parse(raw); } catch { return; }
     if (m.t !== "hello" && !c.name) return;

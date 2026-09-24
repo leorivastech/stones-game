@@ -40,8 +40,10 @@ En desarrollo: `npm run server` y el `npm run dev` de siempre (Vite pasa `/net` 
   cualquiera; la revisión le sale al revisado.
 - **Refugio**: el primero que pone los herrajes (o compra la tierra de Aurelio) es el dueño. En la
   puerta, el dueño elige "Invitar a Mara" o "Quitar la invitación". Sin invitación dice "Es de Leo".
-- **Voz**: mantener **T** (o 🎤 en celular) para hablar. En el mismo mapa se oye más fuerte
-  mientras más cerca; si están en lugares distintos, bajito como radio (y un aviso 📻).
+- **Voz**: mantener el botón **🎤 Mantén para hablar** (abajo a la izquierda) o la tecla **T**; en
+  celular, el botón redondo 🎤. La primera vez el navegador pide permiso del micrófono. En el mismo
+  mapa se oye más fuerte mientras más cerca; si están en lugares distintos, bajito como radio.
+  Arriba dice "hablando…", "acepta el permiso" o "sin permiso: dale permiso en el candado".
 - **Chat**: **Enter** abre la caja (en celular 💬). Mientras escribes el juego no oye el teclado.
 - **Barra de arriba**: en línea o no, el día del mundo con su barrita, con quién estás y quién habla.
 - **Pausa → mapa**: dónde anda cada jugador. **Rumores**: también cuentan lo que hacen los jugadores.
@@ -56,7 +58,10 @@ En desarrollo: `npm run server` y el `npm run dev` de siempre (Vite pasa `/net` 
 - `src/net/online.js`: conexión, reconexión sola, espejo del mundo. `state.js` lo consulta.
 - `src/net/worldnet.js`: el mapa actual en línea (fantasmas, enemigos con mando y títeres, daño y
   revisiones por red, piedras tiradas, arbustos, cofres/rejas/refugios en vivo, el día).
-- `src/net/hud.js` y `src/net/voice.js`: barra, chat, nombre y voz (WebRTC con STUN de Google).
+- `src/net/hud.js` y `src/net/voice.js`: barra, chat, nombre y voz. La voz va **por el mismo
+  servidor** (audio de 16 kHz en pedacitos por la conexión del juego; ~32 KB/s mientras alguien
+  habla): si el juego se conecta, la voz llega, en cualquier red. La primera versión iba de aparato
+  a aparato (WebRTC) y entre compu y celular no conectaba (23-sep, Leo: "no funciona para nada").
 
 ## Pruebas (2026-09-23)
 
@@ -67,8 +72,8 @@ mando y 3 de reconexión. Las del juego de un jugador siguen pasando.
 
 ## Límites conocidos
 
-- **Voz sin servidor de relevo (TURN)**: en redes de casa funciona; con algunos datos móviles o
-  redes de oficina puede no conectar. Si pasa, se agrega uno (cuenta gratis; la clave la pone Leo).
+- **Voz**: unas décimas de retraso (es "mantén para hablar", no llamada). Sin cancelación de eco
+  entre dos aparatos en el mismo cuarto: usar audífonos o separarse.
 - **iPhone**: Safari pide el micrófono cada vez y la voz se corta si cambias de app.
 - **Lag**: con internet lento, el que no manda ve a los enemigos brincar un poco.
 - **Sin cuentas ni contraseñas**: el nombre es la identidad (prueba entre conocidos). Nada impide

@@ -1,95 +1,96 @@
 /**
- * Voz entre jugadores (sólo en línea). WebRTC directo de navegador a navegador; el servidor sólo
- * pasa los mensajes para conectarse. Mantener T (o el botón 🎤) para hablar.
+ * Voz entre jugadores (sólo en línea). Mantener T, o el botón 🎤, para hablar.
+ *
+ * La voz va por la misma conexión del juego (el servidor la reparte), en pedacitos de audio:
+ * si el juego se conecta, la voz también llega, en cualquier red (Wi-Fi, datos, detrás del túnel).
+ * Tarda unas décimas más que una llamada; para "mantén para hablar" no se nota.
+ * (La primera versión iba de aparato a aparato con WebRTC y entre compu y celular no conectaba.)
  *
  * Por cercanía: en el mismo mapa se oye más fuerte mientras más cerca; si el otro anda en otro
  * lugar, se oye bajito, como radio.
- *
- * El micrófono se pide la primera vez que aprietas para hablar. Sin servidor de relevo (TURN):
- * en casi todas las redes de casa funciona; con algunos datos móviles puede no conectar.
  */
 
-import { online, onNet, send } from "./online.js";
+import { online, onNet, send, sendAudio } from "./online.js";
 
-const ICE = [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }];
-/** id → { pc, tr, audio } */
-const peers = new Map();
-let stream = null;
-let asking = null;
+/** Muestras por segundo de lo que viaja: voz clara y ligera (32 KB/s mientras alguien habla). */
+const RATE = 16000;
+/** Colchón para que no se corte si un pedacito llega tarde. */
+const LEAD = 0.12;
 
 export const voice = {
   talking: false,
-  micError: null,
+  /** "listo" | "pidiendo" | "sin permiso" | "sin micrófono" | "" (todavía no se pide) */
+  mic: "",
   /** Mi posición, la pone el mapa actual: { map, x, y } */
   me: { map: null, x: 0, y: 0 },
-  peers,
+  /** Por quién habla: bytes que llegaron (para revisar que sí llega). */
+  heard: {},
 };
 
-function track() {
-  return stream?.getAudioTracks()[0] ?? null;
-}
+let ctx = null;
+let stream = null;
+let asking = null;
+/** id → { gain, next } */
+const speakers = new Map();
 
-function makePeer(id, initiator) {
-  peers.get(id)?.pc.close();
-  const pc = new RTCPeerConnection({ iceServers: ICE });
-  const audio = new Audio();
-  audio.autoplay = true;
-  audio.playsInline = true;
-  const peer = { id, pc, tr: null, audio };
-  if (initiator) {
-    peer.tr = pc.addTransceiver("audio", { direction: "sendrecv" });
-    if (track()) peer.tr.sender.replaceTrack(track());
+function audioCtx() {
+  if (!ctx) {
+    const AC = globalThis.AudioContext ?? globalThis.webkitAudioContext;
+    if (!AC) return null;
+    ctx = new AC();
   }
-  pc.ontrack = (e) => {
-    audio.srcObject = e.streams[0] ?? new MediaStream([e.track]);
-    audio.play().catch(() => {});
-  };
-  pc.onicecandidate = (e) => { if (e.candidate) send({ t: "rtc", to: id, data: { ice: e.candidate } }); };
-  peers.set(id, peer);
-  return peer;
+  if (ctx.state === "suspended") ctx.resume().catch(() => {});
+  return ctx;
 }
 
-async function call(id) {
-  const peer = makePeer(id, true);
-  await peer.pc.setLocalDescription(await peer.pc.createOffer());
-  send({ t: "rtc", to: id, data: { sdp: peer.pc.localDescription } });
-}
-
-async function onSignal(m) {
-  let peer = peers.get(m.from);
-  const d = m.data;
-  if (d.sdp) {
-    if (d.sdp.type === "offer") {
-      peer = makePeer(m.from, false);
-      await peer.pc.setRemoteDescription(d.sdp);
-      // El que contesta usa el canal de audio que trae la oferta.
-      peer.tr = peer.pc.getTransceivers()[0];
-      if (peer.tr) {
-        peer.tr.direction = "sendrecv";
-        if (track()) await peer.tr.sender.replaceTrack(track());
-      }
-      await peer.pc.setLocalDescription(await peer.pc.createAnswer());
-      send({ t: "rtc", to: m.from, data: { sdp: peer.pc.localDescription } });
-    } else if (peer) {
-      await peer.pc.setRemoteDescription(d.sdp);
-    }
-  } else if (d.ice && peer) {
-    try { await peer.pc.addIceCandidate(d.ice); } catch { /* candidato viejo */ }
+/** De la frecuencia del aparato (44.1 o 48 kHz) a 16 kHz, en enteros de 16 bits. */
+function encode(input, from) {
+  const ratio = from / RATE;
+  const n = Math.floor(input.length / ratio);
+  const out = new Int16Array(n);
+  for (let i = 0; i < n; i += 1) {
+    const pos = i * ratio;
+    const k = Math.floor(pos);
+    const a = input[k] ?? 0;
+    const b = input[k + 1] ?? a;
+    const v = a + (b - a) * (pos - k);
+    out[i] = Math.max(-1, Math.min(1, v)) * 0x7fff;
   }
+  return out;
 }
 
-/** Pide el micrófono (una vez). Queda apagado hasta que aprietas para hablar. */
+/** Pide el micrófono (una vez) y deja listo el grabador; sólo manda mientras hablas. */
 async function ensureMic() {
   if (stream) return stream;
   if (asking) return asking;
-  asking = navigator.mediaDevices?.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
+  if (!navigator.mediaDevices?.getUserMedia) {
+    voice.mic = "sin micrófono";
+    return null;
+  }
+  voice.mic = "pidiendo";
+  asking = navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } })
     .then((s) => {
+      const c = audioCtx();
       stream = s;
-      track().enabled = false;
-      for (const p of peers.values()) p.tr?.sender.replaceTrack(track());
+      const src = c.createMediaStreamSource(s);
+      // ScriptProcessor: viejo pero funciona igual en Chrome, Safari (iPhone) y Firefox.
+      const node = c.createScriptProcessor(2048, 1, 1);
+      node.onaudioprocess = (e) => {
+        if (!voice.talking) return;
+        sendAudio(encode(e.inputBuffer.getChannelData(0), c.sampleRate).buffer);
+      };
+      src.connect(node);
+      // Para que el navegador lo haga correr tiene que ir a la salida (sale en silencio).
+      const mute = c.createGain();
+      mute.gain.value = 0;
+      node.connect(mute).connect(c.destination);
+      voice.mic = "listo";
       return s;
     })
-    .catch((err) => { voice.micError = err?.name ?? "sin micrófono"; return null; })
+    .catch((err) => {
+      voice.mic = err?.name === "NotAllowedError" ? "sin permiso" : "sin micrófono";
+      return null;
+    })
     .finally(() => { asking = null; });
   return asking;
 }
@@ -97,44 +98,68 @@ async function ensureMic() {
 export async function startTalking() {
   if (!online.on || voice.talking) return;
   voice.talking = true;
+  audioCtx();
   const s = await ensureMic();
-  if (!s || !voice.talking) { voice.talking = Boolean(s) && voice.talking; return; }
-  track().enabled = true;
+  if (!s) { voice.talking = false; return; }
+  if (!voice.talking) return;
   send({ t: "talk", on: true });
-  resumeAudio();
 }
 
 export function stopTalking() {
   if (!voice.talking) return;
   voice.talking = false;
-  if (track()) track().enabled = false;
   send({ t: "talk", on: false });
 }
 
-/** El navegador no deja sonar audio hasta que tocas algo: se reintenta en cada toque. */
+/** El navegador no deja sonar nada hasta que tocas algo: en cada toque se despierta el audio. */
 export function resumeAudio() {
-  for (const p of peers.values()) if (p.audio.paused && p.audio.srcObject) p.audio.play().catch(() => {});
+  audioCtx();
+}
+
+/** Llega un pedacito de voz de alguien: se forma en su fila y suena en cuanto toca. */
+function play(buf) {
+  const c = audioCtx();
+  if (!c || buf.byteLength < 4) return;
+  const id = new DataView(buf).getUint16(0);
+  const pcm = new Int16Array(buf.slice(2));
+  voice.heard[id] = (voice.heard[id] ?? 0) + pcm.byteLength;
+  let sp = speakers.get(id);
+  if (!sp) {
+    const gain = c.createGain();
+    gain.connect(c.destination);
+    sp = { gain, next: 0 };
+    speakers.set(id, sp);
+  }
+  const audio = c.createBuffer(1, pcm.length, RATE);
+  const ch = audio.getChannelData(0);
+  for (let i = 0; i < pcm.length; i += 1) ch[i] = pcm[i] / 0x7fff;
+  const src = c.createBufferSource();
+  src.buffer = audio;
+  src.connect(sp.gain);
+  const now = c.currentTime;
+  // Si se quedó muy atrás (o es el primer pedacito), se empieza de nuevo con el colchón.
+  if (sp.next < now || sp.next > now + 1) sp.next = now + LEAD;
+  src.start(sp.next);
+  sp.next += audio.duration;
 }
 
 /** Volumen por cercanía. */
 function updateVolumes() {
-  for (const p of peers.values()) {
-    const other = online.players.get(p.id);
+  for (const [id, sp] of speakers) {
+    const other = online.players.get(id);
     let vol = 0.35;
     if (other?.map && other.map === voice.me.map && other.pos) {
       const d = Math.hypot(other.pos.x - voice.me.x, other.pos.y - voice.me.y);
-      vol = Math.max(0.25, Math.min(1, 1 - (d - 80) / 420));
+      vol = Math.max(0.3, Math.min(1, 1 - (d - 80) / 420));
     }
-    p.audio.volume = vol;
+    sp.gain.gain.value = vol;
   }
 }
 
 export function setupVoice() {
-  if (!online.on || typeof RTCPeerConnection === "undefined") return;
-  // El que llega le habla a los que ya estaban (así nunca se llaman los dos a la vez).
-  onNet("welcome", (m) => { for (const p of m.players) call(p.id); });
-  onNet("leave", (m) => { peers.get(m.id)?.pc.close(); peers.delete(m.id); });
-  onNet("rtc", (m) => { onSignal(m).catch((err) => console.warn("[voz]", err)); });
+  if (!online.on) return;
+  onNet("audio", play);
+  onNet("leave", (m) => { speakers.get(m.id)?.gain.disconnect(); speakers.delete(m.id); });
   setInterval(updateVolumes, 200);
   for (const ev of ["pointerdown", "keydown"]) window.addEventListener(ev, resumeAudio, { passive: true });
 }

@@ -47,6 +47,12 @@ export function send(msg) {
   if (online.ws?.readyState === 1) online.ws.send(JSON.stringify(msg));
 }
 
+/** Manda audio tal cual (la voz). Si la conexión va atorada, se tira: mejor perder un pedacito que atrasarse. */
+export function sendAudio(buf) {
+  const ws = online.ws;
+  if (ws?.readyState === 1 && ws.bufferedAmount < 64000) ws.send(buf);
+}
+
 /** Pide algo al servidor y espera su respuesta ({ ok, … }). Sin conexión, responde { ok: false }. */
 export function request(msg, timeout = 4000) {
   if (online.ws?.readyState !== 1) return Promise.resolve({ ok: false, offline: true });
@@ -123,9 +129,12 @@ export function connect(reg) {
 function open() {
   const proto = location.protocol === "https:" ? "wss" : "ws";
   const ws = new WebSocket(`${proto}://${location.host}/net`);
+  ws.binaryType = "arraybuffer";
   online.ws = ws;
   ws.onopen = () => send({ t: "hello", name: online.name });
   ws.onmessage = (e) => {
+    // Voz: llega como audio (número de quien habla + muestras).
+    if (e.data instanceof ArrayBuffer) { emit("audio", e.data); return; }
     let m;
     try { m = JSON.parse(e.data); } catch { return; }
     CORE[m.t]?.(m);
