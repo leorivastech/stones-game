@@ -76,14 +76,10 @@ dónde dejas qué y por qué camino vas.
 
 ## Fama y misiones
 
-- La fama **sólo sube con misiones**. Títulos (las "medallas"): Desconocido 0 · Mensajero 2 ·
+- La fama **sólo sube con pedidos**. Títulos (las "medallas"): Desconocido 0 · Mensajero 2 ·
   Contrabandista 6 · Mercader de sombra 10 · Leyenda del golfo 16. Abren mejoras.
-- **Historia** (una por pueblo, en orden; cada una enseña una piedra):
-  1. Tomasa (Ashfen): 2 ámbar a Valkeep · 20 oro, +2.
-  2. Maese Ivo (Valkeep, fama 2): 3 vidrio a Verdelume · 45, +2.
-  3. Oruba (Verdelume, fama 4): 2 perlas a Duneshade · 55, +2.
-  4. Kader (Duneshade, fama 6): 2 solares a Frostholm · 75, +3.
-  5. Hilde (Frostholm, fama 9): 2 escarchas a Ashfen en 7 días · 95, +3.
+- **Sin misiones de historia** (quitadas el 23-sep: no se entendía cuándo te las piden ni cuándo
+  se pierden). Tomasa sólo da consejos de controles.
 - **Pedidos**: los comerciantes piden llevar 2-3 piedras a donde faltan hoy (10 días, +1 fama).
 - Se cumplen vendiendo en el pueblo pedido; se cobran al cerrar la tienda o al llegar.
 
@@ -161,7 +157,7 @@ Cuartitos privados, como las bases secretas de Pokémon. Se entra caminando.
 
 | Pueblo | Mercado | Servicio | Posada |
 |---|---|---|---|
-| Ashfen | Brena | Oskar: herrajes de cueva (fama 2) y fondo falso (fama 10); Tomasa (primera misión); barca de Ceno tras conocerlo | Marta |
+| Ashfen | Brena | Oskar: herrajes de cueva (fama 2) y fondo falso (fama 10); Tomasa (consejos); barca de Ceno tras conocerlo | Marta |
 | Valkeep | Maese Ivo | Nella: yegua y establo | Odo |
 | Verdelume | Oruba | Ama: tónicos | Iyá |
 | Duneshade | Kader | Sahra: arquera | Nasr |

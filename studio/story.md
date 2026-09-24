@@ -46,7 +46,7 @@ Ilícito y chico. Eventos de ruta rápidos (retén, asalto, confiscación), no t
 
 El padre del caminante le debía **500 al Gremio**. Murió el invierno pasado y la deuda es tuya.
 Cada diez días pasa un cobrador. Pagarla es la primera meta; después el mundo sigue (no hay final
-forzoso). Tomasa, en Ashfen, da el primer encargo: llevar ámbar a su sobrino Maese Ivo, en Valkeep.
+forzoso). Los encargos los dan los comerciantes de cada plaza (ya no hay misiones de historia).
 
 ## Pregunta dramática pendiente
 

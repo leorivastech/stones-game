@@ -20,8 +20,8 @@ Lo interesante es **prepararse**: qué llevas, a quién llevas, dónde dejas qu�
 | Carácter de las piedras | Ámbar con sello (impuesto), vidrio frágil, perla pesada, solar vigilada, escarcha que se derrite (hielera en Frostholm). |
 | Mundo vivo | Director chico de 9 sucesos; rumores con fuente (posaderos casi siempre aciertan). |
 | Deuda | 500 con el Gremio, cobrador cada 10 días. |
-| Fama = medallas | Sólo por misiones; 5 títulos que abren mejoras. |
-| Misiones | 5 de historia (una por pueblo, cada una enseña una piedra) + pedidos generados del mercado. |
+| Fama = medallas | Sólo por pedidos; 5 títulos que abren mejoras. |
+| Pedidos | Los comerciantes piden llevar 2-3 piedras a donde faltan hoy (10 días, +1 fama). Las misiones de historia se quitaron (23-sep). |
 | Refugios secretos | Cueva del Paso Alto, tierra escondida de Aurelio (con corral), cueva del lago (fría). Estante, mesa de mejoras, catre, cerrojo; redadas. |
 | Gente física | Yegua y Sahra te siguen; se dejan en refugio, posada o establo y se recogen ahí. Yegua sin hielo ni cuevas sin corral. Más gente = te ven de más lejos. |
 
@@ -68,7 +68,7 @@ Lo interesante es **prepararse**: qué llevas, a quién llevas, dónde dejas qu�
 - **En línea sin juego simultáneo:** jugadores como parte de la oferta y la demanda; acaparar;
   grupos con refugios compartidos; "alguien salvó tus cosas". `economy.js` y `director.js` ya son
   lógica pura: se pueden mover a un servidor.
-- Trailer con el mundo nuevo (en curso 23-sep).
+- Misiones de historia: quitadas el 23-sep porque no se entendían. Si vuelven, con aviso claro de cuándo te las piden, cuánto tiempo hay y cuándo se pierden.
 - Atajo de montaña Ashfen ↔ Verdelume.
 
 ## 6. Falta decidir

@@ -28,7 +28,7 @@ import {
   REFUGES, REFUGE_UPGRADES, CREW, LODGING, crewAt, setCrewAt, partyHas, partySize, lodgingFee, ownsRefuge, refugeHas,
   stashCapacity, crewIn,
 } from "../state.js";
-import { storyFor, orderFor } from "../missions.js";
+import { orderFor } from "../missions.js";
 
 const INTRO = [
   "Las piedras de hechizo calientan casas, guardan el agua y salvan la cosecha.",
@@ -37,7 +37,7 @@ const INTRO = [
   "Tu padre le debía 500 al Gremio. Murió el invierno pasado y la deuda ahora es tuya.",
   "Cada diez días pasa el cobrador.",
   "Tienes 40 de oro, un bastón y una mochila con cuatro lugares.",
-  "Tomasa, al norte de la plaza, busca a alguien que lleve ámbar a Valkeep.",
+  "Los comerciantes de cada plaza pagan extra a quien lleve lo que le falta a otro pueblo.",
 ];
 
 export class WorldScene extends Phaser.Scene {
@@ -418,7 +418,6 @@ export class WorldScene extends Phaser.Scene {
         }
         case "tutorial":
           await this.ui.say(npc.spec.talk, { name });
-          await this.offerFrom(npc);
           break;
         default: {
           // La gente del pueblo cuenta rumores; unos dicen la verdad más que otros.
@@ -990,20 +989,18 @@ export class WorldScene extends Phaser.Scene {
     });
   }
 
-  /** Si este personaje tiene un encargo para ti (de historia o un pedido), te lo ofrece. */
+  /** Si el comerciante tiene un pedido para ti, te lo ofrece. */
   async offerFrom(npc) {
     const reg = this.registry;
     const town = this.def.town;
     const name = npc.spec.name;
-    const active = missions(reg);
-    let m = storyFor(town, npc.spec.role, { fame: reputation(reg), done: reg.get("missionsDone") ?? {}, active });
-    if (!m && npc.spec.role === "market") {
-      const declined = (reg.get("ordersDeclined") ?? {})[town];
-      const busy = active.some((a) => a.from === town);
-      if (!busy && declined !== day(reg)) m = orderFor(econ(reg), town, { day: day(reg), seed: day(reg) });
-    }
+    if (npc.spec.role !== "market") return;
+    const declined = (reg.get("ordersDeclined") ?? {})[town];
+    const busy = missions(reg).some((a) => a.from === town);
+    if (busy || declined === day(reg)) return;
+    const m = orderFor(econ(reg), town, { day: day(reg), seed: day(reg) });
     if (!m) return;
-    const deadline = m.days ? day(reg) + m.days : m.deadline;
+    const deadline = m.deadline;
     await this.ui.say(m.lines, { name });
     const pick = await this.ui.choose(`Encargo: ${m.title}`, [
       { label: "Aceptar", note: `${m.reward} oro + ${m.fame} fama${deadline ? ` · antes del día ${deadline}` : ""}` },
@@ -1014,7 +1011,7 @@ export class WorldScene extends Phaser.Scene {
       tone(this, "confirm");
       this.ui.toast(`Encargo: ${m.title}`, "font-gold");
       saveGame(reg);
-    } else if (!m.id.startsWith("historia")) {
+    } else {
       reg.set("ordersDeclined", { ...(reg.get("ordersDeclined") ?? {}), [town]: day(reg) });
     }
   }

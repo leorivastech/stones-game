@@ -149,4 +149,10 @@ Regla: una línea por decisión, con fecha. No borrar: si se revierte, se agrega
 
 - **Anotado / Leo** — Jugar en celular y iPad: pendiente (plan en `panorama.md` §5: web táctil + PWA → APK con Capacitor → App Store al publicar).
 - **Hecho / Leo** — Trailer nuevo de 1:30, más imponente: música épica CC-BY cortada a compás, 21 tomas nuevas, sonidos del juego en su cuadro, rótulos, verbos, clímax y logo. `~/Downloads/stones-trailer-v2.mp4`.
+- **Hecho / Leo** — Teaser v3 de 40 s, todo en cortes rápidos con destellos y los textos encima (lo que más le gustó del v2). `~/Downloads/stones-trailer-v3.mp4`.
+
+## 2026-09-23 — sin misiones de historia
+
+- **Sí / Leo, reemplaza la de misiones de historia** — Se quitan las 5 misiones de historia: no quedaba claro cuándo te las piden ni cuándo se pierden. La fama sale sólo de los pedidos de los comerciantes (+1 cada uno). Tomasa sólo da consejos. El código viejo sigue en git (`519fbb9`, `src/missions.js`).
+- **Falta decidir** — Con +1 por pedido, los títulos piden 2 / 6 / 10 / 16 pedidos (herrajes a fama 2, fondo falso a fama 10). Ver si se siente lento jugando.
 

@@ -710,7 +710,7 @@ export class UIScene extends Phaser.Scene {
       // --- Encargos ---
       txt(24, 42, "ENCARGOS", "font-gold");
       const list = missions(reg);
-      if (!list.length) txt(24, 58, "Ninguno. Los comerciantes y la gente de los pueblos te piden cosas.", "font-dim");
+      if (!list.length) txt(24, 58, "Ninguno. Los comerciantes de cada plaza te piden llevar piedras.", "font-dim");
       list.slice(0, 6).forEach((m, i) => {
         const y = 58 + i * 28;
         add(this.add.image(24, y, `gem-${m.good}`).setOrigin(0, 0));
