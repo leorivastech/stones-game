@@ -1,447 +1,93 @@
 {
-  "_ayuda": "Guion del trailer v2. build.py lo convierte en index.html. Los cortes caen en compases de la música (assets/beats.json, de beats.py). clip = toma de shots.mjs; in = segundo de la toma; dur = cuánto dura; caption/kicker = texto grande; town = rótulo del pueblo; enter = cut | flash | fade | whip; shake = sacudida; card = texto sobre negro.",
-  "title": "Stones — trailer",
-  "size": [
-    1920,
-    1080
-  ],
+  "_ayuda": "Guion del trailer v3 (teaser de 40 s, todo en cortes rápidos con destellos). El v2 largo vive en guion-v2.json (python3 build.py guion-v2.json). Cortes en medio compás de la música (assets/beats.json). Tramo A = inicio de la canción; tramo B = desde 66.48 s (subida y clímax). Ver build.py para cada campo.",
+  "title": "Stones — teaser",
+  "size": [1920, 1080],
   "fps": 30,
-  "voice": {
-    "voice": "es-MX-JorgeNeural",
-    "rate": "-6%",
-    "pitch": "-8Hz"
-  },
+  "voice": { "voice": "es-MX-JorgeNeural", "rate": "-6%", "pitch": "-8Hz", "tight": true },
+  "flash": { "opacity": 1, "dur": 0.45 },
+  "letters": true,
   "lines": {
-    "v1": "Alrededor del golfo… hay cinco pueblos.",
-    "v2": "Cada uno guarda una piedra de hechizo. Y necesita la del vecino.",
-    "v3": "Pero la Corona las vende caras… y tarde.",
-    "v4": "Alguien tiene que llevarlas.",
-    "v5": "Tu padre te dejó una deuda. Y el Gremio cobra.",
-    "v6": "Compra donde sobra. Vende donde falta.",
-    "v7": "El mundo cambia cada día. Y los precios también.",
-    "v8": "Tú decides qué llevas… a quién llevas… y por dónde.",
-    "v9": "Pero cuidado. La Corona siempre está mirando.",
-    "v10": "Stones."
+    "k1": "Cinco pueblos.",
+    "k2": "Cinco piedras de hechizo.",
+    "k3": "Pero la Corona lo quiere todo.",
+    "k4": "Compra barato, vende caro.",
+    "k5": "Y que no te atrapen.",
+    "k6": "¿Te atreves?",
+    "k7": "Stones."
   },
   "audio": {
     "music": [
-      {
-        "src": "../public/assets/music/trailer.ogg",
-        "from": 0,
-        "to": "end",
-        "mediaStart": 0,
-        "volume": 0.8,
-        "fadeIn": 0.1,
-        "fadeOut": 3.0
-      }
+      { "src": "../public/assets/music/trailer.ogg", "from": 0, "to": 17.41, "mediaStart": 0, "volume": 0.85, "fadeIn": 0.05, "fadeOut": 0.2 },
+      { "src": "../public/assets/music/trailer.ogg", "from": 17.21, "to": "end", "mediaStart": 66.48, "volume": 0.9, "fadeIn": 0.05, "fadeOut": 2.5 }
     ],
-    "duck": 0.45,
-    "sfxDirs": [
-      "../public/assets/sfx",
-      "../public/assets/proto/sfx"
-    ],
+    "duck": 0.5,
+    "sfxDirs": ["../public/assets/sfx", "../public/assets/proto/sfx"],
     "sfxGain": 0.9,
-    "stepGain": 0.45,
-    "skipSfx": [
-      "ui-move"
-    ],
+    "stepGain": 0.35,
+    "skipSfx": ["ui-move"],
     "captionSfx": "hit",
     "captionVolume": 0.4,
     "whipSfx": "swing",
     "whipVolume": 0.35,
     "hitVolume": 0.65
   },
-  "letterbox": [
-    {
-      "from": 61.86,
-      "to": 81.85,
-      "size": 110
-    }
-  ],
+  "letterbox": [{ "from": 19.21, "to": 32.58, "size": 90 }],
   "beats": [
-    {
-      "clip": "golfo",
-      "in": 0.3,
-      "dur": 6.55,
-      "vo": "v1",
-      "voAt": 0.8,
-      "enter": "fade",
-      "zoom": [
-        1.0,
-        1.05
-      ],
-      "town": {
-        "name": "Ashfen",
-        "stone": "amber",
-        "sub": "Ámbar de sello · campos y costa"
-      }
-    },
-    {
-      "clip": "valkeep",
-      "in": 1.4,
-      "dur": 2.2,
-      "vo": "v2",
-      "zoom": [
-        1.04,
-        1.0
-      ],
-      "town": {
-        "name": "Valkeep",
-        "stone": "rune",
-        "sub": "Vidrio rúnico · montaña"
-      }
-    },
-    {
-      "clip": "verdelume",
-      "in": 1.5,
-      "dur": 2.09,
-      "zoom": [
-        1.0,
-        1.04
-      ],
-      "town": {
-        "name": "Verdelume",
-        "stone": "rain",
-        "sub": "Perla de lluvia · selva"
-      }
-    },
-    {
-      "clip": "duneshade",
-      "in": 1.4,
-      "dur": 2.26,
-      "zoom": [
-        1.04,
-        1.0
-      ],
-      "town": {
-        "name": "Duneshade",
-        "stone": "sun",
-        "sub": "Piedra solar · desierto"
-      }
-    },
-    {
-      "clip": "frostholm",
-      "in": 2.4,
-      "dur": 1.95,
-      "zoom": [
-        1.0,
-        1.05
-      ],
-      "town": {
-        "name": "Frostholm",
-        "stone": "frost",
-        "sub": "Cristal de escarcha · nieve"
-      }
-    },
-    {
-      "clip": "reten",
-      "in": 2.2,
-      "dur": 2.16,
-      "vo": "v3",
-      "zoom": [
-        1.05,
-        1.12
-      ],
-      "voAt": 0.15
-    },
-    {
-      "type": "card",
-      "dur": 4.38,
-      "text": "ALGUIEN TIENE QUE LLEVARLAS",
-      "vo": "v4",
-      "sfx": [
-        "armor"
-      ]
-    },
-    {
-      "clip": "cobrador",
-      "in": 2.6,
-      "dur": 4.32,
-      "vo": "v5",
-      "enter": "fade"
-    },
-    {
-      "clip": "mercado",
-      "in": 1.0,
-      "dur": 4.32,
-      "vo": "v6"
-    },
-    {
-      "clip": "pasto",
-      "in": 1.3,
-      "dur": 2.21,
-      "enter": "whip",
-      "kicker": "EN EL PASTO ALTO",
-      "caption": "ESCÓNDETE",
-      "zoom": [
-        1.1,
-        1.18
-      ]
-    },
-    {
-      "clip": "guardia",
-      "in": 1.2,
-      "dur": 2.25,
-      "enter": "whip",
-      "kicker": "DE LA CORONA",
-      "caption": "HUYE",
-      "zoom": [
-        1.05,
-        1.12
-      ]
-    },
-    {
-      "clip": "bandido",
-      "in": 1.8,
-      "dur": 2.21,
-      "enter": "whip",
-      "kicker": "A LOS BANDIDOS",
-      "caption": "PELEA",
-      "shake": 0.6,
-      "zoom": [
-        1.1,
-        1.16
-      ]
-    },
-    {
-      "clip": "lobo",
-      "in": 1.0,
-      "dur": 2.2,
-      "enter": "whip",
-      "kicker": "A LAS BESTIAS",
-      "caption": "SOBREVIVE",
-      "zoom": [
-        1.05,
-        1.12
-      ]
-    },
-    {
-      "clip": "hielo",
-      "in": 0.6,
-      "dur": 2.25,
-      "speed": 1.6,
-      "enter": "whip",
-      "kicker": "EL LAGO HELADO",
-      "caption": "PATINA"
-    },
-    {
-      "clip": "arquera",
-      "in": 1.8,
-      "dur": 2.23,
-      "enter": "whip",
-      "kicker": "A TU ESCOLTA",
-      "caption": "CONTRATA",
-      "zoom": [
-        1.1,
-        1.16
-      ]
-    },
-    {
-      "clip": "caravana",
-      "in": 1.5,
-      "dur": 2.23,
-      "enter": "whip",
-      "kicker": "CON TU YEGUA",
-      "caption": "CARGA MÁS",
-      "zoom": [
-        1.08,
-        1.12
-      ]
-    },
-    {
-      "clip": "refugio",
-      "in": 4.4,
-      "dur": 2.21,
-      "enter": "whip",
-      "kicker": "EN TU REFUGIO",
-      "caption": "ESCONDE"
-    },
-    {
-      "clip": "rumor",
-      "in": 1.7,
-      "dur": 4.64,
-      "vo": "v7",
-      "enter": "fade"
-    },
-    {
-      "clip": "barca",
-      "in": 0.6,
-      "dur": 4.6,
-      "vo": "v8"
-    },
-    {
-      "clip": "frostholm",
-      "in": 2.7,
-      "dur": 2.3,
-      "zoom": [
-        1.12,
-        1.0
-      ]
-    },
-    {
-      "clip": "golfo",
-      "in": 5.4,
-      "dur": 2.3,
-      "zoom": [
-        1.0,
-        1.1
-      ]
-    },
-    {
-      "clip": "guardia",
-      "in": 0.2,
-      "dur": 4.62,
-      "speed": 0.5,
-      "vo": "v9",
-      "zoom": [
-        1.0,
-        1.2
-      ]
-    },
-    {
-      "type": "card",
-      "dur": 2.0,
-      "text": "¿TE ATREVES?",
-      "sfx": [
-        "hit"
-      ]
-    },
-    {
-      "clip": "bandido",
-      "in": 2.6,
-      "dur": 1.11,
-      "enter": "flash",
-      "shake": 0.2,
-      "zoom": [
-        1.15,
-        1.2
-      ]
-    },
-    {
-      "clip": "lobo",
-      "in": 1.6,
-      "dur": 1.11,
-      "enter": "flash",
-      "zoom": [
-        1.1,
-        1.15
-      ]
-    },
-    {
-      "clip": "escorpion",
-      "in": 1.5,
-      "dur": 1.11,
-      "enter": "flash",
-      "shake": 0.3,
-      "zoom": [
-        1.15,
-        1.2
-      ]
-    },
-    {
-      "clip": "arquera",
-      "in": 2.6,
-      "dur": 1.11,
-      "enter": "flash",
-      "zoom": [
-        1.1,
-        1.18
-      ]
-    },
-    {
-      "clip": "hielo",
-      "in": 2.4,
-      "dur": 1.11,
-      "speed": 1.5,
-      "enter": "flash"
-    },
-    {
-      "clip": "guardia",
-      "in": 2.8,
-      "dur": 1.11,
-      "enter": "flash",
-      "zoom": [
-        1.1,
-        1.16
-      ]
-    },
-    {
-      "clip": "jabali",
-      "in": 1.3,
-      "dur": 1.11,
-      "enter": "flash",
-      "shake": 0.35,
-      "zoom": [
-        1.15,
-        1.2
-      ]
-    },
-    {
-      "clip": "caravana",
-      "in": 3.2,
-      "dur": 1.11,
-      "enter": "flash",
-      "zoom": [
-        1.05,
-        1.12
-      ]
-    },
-    {
-      "clip": "duneshade",
-      "in": 2.2,
-      "dur": 1.11,
-      "enter": "flash",
-      "zoom": [
-        1.0,
-        1.08
-      ]
-    },
-    {
-      "clip": "verdelume",
-      "in": 2.6,
-      "dur": 1.11,
-      "enter": "flash",
-      "zoom": [
-        1.0,
-        1.08
-      ]
-    },
-    {
-      "clip": "frostholm",
-      "in": 3.4,
-      "dur": 1.11,
-      "enter": "flash",
-      "zoom": [
-        1.0,
-        1.08
-      ]
-    },
-    {
-      "clip": "golfo",
-      "in": 6.0,
-      "dur": 1.16,
-      "enter": "flash",
-      "zoom": [
-        1.0,
-        1.1
-      ]
-    },
-    {
-      "type": "title",
-      "clip": "titulo",
-      "in": 0.3,
-      "dur": 8.5,
-      "vo": "v10",
-      "voAt": 1.3,
-      "slamAt": 0.35,
-      "sfx": [
-        "hit",
-        "armor"
-      ],
-      "logo": "assets/stills/logo.png",
-      "tagline": "Contrabando de piedras de hechizo",
-      "cta": "PRÓXIMAMENTE",
-      "credits": "Música: “Epic Orchestral Fantasy Theme” — linxiaoma (CC-BY 4.0) · Efectos: Kenney y OpenGameArt (CC0)"
-    }
+    { "clip": "golfo", "in": 0.3, "dur": 1.17, "enter": "flash", "zoom": [1.0, 1.1], "vo": "k1", "voAt": 0.2,
+      "words": ["CINCO PUEBLOS"], "wordsDur": 2.28, "wordsAt": [0.1] },
+    { "clip": "valkeep", "in": 0.4, "dur": 1.11, "enter": "flash", "zoom": [1.1, 1.18] },
+    { "type": "card", "dur": 2.11, "text": "CINCO PIEDRAS", "size": 130, "enter": "flash", "vo": "k2", "voAt": 0.3,
+      "gems": ["amber", "rune", "rain", "sun", "frost"] },
+
+    { "clip": "golfo", "in": 3.0, "dur": 1.08, "enter": "flash", "zoom": [1.05, 1.15],
+      "town": { "name": "Ashfen", "stone": "amber", "sub": "Ámbar de sello" } },
+    { "clip": "valkeep", "in": 2.0, "dur": 1.08, "enter": "flash", "zoom": [1.05, 1.15],
+      "town": { "name": "Valkeep", "stone": "rune", "sub": "Vidrio rúnico" } },
+    { "clip": "verdelume", "in": 1.5, "dur": 1.1, "enter": "flash", "zoom": [1.05, 1.15],
+      "town": { "name": "Verdelume", "stone": "rain", "sub": "Perla de lluvia" } },
+    { "clip": "duneshade", "in": 1.4, "dur": 1.1, "enter": "flash", "zoom": [1.05, 1.15],
+      "town": { "name": "Duneshade", "stone": "sun", "sub": "Piedra solar" } },
+    { "clip": "frostholm", "in": 2.4, "dur": 1.05, "enter": "flash", "zoom": [1.05, 1.15],
+      "town": { "name": "Frostholm", "stone": "frost", "sub": "Cristal de escarcha" } },
+    { "clip": "caravana", "in": 0.5, "dur": 1.04, "enter": "whip", "zoom": [1.0, 1.08],
+      "caption": "TÚ LAS LLEVAS", "kicker": "CONTRABANDISTA" },
+
+    { "clip": "reten", "in": 2.2, "dur": 2.26, "enter": "flash", "zoom": [1.0, 1.12], "vo": "k3", "voAt": 0.1,
+      "words": ["LA CORONA", "LO QUIERE TODO"], "wordsAt": [0.08, 0.7],
+      "stamp": { "text": "CONFISCADO", "at": 1.45 } },
+    { "type": "split", "dur": 1.95, "enter": "flash", "skew": 40, "vo": "k4", "voAt": 0.1,
+      "panels": [ { "clip": "cobrador", "in": 2.6, "label": "LA DEUDA" }, { "clip": "mercado", "in": 3.0, "label": "EL MERCADO" } ],
+      "counter": { "label": "DEUDA", "to": 500, "at": 0.25, "dur": 1.0 },
+      "ticker": [
+        { "stone": "amber", "name": "Ámbar", "price": 18, "up": true },
+        { "stone": "rune", "name": "Vidrio", "price": 42, "up": false },
+        { "stone": "rain", "name": "Perla", "price": 27, "up": true },
+        { "stone": "sun", "name": "Solar", "price": 35, "up": true },
+        { "stone": "frost", "name": "Escarcha", "price": 51, "up": false }
+      ] },
+    { "clip": "guardia", "in": 0.2, "dur": 2.16, "enter": "flash", "speed": 1.15, "zoom": [1.0, 1.15], "vo": "k5", "voAt": 0.3,
+      "words": ["Y QUE NO", "TE ATRAPEN"], "wordsAt": [0.3, 0.85] },
+    { "type": "card", "dur": 2.0, "text": "¿TE ATREVES?", "size": 190, "enter": "flash", "vo": "k6", "voAt": 0.35, "sfx": ["armor"] },
+
+    { "clip": "pasto", "in": 1.3, "dur": 1.11, "enter": "flash", "zoom": [1.1, 1.2], "shake": 0.03, "caption": "ESCÓNDETE", "kicker": "EN EL PASTO" },
+    { "clip": "guardia", "in": 2.8, "dur": 1.11, "enter": "flash", "zoom": [1.1, 1.2], "caption": "HUYE", "kicker": "DE LA CORONA" },
+    { "type": "split", "dur": 2.23, "enter": "flash", "skew": 70, "shake": 0.05, "soundPanels": 3,
+      "panels": [ { "clip": "bandido", "in": 1.8, "label": "BANDIDOS" }, { "clip": "lobo", "in": 1.6, "label": "LOBOS" }, { "clip": "escorpion", "in": 1.5, "label": "ESCORPIONES" } ],
+      "caption": "PELEA" },
+    { "clip": "jabali", "in": 1.3, "dur": 1.11, "enter": "flash", "zoom": [1.1, 1.22], "shake": 0.3, "caption": "SOBREVIVE", "kicker": "EN LA SELVA" },
+    { "clip": "hielo", "in": 2.4, "dur": 1.1, "enter": "flash", "zoom": [1.05, 1.15], "caption": "PATINA", "kicker": "SOBRE EL HIELO" },
+    { "clip": "arquera", "in": 1.2, "dur": 1.13, "enter": "flash", "zoom": [1.1, 1.2], "caption": "CONTRATA", "kicker": "UNA ESCOLTA" },
+    { "clip": "caravana", "in": 3.0, "dur": 1.12, "enter": "flash", "zoom": [1.05, 1.15], "caption": "CARGA MÁS", "kicker": "CON TU YEGUA" },
+    { "clip": "refugio", "in": 4.8, "dur": 1.12, "enter": "flash", "zoom": [1.05, 1.15], "caption": "GUARDA", "kicker": "EN TU REFUGIO" },
+    { "clip": "mercado", "in": 1.2, "dur": 1.11, "enter": "flash", "zoom": [1.05, 1.15], "caption": "COMERCIA", "kicker": "EN CINCO MERCADOS" },
+    { "clip": "rumor", "in": 1.7, "dur": 1.11, "enter": "flash", "zoom": [1.05, 1.15], "caption": "ESCUCHA", "kicker": "LOS RUMORES" },
+    { "clip": "frostholm", "in": 3.6, "dur": 0.37, "enter": "flash", "flashDur": 0.3, "zoom": [1.2, 1.3] },
+    { "clip": "duneshade", "in": 3.0, "dur": 0.37, "enter": "flash", "flashDur": 0.3, "zoom": [1.2, 1.3] },
+    { "clip": "golfo", "in": 6.0, "dur": 0.38, "enter": "flash", "flashDur": 0.3, "zoom": [1.2, 1.3], "shake": 0.05 },
+
+    { "type": "title", "clip": "titulo", "in": 0.3, "dur": 8.0, "vo": "k7", "voAt": 1.3, "slamAt": 0.35, "sfx": ["hit", "armor"],
+      "logo": "assets/stills/logo.png", "gems": ["amber", "rune", "rain", "sun", "frost"],
+      "tagline": "Contrabando de piedras de hechizo", "cta": "PRÓXIMAMENTE",
+      "credits": "Música: “Epic Orchestral Fantasy Theme” — linxiaoma (CC-BY 4.0) · Efectos: Kenney y OpenGameArt (CC0)" }
   ]
 }

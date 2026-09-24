@@ -48,5 +48,40 @@
   "dur": 1.92,
   "text": "Stones.",
   "sig": "es-MX-JorgeNeural|-6%|-8Hz"
+ },
+ "k1": {
+  "dur": 1.22,
+  "text": "Cinco pueblos.",
+  "sig": "es-MX-JorgeNeural|-6%|-8Hz|tight"
+ },
+ "k2": {
+  "dur": 1.73,
+  "text": "Cinco piedras de hechizo.",
+  "sig": "es-MX-JorgeNeural|-6%|-8Hz|tight"
+ },
+ "k3": {
+  "dur": 1.82,
+  "text": "Pero la Corona lo quiere todo.",
+  "sig": "es-MX-JorgeNeural|-6%|-8Hz|tight"
+ },
+ "k4": {
+  "dur": 1.99,
+  "text": "Compra barato, vende caro.",
+  "sig": "es-MX-JorgeNeural|-6%|-8Hz|tight"
+ },
+ "k5": {
+  "dur": 1.39,
+  "text": "Y que no te atrapen.",
+  "sig": "es-MX-JorgeNeural|-6%|-8Hz|tight"
+ },
+ "k6": {
+  "dur": 1.01,
+  "text": "¿Te atreves?",
+  "sig": "es-MX-JorgeNeural|-6%|-8Hz|tight"
+ },
+ "k7": {
+  "dur": 1.06,
+  "text": "Stones.",
+  "sig": "es-MX-JorgeNeural|-6%|-8Hz|tight"
  }
 }

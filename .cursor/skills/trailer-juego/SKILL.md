@@ -13,8 +13,9 @@ Salida: MP4 **1920×1080, 30 fps** — teaser 30–45 s o trailer completo 75–
 `<juego>/trailer/renders/` y copia en `~/Downloads/<juego>-trailer.mp4`. Primera versión sin
 preguntar; al final reportar dudas.
 
-Ejemplo real y completo: `stones_Game/trailer/` (v2: 90 s, 21 tomas, 36 cortes, 10 voces, sonidos
-del juego en su cuadro, cortes en los compases de la música).
+Ejemplo real y completo: `stones_Game/trailer/` — `guion.json` (v3, teaser de 40 s, todo en
+cortes rápidos con gráficos encima: el que más gustó) y `guion-v2.json` (90 s, 36 cortes, 10 voces).
+`python3 build.py [guion]` y `make_voice.py [guion]` aceptan cualquiera de los dos.
 
 ## Arranque (una vez por juego)
 
@@ -44,6 +45,16 @@ del juego en su cuadro, cortes en los compases de la música).
    **verbos** con texto grande y rótulo chico, uno por compás, entrando con **barrido** → el mundo
    vivo (voz) → tensión: cámara lenta + **barras de cine** → **clímax**: cortes de medio compás con
    destellos y sacudidas → **logo que cae de golpe** con rayos, lema, PRÓXIMAMENTE y créditos.
+1a. **Teaser corto (~40 s, lo que Leo prefirió en Stones v3):** TODO al estilo del clímax — cortes
+   de medio compás (~1.1 s) con destello (`"flash": {"opacity": 1, "dur": 0.45}`) y todos los textos
+   encima de los cortes, nada de tomas largas. Guion de 5–7 frases de 1–2 s (`"tight": true` en la
+   voz quita los silencios de edge-tts). Música en dos tramos: inicio de la canción → salto a la
+   subida previa al clímax (una tarjeta "¿TE ATREVES?" cae en el salto) → verbos sobre el clímax →
+   ráfaga de 3 cortes de 0.37 s → logo. Gráficos que lucen HyperFrames: letras que caen con separación
+   de color (`"letters": true`), `words` (frases en orden), `stamp` (sello que cae con sacudida),
+   `counter` (número que sube), `ticker` (cinta de precios), `split` (2–3 tomas en paneles
+   inclinados), tarjeta con `gems`, y en el cierre `gems` (esquirlas), anillo de choque y barrido de
+   luz sobre el logo. Ejemplo: `stones_Game/trailer/guion.json` (v3); el largo es `guion-v2.json`.
 1b. **Música con curva.** `.venv/bin/python beats.py <pista>` imprime tempo, compases y energía por
    segundo. Elegir una pista que tenga respiro y clímax (no una plana) y cortar en sus compases:
    cada `dur` = distancia al siguiente compás. El clímax del trailer va donde la energía sube.
@@ -89,6 +100,11 @@ del juego en su cuadro, cortes en los compases de la música).
   rótulo chico con fondo oscuro (si no, falla el contraste sobre arena o nieve).
 - **Diálogo sobre negro** (cruces, fundidos): ocultar sólo el HUD (`ui.hud.setVisible(false)`), no la
   cámara de la interfaz, o se pierde el diálogo.
+- **Contenedores sin tiempo** (paneles de `split`): el `<video>` no puede ir dentro de algo con
+  `data-start`, así que el contenedor se muestra/oculta con `tl.set(autoAlpha)`; si no, su fondo
+  tapa todo el video. `fromTo` que empieza tarde sobre algo ya visible → `immediateRender: false`.
+  Nada de animar `letterSpacing` (es error en `check`).
+- Texto grande sobre menús del juego: fondo oscuro difuso detrás (`.caption`), si no compite con la tabla.
 - Si la IA del juego es azarosa (rumores, emboscadas), fijar `Math.random` en el setup de esa toma.
 - **Música**: la del propio juego primero (una tranquila para el gancho, la tensa para la acción).
   Si el juego no tiene, `/media-use` → `resolve --type bgm`.

@@ -1,29 +1,34 @@
 #!/usr/bin/env python3
-"""Arma index.html (composición HyperFrames) desde guion.json + tomas grabadas + voz.
+"""Arma index.html (composición HyperFrames) desde un guion + tomas grabadas + voz.
 
-    python3 build.py && npm run check
+    python3 build.py [guion.json] && npm run check
 
-Editar guion.json (y shots.mjs), nunca index.html. Todos los tiempos salen de aquí:
+Editar el guion (y shots.mjs), nunca index.html. Todos los tiempos salen de aquí:
 - cada corte dura lo que dice el guion (`dur`); la suma marca el ritmo (cortar en compases de la música);
 - la voz empieza con su corte y puede seguir sobre el siguiente, pero nunca pisa otra voz;
-- la música baja sola mientras habla el narrador;
+- la música baja sola mientras habla el narrador (se pueden unir tramos de la canción con mediaStart);
 - los sonidos que el juego hizo durante la grabación (golpes, flechas, pasos…) caen en su cuadro exacto.
 
 Tipos de corte (`beats`):
-- toma:   { clip, in, dur, speed?, zoom?, enter?, caption?, kicker?, town?, shake?, sfx? }
-- tarjeta: { type: "card", dur, text, kicker?, sfx? }            texto sobre negro
-- cierre: { type: "title", clip, in, dur, logo, tagline, cta, credits }
-enter: cut | flash | fade | whip.  town: { name, stone, sub } = rótulo del pueblo.
+- toma:    { clip, in, dur, speed?, zoom?, enter?, caption?, kicker?, town?, words?, stamp?, counter?, ticker?, shake?, sfx? }
+- tarjeta: { type: "card", dur, text, kicker?, gems?, sfx? }     texto sobre negro (letras que caen, gemas en fila)
+- partida: { type: "split", dur, panels: [{clip, in, label?}], skew?, + los mismos textos que una toma }   varias tomas a la vez
+- cierre:  { type: "title", clip, in, dur, logo, tagline, cta, credits, gems? }
+enter: cut | flash | fade | whip.  town: { name, stone, sub }.  words: ["LÍNEA 1", "LÍNEA 2"] (aparecen en orden; wordsDur para que sigan en los cortes siguientes).
+stamp: { text, at }.  counter: { label, to, at?, dur? }.  ticker: [{ stone, name, price, up }].
 """
-import json, shutil, subprocess, sys
+import json, math, shutil, subprocess, sys
 from pathlib import Path
 
 HERE = Path(__file__).parent
-G = json.loads((HERE / "guion.json").read_text())
+GUION = HERE / (sys.argv[1] if len(sys.argv) > 1 else "guion.json")
+G = json.loads(GUION.read_text())
 VO = json.loads((HERE / "assets/vo.json").read_text()) if (HERE / "assets/vo.json").exists() else {}
 W, H = G.get("size", [1920, 1080])
 FPS = G.get("fps", 30)
 AUDIO = G.get("audio", {})
+FLASH = G.get("flash", {"opacity": 0.85, "dur": 0.3})
+LETTERS = G.get("letters", False)  # palabras grandes letra por letra con separación de color
 r3 = lambda v: f"{v:.3f}".rstrip("0").rstrip(".")
 esc = lambda s: str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 warnings = []
@@ -57,21 +62,34 @@ def local_audio(src, sub="audio"):
     return f"assets/{sub}/{s.name}"
 
 
+def fit_in(clip, media_in, dur, speed, where):
+    info = clip_info(clip)
+    need = media_in + dur * speed
+    if need > info["seconds"] + 1e-3:
+        warnings.append(f"{where} ({clip}): pide hasta {need:.2f}s pero la toma dura {info['seconds']:.2f}s → se recorta 'in'")
+        media_in = max(0, info["seconds"] - dur * speed)
+    return media_in, info
+
+
+def letters_html(text):
+    """Cada letra en su caja, para que caigan una por una."""
+    out = []
+    for ch in text:
+        out.append('<span class="ch sp">&nbsp;</span>' if ch == " " else f'<span class="ch">{esc(ch)}</span>')
+    return "".join(out)
+
+
 # ---------- 1. tiempos de cada corte ----------
 beats = []
 t = 0.0
 for i, b in enumerate(G["beats"]):
     kind = b.get("type", "shot")
-    info = clip_info(b["clip"]) if b.get("clip") else None
     speed = b.get("speed", 1)
-    dur = b["dur"]
-    if info:
-        need = b.get("in", 0) + dur * speed
-        if need > info["seconds"] + 1e-3:
-            warnings.append(f"corte {i} ({b['clip']}): pide hasta {need:.2f}s pero la toma dura {info['seconds']:.2f}s → se recorta 'in'")
-            b["in"] = max(0, info["seconds"] - dur * speed)
-    beats.append({**b, "kind": kind, "i": i, "t": t, "dur": dur, "speed": speed, "info": info})
-    t += dur
+    info = None
+    if b.get("clip"):
+        b["in"], info = fit_in(b["clip"], b.get("in", 0), b["dur"], speed, f"corte {i}")
+    beats.append({**b, "kind": kind, "i": i, "t": t, "dur": b["dur"], "speed": speed, "info": info})
+    t += b["dur"]
 CUT_END = t
 
 # ---------- 2. voz: con su corte, sin pisarse ----------
@@ -90,46 +108,41 @@ for b in beats:
     cursor = start + VO[k]["dur"]
 TOTAL = max(CUT_END, cursor + END_TAIL)
 if TOTAL > CUT_END:
-    extra = TOTAL - CUT_END
-    last = beats[-1]
-    if last["info"]:
-        room = last["info"]["seconds"] - (last.get("in", 0) + last["dur"] * last["speed"])
-        if room < extra * last["speed"]:
-            warnings.append(f"el último corte no alcanza para cubrir la voz: faltan {extra * last['speed'] - room:.2f}s")
-    last["dur"] += extra
+    beats[-1]["dur"] += TOTAL - CUT_END
 
 # ---------- 3. HTML ----------
 clips_html, over_html, js = [], [], []
 add = lambda s: js.append("      " + s)
 sfx_marks = []  # (segundo, nombre, volumen)
+video_lanes = []
 
-for b in beats:
-    i, start, dur = b["i"], b["t"], b["dur"]
-    if b["kind"] == "card":
-        cid = f"card-{i}"
-        kicker = f'<div class="kicker">{esc(b["kicker"])}</div>' if b.get("kicker") else ""
-        over_html.append(f'      <div id="{cid}" class="clip card" data-start="{r3(start)}" data-duration="{r3(dur)}" data-track-index="36">'
-                         f'<div class="card-in">{kicker}<div class="card-text">{esc(b["text"])}</div></div></div>')
-        add(f'tl.fromTo("#{cid} .card-in", {{ autoAlpha: 0, scale: 1.12 }}, {{ autoAlpha: 1, scale: 1, duration: 0.55, ease: "power3.out" }}, {r3(start + 0.05)});')
-        add(f'tl.to("#{cid} .card-in", {{ scale: 1.04, duration: {r3(dur - 0.95)}, ease: "none" }}, {r3(start + 0.64)});')
-        add(f'tl.to("#{cid} .card-in", {{ autoAlpha: 0, duration: 0.25, ease: "power2.in" }}, {r3(start + dur - 0.28)});')
-        for name in b.get("sfx", []):
-            sfx_marks.append((start + 0.05, name, AUDIO.get("hitVolume", 0.6)))
-        continue
 
-    src = f"assets/clips/{b['clip']}.mp4"
-    rate = f' data-playback-rate="{r3(b["speed"])}"' if b["speed"] != 1 else ""
-    clips_html.append(
-        f'      <div class="shot" id="shot-{i}"><div class="inner" id="inner-{i}">'
-        f'<video id="v-{i}" class="clip" src="{src}" data-start="{r3(start)}" data-duration="{r3(dur)}" '
-        f'data-media-start="{r3(b.get("in", 0))}"{rate} data-track-index="{1 + i % 2}" muted playsinline></video></div></div>')
-    z0, z1 = b.get("zoom", [1, 1])
-    if z0 != 1 or z1 != 1:
-        add(f'tl.fromTo("#inner-{i}", {{ scale: {z0} }}, {{ scale: {z1}, duration: {r3(dur)}, ease: "none" }}, {r3(start)});')
+def video_el(vid, clip, media_in, start, dur, speed, style=""):
+    lane = next((n for n, end in enumerate(video_lanes) if end <= start + 1e-3), None)
+    if lane is None:
+        video_lanes.append(0)
+        lane = len(video_lanes) - 1
+    video_lanes[lane] = start + dur
+    rate = f' data-playback-rate="{r3(speed)}"' if speed != 1 else ""
+    st = f' style="{style}"' if style else ""
+    return (f'<video id="{vid}" class="clip" src="assets/clips/{clip}.mp4" data-start="{r3(start)}" data-duration="{r3(dur)}" '
+            f'data-media-start="{r3(media_in)}"{rate} data-track-index="{1 + lane}" muted playsinline{st}></video>')
+
+
+def flash_at(at, opacity=None, dur=None):
+    add(f'tl.set("#flash", {{ opacity: {opacity or FLASH["opacity"]} }}, {r3(at)});')
+    add(f'tl.to("#flash", {{ opacity: 0, duration: {r3(dur or FLASH["dur"])}, ease: "power2.out" }}, {r3(at + 0.01)});')
+
+
+def shake_at(target, at, strength=1.0):
+    for n, (dx, dy) in enumerate([(14, -8), (-12, 6), (9, 5), (-6, -4), (3, 2), (0, 0)]):
+        add(f'tl.set("{target}", {{ x: {round(dx * strength)}, y: {round(dy * strength)} }}, {r3(at + n * 0.045)});')
+
+
+def enter_fx(b, start, target):
     enter = b.get("enter", "cut")
     if enter == "flash":
-        add(f'tl.set("#flash", {{ opacity: 0.85 }}, {r3(start)});')
-        add(f'tl.to("#flash", {{ opacity: 0, duration: 0.3, ease: "power2.out" }}, {r3(start + 0.01)});')
+        flash_at(start, b.get("flashOpacity"), min(b.get("flashDur", FLASH["dur"]), b["dur"] - 0.04))
     elif enter == "fade":
         if start > 0:
             add(f'tl.to("#dip", {{ opacity: 1, duration: 0.3, ease: "power1.in" }}, {r3(start - 0.3)});')
@@ -137,49 +150,199 @@ for b in beats:
             add('tl.set("#dip", { opacity: 1 }, 0);')
         add(f'tl.to("#dip", {{ opacity: 0, duration: 0.6, ease: "power1.out" }}, {r3(start)});')
     elif enter == "whip":
-        # Barrido: la toma nueva entra corrida y borrosa, y se asienta.
-        add(f'tl.fromTo("#shot-{i}", {{ x: 220, filter: "blur(14px)" }}, {{ x: 0, filter: "blur(0px)", duration: 0.3, ease: "power3.out" }}, {r3(start)});')
+        add(f'tl.fromTo("{target}", {{ x: 220, filter: "blur(14px)" }}, {{ x: 0, filter: "blur(0px)", duration: 0.3, ease: "power3.out" }}, {r3(start)});')
         sfx_marks.append((start, AUDIO.get("whipSfx", "swing"), AUDIO.get("whipVolume", 0.5)))
-    if b.get("shake"):
-        at = start + (b["shake"] if isinstance(b["shake"], (int, float)) and b["shake"] is not True else 0.05)
-        for n, (dx, dy) in enumerate([(14, -8), (-12, 6), (9, 5), (-6, -4), (3, 2), (0, 0)]):
-            add(f'tl.set("#stage", {{ x: {dx}, y: {dy} }}, {r3(at + n * 0.045)});')
-    for name in b.get("sfx", []):
-        sfx_marks.append((start + 0.03, name, AUDIO.get("hitVolume", 0.6)))
 
-    if b.get("caption"):
-        cid = f"cap-{i}"
-        kicker = f'<span class="kicker">{esc(b["kicker"])}</span>' if b.get("kicker") else ""
-        over_html.append(f'      <div id="{cid}" class="clip caption" data-start="{r3(start + 0.1)}" data-duration="{r3(dur - 0.1)}" data-track-index="30">'
-                         f'<div class="cap-in">{kicker}<span class="cap-word">{esc(b["caption"])}</span></div></div>')
+
+RGB_SHADOWS = [
+    "22px 0 rgba(255,50,90,0.9), -22px 0 rgba(40,230,255,0.9)",
+    "9px 0 rgba(255,50,90,0.85), -9px 0 rgba(40,230,255,0.85)",
+    "7px 0 #1b1422, -7px 0 #1b1422, 0 7px #1b1422, 0 -7px #1b1422, 7px 7px #1b1422, -7px 7px #1b1422, 7px -7px #1b1422, -7px -7px #1b1422, 0 16px 0 rgba(27,20,34,0.65)",
+]
+
+
+def caption(i, b, start, dur):
+    cid = f"cap-{i}"
+    kicker = f'<span class="kicker">{esc(b["kicker"])}</span>' if b.get("kicker") else ""
+    letters = b.get("letters", LETTERS)
+    word = letters_html(b["caption"]) if letters else esc(b["caption"])
+    over_html.append(f'      <div id="{cid}" class="clip caption" data-start="{r3(start + 0.05)}" data-duration="{r3(dur - 0.05)}" data-track-index="30">'
+                     f'<div class="cap-in">{kicker}<span class="cap-word">{word}</span></div></div>')
+    if letters:
+        # Letras que caen escalonadas, con la separación de color que se asienta en tres pasos.
+        add(f'tl.fromTo("#{cid} .ch", {{ y: -140, autoAlpha: 0, scale: 1.9, rotation: -14 }}, {{ y: 0, autoAlpha: 1, scale: 1, rotation: 0, duration: 0.26, stagger: 0.028, ease: "back.out(2.2)" }}, {r3(start + 0.05)});')
+        for n, sh in enumerate(RGB_SHADOWS):
+            add(f'tl.set("#{cid} .cap-word", {{ textShadow: "{sh}" }}, {r3(start + 0.05 + n * 0.1) if n else 0});')
+        if b.get("kicker"):
+            add(f'tl.fromTo("#{cid} .kicker", {{ x: -260, autoAlpha: 0 }}, {{ x: 0, autoAlpha: 1, duration: 0.25, ease: "power3.out" }}, {r3(start + 0.12)});')
+        add(f'tl.to("#{cid} .cap-in", {{ scale: 1.07, duration: {r3(max(0.1, dur - 0.48))}, ease: "none" }}, {r3(start + 0.3)});')
+        add(f'tl.to("#{cid} .cap-in", {{ autoAlpha: 0, scale: 1.35, filter: "blur(8px)", duration: 0.15, ease: "power2.in" }}, {r3(start + dur - 0.16)});')
+    else:
         add(f'tl.set("#{cid} .cap-in", {{ scale: 1.7, autoAlpha: 0, x: 0, y: 0 }}, 0);')
         add(f'tl.to("#{cid} .cap-in", {{ scale: 1, autoAlpha: 1, duration: 0.2, ease: "back.out(1.6)" }}, {r3(start + 0.1)});')
         add(f'tl.set("#{cid} .cap-in", {{ x: -8 }}, {r3(start + 0.3)});')
         add(f'tl.to("#{cid} .cap-in", {{ x: 0, duration: 0.18, ease: "elastic.out(1, 0.3)" }}, {r3(start + 0.31)});')
         add(f'tl.to("#{cid} .cap-in", {{ scale: 1.06, duration: {r3(max(0.1, dur - 0.55))}, ease: "none" }}, {r3(start + 0.32)});')
         add(f'tl.to("#{cid} .cap-in", {{ autoAlpha: 0, scale: 1.25, duration: 0.18, ease: "power2.in" }}, {r3(start + dur - 0.2)});')
-        if AUDIO.get("captionSfx"):
-            sfx_marks.append((start + 0.08, AUDIO["captionSfx"], AUDIO.get("captionVolume", 0.45)))
+    if AUDIO.get("captionSfx"):
+        sfx_marks.append((start + 0.06, AUDIO["captionSfx"], AUDIO.get("captionVolume", 0.45)))
 
+
+def town_label(i, tw, start, dur):
+    lid = f"town-{i}"
+    gem = f'assets/stills/gem-{tw["stone"]}.png'
+    gem_html = f'<img class="gem" src="{gem}" alt="">' if (HERE / gem).exists() else ""
+    over_html.append(f'      <div id="{lid}" class="clip lower" data-start="{r3(start + 0.08)}" data-duration="{r3(dur - 0.08)}" data-track-index="32">'
+                     f'<div class="lower-in">{gem_html}<div class="lower-txt"><div class="lower-name">{letters_html(tw["name"])}</div>'
+                     f'<div class="lower-sub">{esc(tw.get("sub", ""))}</div></div></div></div>')
+    add(f'tl.fromTo("#{lid} .lower-in", {{ x: -700, autoAlpha: 0 }}, {{ x: 0, autoAlpha: 1, duration: 0.3, ease: "power3.out" }}, {r3(start + 0.08)});')
+    add(f'tl.fromTo("#{lid} .gem", {{ scale: 0.2, rotation: -60 }}, {{ scale: 1, rotation: 0, duration: 0.4, ease: "back.out(2.4)" }}, {r3(start + 0.16)});')
+    add(f'tl.fromTo("#{lid} .lower-name .ch", {{ y: -40, autoAlpha: 0 }}, {{ y: 0, autoAlpha: 1, duration: 0.18, stagger: 0.03, ease: "back.out(2)" }}, {r3(start + 0.14)});')
+    add(f'tl.to("#{lid} .lower-in", {{ x: -80, autoAlpha: 0, duration: 0.2, ease: "power2.in" }}, {r3(start + dur - 0.22)});')
+
+
+def words(i, lines, start, dur, at=None):
+    wid = f"words-{i}"
+    rows = "".join(f'<div class="w-line w{n}">{letters_html(l)}</div>' for n, l in enumerate(lines))
+    over_html.append(f'      <div id="{wid}" class="clip words" data-start="{r3(start)}" data-duration="{r3(dur)}" data-track-index="31"><div class="w-in">{rows}</div></div>')
+    at = at or [0.05 + n * (dur * 0.35) for n in range(len(lines))]
+    for n, a in enumerate(at):
+        add(f'tl.fromTo("#{wid} .w{n} .ch", {{ y: 90, autoAlpha: 0, rotationX: -90 }}, {{ y: 0, autoAlpha: 1, rotationX: 0, duration: 0.3, stagger: 0.022, ease: "power3.out" }}, {r3(start + a)});')
+        sfx_marks.append((start + a, AUDIO.get("captionSfx", "hit"), AUDIO.get("captionVolume", 0.4) * 0.8))
+    add(f'tl.to("#{wid} .w-in", {{ autoAlpha: 0, y: -30, duration: 0.2, ease: "power2.in" }}, {r3(start + dur - 0.22)});')
+
+
+def stamp(i, st, start, dur):
+    sid = f"stamp-{i}"
+    over_html.append(f'      <div id="{sid}" class="clip stamp" data-start="{r3(start)}" data-duration="{r3(dur)}" data-track-index="33"><div class="stamp-in">{esc(st["text"])}</div></div>')
+    at = start + st.get("at", 0.5)
+    add(f'tl.fromTo("#{sid} .stamp-in", {{ scale: 3.6, autoAlpha: 0, rotation: -30 }}, {{ scale: 1, autoAlpha: 1, rotation: -12, duration: 0.2, ease: "power4.in" }}, {r3(at - 0.2)});')
+    flash_at(at, 0.35, 0.25)
+    shake_at("#stage", at, 1.3)
+    sfx_marks.append((at, st.get("sfx", "armor"), AUDIO.get("hitVolume", 0.65)))
+
+
+def counter(i, c, start, dur):
+    cid = f"count-{i}"
+    over_html.append(f'      <div id="{cid}" class="clip counter" data-start="{r3(start)}" data-duration="{r3(dur)}" data-track-index="34">'
+                     f'<div class="count-in"><div class="count-label">{esc(c["label"])}</div><div class="count-num">0</div></div></div>')
+    at = start + c.get("at", 0.2)
+    add(f'tl.fromTo("#{cid} .count-in", {{ x: 300, autoAlpha: 0 }}, {{ x: 0, autoAlpha: 1, duration: 0.3, ease: "power3.out" }}, {r3(at - 0.1)});')
+    run = c.get("dur", 1.0)
+    steps = max(2, int(run * 20))
+    for n in range(steps + 1):
+        v = round(c["to"] * (1 - (1 - n / steps) ** 3))
+        add(f'tl.set("#{cid} .count-num", {{ textContent: "{c.get("prefix", "")}{v}" }}, {r3(at + run * n / steps)});')
+    add(f'tl.fromTo("#{cid} .count-num", {{ scale: 1.5 }}, {{ scale: 1, duration: 0.3, ease: "back.out(3)", immediateRender: false }}, {r3(at + run)});')
+    add(f'tl.to("#{cid} .count-in", {{ autoAlpha: 0, duration: 0.2 }}, {r3(start + dur - 0.2)});')
+    sfx_marks.append((at + run, c.get("sfx", "coins-sell"), 0.5))
+
+
+def ticker(i, items, start, dur):
+    kid = f"tick-{i}"
+    cells = []
+    for it in items * 4:
+        gem = f'assets/stills/gem-{it["stone"]}.png'
+        arrow = '<span class="up">▲</span>' if it.get("up") else '<span class="dn">▼</span>'
+        cells.append(f'<span class="t-cell"><img src="{gem}" alt="">{esc(it["name"])} <b>{it["price"]}</b> {arrow}</span>')
+    over_html.append(f'      <div id="{kid}" class="clip ticker" data-start="{r3(start)}" data-duration="{r3(dur)}" data-track-index="35"><div class="t-track">{"".join(cells)}</div></div>')
+    add(f'tl.fromTo("#{kid}", {{ y: 120 }}, {{ y: 0, duration: 0.25, ease: "power3.out" }}, {r3(start)});')
+    add(f'tl.fromTo("#{kid} .t-track", {{ x: 0 }}, {{ x: -{int(560 * dur)}, duration: {r3(dur)}, ease: "none" }}, {r3(start)});')
+
+
+def overlays(b, i, start, dur):
+    """Textos y gráficos encima de la toma. `wordsDur` deja la frase sobre los cortes siguientes."""
+    if b.get("caption"):
+        caption(i, b, start, dur)
     if b.get("town"):
-        tw = b["town"]
-        lid = f"town-{i}"
-        gem = f'assets/stills/gem-{tw["stone"]}.png'
-        gem_html = f'<img class="gem" src="{gem}" alt="">' if (HERE / gem).exists() else ""
-        over_html.append(f'      <div id="{lid}" class="clip lower" data-start="{r3(start + 0.2)}" data-duration="{r3(dur - 0.2)}" data-track-index="32">'
-                         f'<div class="lower-in">{gem_html}<div class="lower-txt"><div class="lower-name">{esc(tw["name"])}</div>'
-                         f'<div class="lower-sub">{esc(tw.get("sub", ""))}</div></div></div></div>')
-        add(f'tl.fromTo("#{lid} .lower-in", {{ x: -700, autoAlpha: 0 }}, {{ x: 0, autoAlpha: 1, duration: 0.45, ease: "power3.out" }}, {r3(start + 0.2)});')
-        add(f'tl.fromTo("#{lid} .gem", {{ scale: 0.2, rotation: -40 }}, {{ scale: 1, rotation: 0, duration: 0.5, ease: "back.out(2)" }}, {r3(start + 0.35)});')
-        add(f'tl.to("#{lid} .lower-in", {{ x: -80, autoAlpha: 0, duration: 0.3, ease: "power2.in" }}, {r3(start + dur - 0.32)});')
+        town_label(i, b["town"], start, dur)
+    if b.get("words"):
+        words(i, b["words"], start, b.get("wordsDur", dur), b.get("wordsAt"))
+    if b.get("stamp"):
+        stamp(i, b["stamp"], start, dur)
+    if b.get("counter"):
+        counter(i, b["counter"], start, dur)
+    if b.get("ticker"):
+        ticker(i, b["ticker"], start, dur)
+
+
+for b in beats:
+    i, start, dur = b["i"], b["t"], b["dur"]
+    if b["kind"] == "card":
+        cid = f"card-{i}"
+        kicker = f'<div class="kicker">{esc(b["kicker"])}</div>' if b.get("kicker") else ""
+        gems = "".join(f'<img class="c-gem" src="assets/stills/gem-{g}.png" alt="">' for g in b.get("gems", []))
+        gems_html = f'<div class="c-gems">{gems}</div>' if gems else ""
+        size = f' style="font-size:{b["size"]}px"' if b.get("size") else ""
+        over_html.append(f'      <div id="{cid}" class="clip card" data-start="{r3(start)}" data-duration="{r3(dur)}" data-track-index="36">'
+                         f'<div class="card-in">{kicker}<div class="card-text"{size}>{letters_html(b["text"])}</div>{gems_html}</div></div>')
+        add(f'tl.fromTo("#{cid} .card-text .ch", {{ y: -120, autoAlpha: 0, scale: 2, filter: "blur(10px)" }}, {{ y: 0, autoAlpha: 1, scale: 1, filter: "blur(0px)", duration: 0.3, stagger: 0.035, ease: "back.out(2)" }}, {r3(start + 0.05)});')
+        for n, sh in enumerate(["16px 0 rgba(255,50,90,0.8), -16px 0 rgba(40,230,255,0.8)", "6px 0 rgba(255,50,90,0.7), -6px 0 rgba(40,230,255,0.7)", "0 10px 0 rgba(140,94,19,0.55)"]):
+            add(f'tl.set("#{cid} .card-text", {{ textShadow: "{sh}" }}, {r3(start + 0.05 + n * 0.12) if n else 0});')
+        if b.get("gems"):
+            add(f'tl.fromTo("#{cid} .c-gem", {{ scale: 0, rotation: -90, autoAlpha: 0 }}, {{ scale: 1, rotation: 0, autoAlpha: 1, duration: 0.35, stagger: 0.12, ease: "back.out(2.6)" }}, {r3(start + 0.45)});')
+            for n in range(len(b["gems"])):
+                sfx_marks.append((start + 0.47 + n * 0.12, "gem", 0.45))
+        add(f'tl.to("#{cid} .card-in", {{ scale: 1.08, duration: {r3(dur - 0.5)}, ease: "none" }}, {r3(start + 0.3)});')
+        add(f'tl.to("#{cid} .card-in", {{ autoAlpha: 0, scale: 1.4, filter: "blur(10px)", duration: 0.18, ease: "power2.in" }}, {r3(start + dur - 0.2)});')
+        enter_fx(b, start, f"#{cid} .card-in")
+        for name in b.get("sfx", []):
+            sfx_marks.append((start + 0.05, name, AUDIO.get("hitVolume", 0.6)))
+        continue
+
+    if b["kind"] == "split":
+        panels = b["panels"]
+        n = len(panels)
+        skew = b.get("skew", 0)
+        gap = b.get("gap", 10)
+        parts = []
+        for k, p in enumerate(panels):
+            x0, x1 = W * k / n, W * (k + 1) / n
+            l0, l1 = (x0 + gap / 2) if k else -skew, (x1 - gap / 2) if k < n - 1 else W + skew
+            poly = f"polygon({l0 + skew:.0f}px 0, {l1 + skew:.0f}px 0, {l1 - skew:.0f}px {H}px, {l0 - skew:.0f}px {H}px)"
+            cx = (x0 + x1) / 2
+            p_in, _ = fit_in(p["clip"], p.get("in", 0), dur, p.get("speed", 1), f"panel {i}.{k}")
+            vid = video_el(f"v-{i}-{k}", p["clip"], p_in, start, dur, p.get("speed", 1),
+                           style=f"transform: translateX({cx - W / 2:.0f}px) scale({p.get('scale', 1.15)});")
+            label = f'<div class="p-label" style="left:{cx:.0f}px">{letters_html(p["label"])}</div>' if p.get("label") else ""
+            parts.append(f'<div class="panel" id="p-{i}-{k}" style="clip-path: {poly}; -webkit-clip-path: {poly};"><div class="p-inner">{vid}</div></div>{label}')
+        clips_html.append(f'      <div class="shot split" id="shot-{i}">{"".join(parts)}</div>')
+        # El contenedor no tiene tiempo propio (los videos sí): se muestra sólo durante su corte.
+        add(f'tl.set("#shot-{i}", {{ autoAlpha: 0 }}, 0);')
+        add(f'tl.set("#shot-{i}", {{ autoAlpha: 1 }}, {r3(start)});')
+        add(f'tl.set("#shot-{i}", {{ autoAlpha: 0 }}, {r3(start + dur)});')
+        for k in range(n):
+            add(f'tl.fromTo("#p-{i}-{k}", {{ y: {H if k % 2 else -H} }}, {{ y: 0, duration: 0.32, ease: "power3.out" }}, {r3(start + k * 0.07)});')
+        if any(p.get("label") for p in panels):
+            add(f'tl.fromTo("#shot-{i} .p-label .ch", {{ y: 50, autoAlpha: 0 }}, {{ y: 0, autoAlpha: 1, duration: 0.2, stagger: 0.012, ease: "back.out(2)" }}, {r3(start + 0.25)});')
+        enter_fx(b, start, f"#shot-{i}")
+        overlays(b, i, start, dur)
+        if b.get("shake"):
+            shake_at("#stage", start + b["shake"])
+        for name in b.get("sfx", []):
+            sfx_marks.append((start + 0.03, name, AUDIO.get("hitVolume", 0.6)))
+        continue
+
+    vid = video_el(f"v-{i}", b["clip"], b.get("in", 0), start, dur, b["speed"])
+    clips_html.append(f'      <div class="shot" id="shot-{i}"><div class="inner" id="inner-{i}">{vid}</div></div>')
+    z0, z1 = b.get("zoom", [1, 1])
+    if z0 != 1 or z1 != 1:
+        add(f'tl.fromTo("#inner-{i}", {{ scale: {z0} }}, {{ scale: {z1}, duration: {r3(dur)}, ease: "none" }}, {r3(start)});')
+    if b["kind"] != "title":
+        enter_fx(b, start, f"#shot-{i}")
+    if b.get("shake") and b["kind"] != "title":
+        shake_at("#stage", start + (b["shake"] if b["shake"] is not True else 0.05))
+    for name in b.get("sfx", []) if b["kind"] != "title" else []:
+        sfx_marks.append((start + 0.03, name, AUDIO.get("hitVolume", 0.6)))
+    overlays(b, i, start, dur)
 
 # Barras de cine.
 for lb in G.get("letterbox", []):
     s, e = lb["from"], lb.get("to", "end")
     e = TOTAL if e == "end" else e
-    add(f'tl.to(["#lb-top", "#lb-bot"], {{ height: {lb.get("size", 110)}, duration: 0.6, ease: "power2.inOut" }}, {r3(s)});')
+    add(f'tl.to(["#lb-top", "#lb-bot"], {{ height: {lb.get("size", 110)}, duration: 0.5, ease: "power2.inOut" }}, {r3(s)});')
     if e < TOTAL:
-        add(f'tl.to(["#lb-top", "#lb-bot"], {{ height: 0, duration: 0.5, ease: "power2.inOut" }}, {r3(e - 0.5)});')
+        add(f'tl.to(["#lb-top", "#lb-bot"], {{ height: 0, duration: 0.4, ease: "power2.inOut" }}, {r3(e - 0.4)});')
 
 title_html = ""
 tb = next((b for b in beats if b["kind"] == "title"), None)
@@ -187,36 +350,46 @@ if tb:
     ts = tb["t"]
     slam = ts + tb.get("slamAt", 0.6)
     logo = tb.get("logo")
-    if logo and (HERE / logo).exists():
-        logo_html = f'<img id="t-logo" class="logo" src="{logo}" alt="">'
+    has_logo = logo and (HERE / logo).exists()
+    if has_logo:
+        logo_html = (f'<div id="t-logo" class="logo-wrap"><img class="logo" src="{logo}" alt="">'
+                     f'<div class="sweep-mask" style="-webkit-mask-image:url({logo});mask-image:url({logo})"><div class="sweep"></div></div></div>')
     else:
         if logo:
             warnings.append(f"no existe {logo}: el cierre usa el nombre en texto")
         logo_html = f'<div id="t-logo" class="logo-text">{esc(tb.get("name", G.get("title", "").split("—")[0].strip()))}</div>'
+    shards = "".join(f'<img class="shard sh{n}" src="assets/stills/gem-{g}.png" alt="">' for n, g in enumerate(tb.get("gems", [])))
     credits = f'<div id="t-credits" class="credits">{esc(tb["credits"])}</div>' if tb.get("credits") else ""
     title_html = f'''      <div id="title" class="clip title" data-start="{r3(ts)}" data-duration="{r3(TOTAL - ts)}" data-track-index="40">
         <div id="t-box" class="t-box">
           <div class="veil"></div>
           <div id="t-rays" class="rays"></div>
+          <div id="t-ring" class="ring"></div>
+          {shards}
           {logo_html}
-          <div id="t-tag" class="tagline">{esc(tb.get("tagline", ""))}</div>
+          <div id="t-tag" class="tagline">{letters_html(tb.get("tagline", ""))}</div>
           <div id="t-cta" class="cta">{esc(tb.get("cta", ""))}</div>
           {credits}
         </div>
       </div>'''
-    add(f'tl.fromTo("#title .veil", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.8, ease: "power1.out" }}, {r3(ts)});')
-    add(f'tl.fromTo("#t-rays", {{ opacity: 0, scale: 0.6, rotation: 0 }}, {{ opacity: 0.55, scale: 1, rotation: 40, duration: {r3(TOTAL - slam)}, ease: "none" }}, {r3(slam)});')
-    # El logo cae de golpe: grande → su tamaño, destello y sacudida.
-    add(f'tl.fromTo("#t-logo", {{ scale: 2.4, autoAlpha: 0 }}, {{ scale: 1, autoAlpha: 1, duration: 0.32, ease: "power4.in" }}, {r3(slam - 0.32)});')
-    add(f'tl.set("#flash", {{ opacity: 0.9 }}, {r3(slam)});')
-    add(f'tl.to("#flash", {{ opacity: 0, duration: 0.5, ease: "power2.out" }}, {r3(slam + 0.01)});')
-    for n, (dx, dy) in enumerate([(18, -10), (-14, 8), (10, 6), (-7, -5), (4, 2), (0, 0)]):
-        add(f'tl.set("#t-box", {{ x: {dx}, y: {dy} }}, {r3(slam + n * 0.05)});')
-    add(f'tl.to("#t-logo", {{ scale: 1.05, duration: {r3(max(0.5, TOTAL - slam - 1))}, ease: "none" }}, {r3(slam + 0.4)});')
-    add(f'tl.fromTo("#t-tag", {{ y: 24, autoAlpha: 0 }}, {{ y: 0, autoAlpha: 1, duration: 0.5, ease: "power2.out" }}, {r3(slam + 1.0)});')
-    add(f'tl.fromTo("#t-cta", {{ autoAlpha: 0, scale: 1.3 }}, {{ autoAlpha: 1, scale: 1, duration: 0.6, ease: "power2.out" }}, {r3(slam + 2.0)});')
+    add(f'tl.fromTo("#title .veil", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.6, ease: "power1.out" }}, {r3(ts)});')
+    add(f'tl.fromTo("#t-rays", {{ opacity: 0, scale: 0.6, rotation: 0 }}, {{ opacity: 0.6, scale: 1, rotation: 40, duration: {r3(TOTAL - slam)}, ease: "none" }}, {r3(slam)});')
+    add(f'tl.fromTo("#t-logo", {{ scale: 2.6, autoAlpha: 0 }}, {{ scale: 1, autoAlpha: 1, duration: 0.3, ease: "power4.in" }}, {r3(slam - 0.3)});')
+    flash_at(slam, 1, 0.6)
+    add(f'tl.fromTo("#t-ring", {{ scale: 0.2, autoAlpha: 1 }}, {{ scale: 10, autoAlpha: 0, duration: 1.0, ease: "power2.out" }}, {r3(slam)});')
+    # Esquirlas: cada gema sale disparada hacia afuera girando.
+    dirs = [(-760, -330, -300), (720, -360, 280), (-880, 260, 220), (840, 300, -260), (40, -470, 360), (-120, 480, -200)]
+    for n in range(len(tb.get("gems", []))):
+        dx, dy, rot = dirs[n % len(dirs)]
+        add(f'tl.fromTo("#title .sh{n}", {{ x: 0, y: 0, scale: 0.4, rotation: 0, autoAlpha: 1 }}, {{ x: {dx}, y: {dy}, scale: 1.3, rotation: {rot}, autoAlpha: 0, duration: 1.3, ease: "power3.out" }}, {r3(slam)});')
+    shake_at("#t-box", slam, 1.4)
+    add(f'tl.to("#t-logo", {{ scale: 1.05, duration: {r3(max(0.5, TOTAL - slam - 1))}, ease: "none" }}, {r3(slam + 0.35)});')
+    if has_logo:
+        add(f'tl.fromTo("#t-logo .sweep", {{ x: -1500 }}, {{ x: 1500, duration: 0.9, ease: "power2.inOut" }}, {r3(slam + 0.7)});')
+    add(f'tl.fromTo("#t-tag .ch", {{ y: 30, autoAlpha: 0 }}, {{ y: 0, autoAlpha: 1, duration: 0.25, stagger: 0.02, ease: "back.out(2)" }}, {r3(slam + 0.9)});')
+    add(f'tl.fromTo("#t-cta", {{ autoAlpha: 0, scale: 1.4 }}, {{ autoAlpha: 1, scale: 1, duration: 0.5, ease: "power2.out" }}, {r3(slam + 1.7)});')
     if credits:
-        add(f'tl.fromTo("#t-credits", {{ autoAlpha: 0 }}, {{ autoAlpha: 0.85, duration: 0.8 }}, {r3(slam + 2.8)});')
+        add(f'tl.fromTo("#t-credits", {{ autoAlpha: 0 }}, {{ autoAlpha: 0.85, duration: 0.6 }}, {r3(slam + 2.3)});')
     add(f'tl.to(["#t-box", "#stage"], {{ opacity: 0, duration: 0.8, ease: "power1.in" }}, {r3(TOTAL - 0.8)});')
     for name in tb.get("sfx", []):
         sfx_marks.append((slam, name, AUDIO.get("hitVolume", 0.6)))
@@ -257,6 +430,8 @@ for n, m in enumerate(AUDIO.get("music", [])):
 sfx_dirs = AUDIO.get("sfxDirs", [])
 skip = set(AUDIO.get("skipSfx", []))
 sfx_n = 0
+placed = set()
+lanes = []  # fin del último sonido de cada carril
 
 
 def find_sfx(name):
@@ -265,10 +440,6 @@ def find_sfx(name):
             if (HERE / d / f"{name}{ext}").exists():
                 return f"{d}/{name}{ext}"
     return None
-
-
-placed = set()
-lanes = []  # fin del último sonido de cada carril
 
 
 def sfx(name, at, vol):
@@ -288,7 +459,6 @@ def sfx(name, at, vol):
     if not src:
         return
     dur = media_len(HERE / src)
-    # Carril libre: el primero donde el sonido anterior ya terminó.
     lane = next((n for n, end in enumerate(lanes) if end <= at - 0.01), None)
     if lane is None:
         lanes.append(0)
@@ -300,15 +470,20 @@ def sfx(name, at, vol):
 
 gain = AUDIO.get("sfxGain", 1.0)
 for b in beats:
-    if not b["info"]:
-        continue
-    lo, hi = b.get("in", 0), b.get("in", 0) + b["dur"] * b["speed"]
-    for ev in b["info"].get("events", []):
-        if lo <= ev["t"] < hi:
-            vol = ev.get("vol", AUDIO.get("sfxVolume", 0.5)) * gain
-            if ev["sfx"].startswith("step-"):
-                vol *= AUDIO.get("stepGain", 0.6)
-            sfx(ev["sfx"], b["t"] + (ev["t"] - lo) / b["speed"], vol)
+    sources = []
+    if b["kind"] == "split":
+        sources = [(p["clip"], p.get("in", 0), p.get("speed", 1)) for p in b["panels"][: b.get("soundPanels", 1)]]
+    elif b.get("clip"):
+        sources = [(b["clip"], b.get("in", 0), b["speed"])]
+    for clip, lo, speed in sources:
+        info = clip_info(clip)
+        hi = lo + b["dur"] * speed
+        for ev in info.get("events", []):
+            if lo <= ev["t"] < hi:
+                vol = ev.get("vol", AUDIO.get("sfxVolume", 0.5)) * gain
+                if ev["sfx"].startswith("step-"):
+                    vol *= AUDIO.get("stepGain", 0.6)
+                sfx(ev["sfx"], b["t"] + (ev["t"] - lo) / speed, vol)
 for at, name, vol in sfx_marks:
     sfx(name, at, vol)
 
