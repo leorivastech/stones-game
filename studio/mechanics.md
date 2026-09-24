@@ -3,7 +3,7 @@
 Estado: **mundo completo y vivo** — 6 pueblos, 5 rutas, barca, 3 refugios, mercado de oferta y
 demanda, días, deuda y sucesos. **Las reglas del mercado son provisionales** (Leo, 23-sep: hay que
 sentarse a analizarlas y dejarlas claras). 2026-09-23. El rumbo y lo pendiente están en
-`panorama.md`; los números del mundo, en `diseno-mundo.md`.
+`panorama.md`; los números del mundo, en `diseno-mundo.md`; el modo en línea, en `online.md`.
 
 ## Fantasía jugable
 

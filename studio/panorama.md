@@ -67,7 +67,7 @@ Lo interesante es **prepararse**: qué llevas, a quién llevas, dónde dejas qu�
   2. APK de Android con Capacitor (mismo código). Google Play: 25 USD una vez.
   3. iPhone/iPad en App Store con Capacitor: 99 USD al año, Mac o compilación en la nube
      (Codemagic), TestFlight para probar. Sólo cuando se publique.
-- **En línea sin juego simultáneo:** jugadores como parte de la oferta y la demanda; acaparar;
+- **En línea — PRIMERA PRUEBA HECHA (23-sep, rama `online`)**: mundo compartido de verdad, voz, chat; ver `studio/online.md`. Ideas que siguen: jugadores como parte de la oferta y la demanda; acaparar;
   grupos con refugios compartidos; "alguien salvó tus cosas". `economy.js` y `director.js` ya son
   lógica pura: se pueden mover a un servidor.
 - Misiones de historia: quitadas el 23-sep porque no se entendían. Si vuelven, con aviso claro de cuándo te las piden, cuánto tiempo hay y cuándo se pierden.

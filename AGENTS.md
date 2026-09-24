@@ -12,6 +12,8 @@ npm run dev
 
 Abre http://127.0.0.1:5181/
 
+En línea (varias personas): `npm run online` → http://127.0.0.1:5190/?online=1&nombre=Leo, y `cloudflared tunnel --url http://127.0.0.1:5190` para el enlace. Detalle en `studio/online.md`.
+
 ## Dónde está cada cosa
 
 | Qué | Dónde |
@@ -31,6 +33,7 @@ Abre http://127.0.0.1:5181/
 | Qué está decidido / construido / pendiente | `studio/panorama.md` |
 | Música, ambientes y efectos | `public/assets/music/`, `ambience/`, `sfx/` — cuál suena dónde: `src/music.js`; créditos: `public/assets/CREDITS.md` |
 | Escuchar y elegir música | http://127.0.0.1:5181/escuchar.html — guía en `studio/musica/README.md` |
+| Modo en línea (servidor, chat, voz, mundo compartido) | `server/` + `src/net/` — cómo se juega y se arranca: `studio/online.md` |
 | Trailer (grabar el juego + voz + HyperFrames) | `trailer/` — skill `trailer-juego` |
 | Historia, mecánicas, arte | `studio/` |
 | Guía viva (pestañas) | `docs/guides/stones-studio.html` |
@@ -48,6 +51,7 @@ Abre http://127.0.0.1:5181/
 - Arte: sólo pixel art con la paleta de `src/art/palette.js`. Nada de antialias ni formas vectoriales.
 - Revisar arte nuevo en `lab.html` antes de meterlo al juego. Verificar en WebGL y en Canvas (`?renderer=canvas`).
 - Controles: teclas juntas (WASD + J K L I, o flechas + Z X C V), un solo botón de acción. En celular, botones en pantalla (`src/engine/touch.js`; `?touch=1` para verlos en la compu). Todo pasa por `Controls` en `src/engine/input.js`: no leer teclas sueltas en otro lado.
+- En línea, todo lo que es del mundo (mercado, enemigos, cofres, refugios…) pasa por el servidor: tocarlo siempre revisando `online.on` y sin romper el juego de un jugador. Probar con dos navegadores.
 - F1 en el juego: depuración (1 oro · 2 carga · 3 calor · 4 vida · 5 fama · 6 caballo · 7 arquera y herrajes · 8 tónicos). Números de arriba o del teclado numérico; sigue prendido al cambiar de mapa.
 - Historia y plan viven en `studio/`, no solo en el chat. Actualizarlos después de cada plática.
 - Después de cambiar código, Leo recarga el navegador.

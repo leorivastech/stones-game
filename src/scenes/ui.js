@@ -10,6 +10,8 @@ import { centerX, textWidth } from "../art/font.js";
 import { WORLD_MAP, WORLD_PINS, WORLD_ROADS, panelDark, panelPaper, panelTag } from "../art/ui.js";
 import { ninePatch } from "../art/pixel.js";
 import { touch } from "../engine/touch.js";
+import { online, send } from "../net/online.js";
+import { MAPS } from "../maps/index.js";
 import { tone, sfx } from "../sfx.js";
 import {
   GOODS, GOOD_IDS, STONE, TOWNS, UPGRADES, buy, canBuy, capacity, cargo, cargoOf, chill, day, debt, flag, gold,
@@ -145,7 +147,9 @@ export class UIScene extends Phaser.Scene {
     this.def = def;
     if (def.kind === "town") setFlag(this.registry, `visited-${def.town}`);
     this.refresh();
-    this.banner(def.name, def.subtitle);
+    // En línea el refugio puede ser de otro jugador que te invitó.
+    const owner = online.on && def.kind === "refuge" ? online.world.owners[def.refuge]?.owner : null;
+    this.banner(def.name, owner && owner !== online.name ? `Refugio de ${owner}` : def.subtitle);
   }
 
   banner(name, sub) {
@@ -523,7 +527,7 @@ export class UIScene extends Phaser.Scene {
       box.add([cursor, info, footer, hint]);
       box.setAlpha(0);
       this.tweens.add({ targets: box, alpha: 1, duration: 120 });
-      this.shopState = { townId, box, rows, cursor, pick, info, footer, col, index: 0, side: 0, resolve, x, y, w };
+      this.shopState = { townId, box, rows, cursor, pick, info, footer, col, index: 0, side: 0, resolve, x, y, w, sold: {} };
       // Arranca donde haya algo que hacer: vender lo que llevas, o comprar lo que aquí sobra.
       const carried = rows.findIndex((r) => cargoOf(this.registry, r.good) > 0);
       if (carried >= 0) { this.shopState.index = carried; this.shopState.side = 1; }
@@ -576,6 +580,7 @@ export class UIScene extends Phaser.Scene {
       this.tweens.add({ targets: cell, x: cell.x + 2, duration: 40, yoyo: true, repeat: 2 });
       return;
     }
+    if (!buying) s.sold[row.good] = (s.sold[row.good] ?? 0) + 1;
     sfx(this, buying ? "gem" : "coins-sell", { volume: 0.5 });
     tone(this, "pickup");
     const t = this.add.bitmapText(cell.x, row.y - 2, buying ? "font-red" : "font-gold", buying ? `-${res.price}` : `+${res.price}`)
@@ -600,6 +605,8 @@ export class UIScene extends Phaser.Scene {
 
   closeShop() {
     const s = this.shopState;
+    // En línea, vender de a varias es noticia para los demás (y para los rumores).
+    if (online.on && Object.values(s.sold).reduce((a, n) => a + n, 0) >= 2) send({ t: "sold", town: s.townId, sold: s.sold });
     tone(this, "select");
     s.box.destroy();
     this.shopState = null;
@@ -754,6 +761,23 @@ export class UIScene extends Phaser.Scene {
         }
       }
       const here = p.def.kind === "town" ? p.def.town : null;
+      // En línea: dónde anda cada jugador (en un pueblo, o a medio camino si va por una ruta).
+      if (online.on) {
+        const spots = [];
+        for (const pl of online.players.values()) {
+          if (!pl.name || pl.id === online.id || !pl.map) continue;
+          const def = MAPS[pl.map];
+          const town = def?.kind === "town" ? def.town : null;
+          const [a, b] = def?.between ?? (def?.route ? MAPS[def.route]?.between ?? [] : []);
+          let pin = town ? WORLD_PINS[town] : a && b ? [(WORLD_PINS[a][0] + WORLD_PINS[b][0]) / 2, (WORLD_PINS[a][1] + WORLD_PINS[b][1]) / 2] : null;
+          if (!pin) continue;
+          const n = spots.filter((s) => s[0] === pin[0] && s[1] === pin[1]).length;
+          spots.push(pin);
+          g.fillStyle(0x1b1422, 1).fillRect(mx + pin[0] + 4, my + pin[1] - 10 - n * 9, 6, 6);
+          g.fillStyle(0x7891da, 1).fillRect(mx + pin[0] + 5, my + pin[1] - 9 - n * 9, 4, 4);
+          txt(mx + pin[0] + 12, my + pin[1] - 13 - n * 9, pl.name, "font-o");
+        }
+      }
       for (const [id, [x, y]] of Object.entries(WORLD_PINS)) {
         const known = flag(reg, `visited-${id}`);
         g.fillStyle(0x1b1422, 1).fillRect(mx + x - 3, my + y - 3, 7, 7);

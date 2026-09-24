@@ -14,6 +14,8 @@ import { makeEnemy, Guard } from "../entities/enemies.js";
 import { Escort } from "../entities/escort.js";
 import { DEPTH, TILE, VIEW_W, VIEW_H } from "../config.js";
 import { startMusic, startAmbience } from "../music.js";
+import { online, request, send, ownerOf, playersIn } from "../net/online.js";
+import { NetWorld } from "../net/worldnet.js";
 
 // Sonido de los pasos según la letra de la celda (si no está, según el bioma).
 const STEP_BY_CELL = { "=": "stone", B: "wood", _: "sand", s: "snow", i: "snow", "#": "stone", g: "stone" };
@@ -26,7 +28,7 @@ import {
   STASH_RAID_HEAT, buyTonic, drinkTonic, tonics, TONIC, BOAT_FARE, passDays, recordSeen, maybeBreakRune, day, debt,
   debtDue, payDebt, missDebt, fameTitle, load, hearRumor, econ, chill,
   REFUGES, REFUGE_UPGRADES, CREW, LODGING, crewAt, setCrewAt, partyHas, partySize, lodgingFee, ownsRefuge, refugeHas,
-  stashCapacity, crewIn, townTips, peddlerFor, sellToPeddler, buyFromPeddler,
+  stashCapacity, crewIn, townTips, peddlerFor, peddlerOnline, sellToPeddler, buyFromPeddler,
 } from "../state.js";
 
 const INTRO = [
@@ -81,9 +83,10 @@ export class WorldScene extends Phaser.Scene {
       if (route || boat) {
         const days = boat ? TRAVEL_DAYS.boat : prev === def.town ? TRAVEL_DAYS.back : TRAVEL_DAYS.route;
         const cold = route === "ruta4" ? 0.5 : 0;
-        const report = passDays(reg, days, { cold });
+        // En línea el tiempo lo lleva el reloj del mundo: viajar no pasa días.
+        const report = online.on ? { ended: [], started: [], melted: 0 } : passDays(reg, days, { cold });
         if (prev !== def.town) reg.inc("trips", 1);
-        this.arrival = { days, from: prev !== def.town ? prev : null, ...report };
+        this.arrival = { days: online.on ? 0 : days, from: prev !== def.town ? prev : null, ...report };
       }
       reg.set("lastRoute", null);
       reg.set("currentTown", def.town);
@@ -107,6 +110,7 @@ export class WorldScene extends Phaser.Scene {
     this.enemyGroup = this.physics.add.group();
     this.npcGroup = this.physics.add.group({ immovable: true });
     this.spawnObjects();
+    this.net = online.on ? new NetWorld(this) : null;
     this.physics.add.collider(this.enemyGroup, this.world.layer);
     this.physics.add.collider(this.enemyGroup, this.world.statics);
     this.physics.add.collider(this.npcGroup, this.world.layer);
@@ -142,7 +146,12 @@ export class WorldScene extends Phaser.Scene {
     // El modo depuración sigue prendido al cambiar de mapa hasta que se apague con F1.
     if (reg.get("debugMode")) this.toggleDebug(true);
     this.events.once("shutdown", () => this.ui.prompt(null));
-    if (this.intro) this.time.delayedCall(900, () => this.runModal(() => this.ui.say(INTRO)));
+    if (this.intro) {
+      const lines = online.on
+        ? [...INTRO, "Y no estás solo: otros contrabandistas andan por el golfo. Lo que vendan ellos mueve tus precios.", "Enter para escribirles. Mantén T para hablarles por micrófono."]
+        : INTRO;
+      this.time.delayedCall(900, () => this.runModal(() => this.ui.say(lines)));
+    }
     if (def.kind === "route" && !flag(reg, "hint-route")) {
       setFlag(reg, "hint-route");
       this.time.delayedCall(2600, () => this.ui.toast(`${keyName("attack")} golpear · ${keyName("roll")} rodar (mantén: correr) · ${keyName("hide")} agacharse`, "font-o"));
@@ -155,7 +164,9 @@ export class WorldScene extends Phaser.Scene {
   spawnObjects() {
     const reg = this.registry;
     const heatNow = localHeat(reg, this.def);
-    for (const spec of this.def.objects) {
+    this.chests = [];
+    this.levers = [];
+    this.def.objects.forEach((spec, index) => {
       const px = spec.x * TILE;
       const py = spec.y * TILE;
       switch (spec.type) {
@@ -163,15 +174,19 @@ export class WorldScene extends Phaser.Scene {
           if (spec.onlyIf && !flag(reg, spec.onlyIf)) break;
           // Sahra ya contratada no está en su puesto: anda contigo (o donde la dejaste).
           if (spec.role === "escort" && hasUpgrade(reg, "escort")) break;
+          // En línea hay una sola Sahra: si ya la contrató otro, no está.
+          if (spec.role === "escort" && online.on && online.world.hires?.sahra) break;
           const npc = new Npc(this, spec);
           this.npcs.push(npc);
           this.npcGroup.add(npc.sprite);
           npc.sprite.body.setImmovable(true);
-          this.interactables.push({ get x() { return npc.x; }, get y() { return npc.y; }, r: 18, label: spec.role === "market" ? "Comerciar" : "Hablar", act: () => this.talkTo(npc) });
+          const it = { get x() { return npc.x; }, get y() { return npc.y; }, r: 18, label: spec.role === "market" ? "Comerciar" : "Hablar", act: () => this.talkTo(npc) };
+          npc.it = it;
+          this.interactables.push(it);
           break;
         }
         case "stash": {
-          const built = hasUpgrade(reg, "stashKit") && flag(reg, `stash-${spec.id}`);
+          const built = online.on ? Boolean(ownerOf(spec.id)) : hasUpgrade(reg, "stashKit") && flag(reg, `stash-${spec.id}`);
           const img = this.add.sprite(px, py + 3, `stash-${spec.kind}`, built ? 1 : 0).setOrigin(0.5, 1).setDepth(py + 3);
           this.world.addSolid(px - 9, py - 6, 18, 8);
           const it = { x: px, y: py, r: 20, label: "Alijo", act: () => this.useStash(spec, img) };
@@ -181,7 +196,7 @@ export class WorldScene extends Phaser.Scene {
         }
         case "refuge": {
           const info = REFUGES[spec.id];
-          const owned = ownsRefuge(reg, spec.id);
+          const owned = online.on ? Boolean(ownerOf(spec.id)) : ownsRefuge(reg, spec.id);
           let img;
           if (info.kind === "cave") {
             img = this.add.sprite(px, py, spec.snow ? "cave-door-snow" : "cave-door", owned ? 1 : 0).setOrigin(0.5, 1).setDepth(py);
@@ -193,7 +208,7 @@ export class WorldScene extends Phaser.Scene {
             spec.bar = this.world.addSolid(px - 16, py - 14, 32, 12);
             if (owned) spec.bar.body.enable = false;
           }
-          this.interactables.push({ x: px, y: py + 6, r: 22, get label() { return ownsRefuge(reg, spec.id) ? "Entrar" : "Mirar"; }, act: () => this.useRefugeDoor(spec, img) });
+          this.interactables.push({ x: px, y: py + 6, r: 22, get label() { return ownsRefuge(reg, spec.id) ? "Entrar" : ownerOf(spec.id) ? "Tocar" : "Mirar"; }, act: () => this.useRefugeDoor(spec, img) });
           this.stashes.push({ spec, img, refuge: true });
           break;
         }
@@ -228,6 +243,7 @@ export class WorldScene extends Phaser.Scene {
           this.world.addSolid(px - 7, py - 7, 14, 8);
           const it = { x: px, y: py, r: 18, label: "Abrir", hidden: opened, act: () => this.openChest(spec, img, it) };
           this.interactables.push(it);
+          this.chests.push({ spec, img, it });
           break;
         }
         case "gate": {
@@ -246,6 +262,7 @@ export class WorldScene extends Phaser.Scene {
           this.world.addSolid(px - 5, py - 4, 10, 5);
           const it = { x: px, y: py, r: 18, label: "Tirar", hidden: on, act: () => this.pullLever(spec, img, it) };
           this.interactables.push(it);
+          this.levers.push({ spec, img, it });
           break;
         }
         case "barrier": {
@@ -262,6 +279,9 @@ export class WorldScene extends Phaser.Scene {
           if ((spec.minHeat ?? 0) > heatNow) break;
           const e = makeEnemy(this, spec);
           if (!e) break;
+          // El mismo número en todos los aparatos: su lugar en la lista del mapa.
+          e.netId = index;
+          e.spawnState = e.state;
           this.enemies.push(e);
           this.enemyGroup.add(e.sprite);
           break;
@@ -269,7 +289,68 @@ export class WorldScene extends Phaser.Scene {
         default:
           break;
       }
+    });
+  }
+
+  /** En línea: cofres, palancas, rejas, refugios y la arquera cambian cuando otro jugador los toca. */
+  applyWorldFlags() {
+    const reg = this.registry;
+    for (const c of this.chests ?? []) {
+      if (flag(reg, `chest-${c.spec.id}`) && !c.it.hidden) { c.img.setFrame(1); c.it.hidden = true; }
     }
+    for (const l of this.levers ?? []) {
+      if (!flag(reg, l.spec.id) || l.it.hidden) continue;
+      l.img.setFrame(1);
+      l.it.hidden = true;
+      const gate = this.gates?.[l.spec.id];
+      if (gate?.bar.body.enable) { gate.img.setFrame(1); gate.bar.body.enable = false; this.fx.poof(gate.x, gate.y + 8); sfx(this, "lever", { volume: 0.4 }); }
+    }
+    for (const s of this.stashes ?? []) {
+      const taken = Boolean(ownerOf(s.spec.id));
+      if (taken) s.img.setFrame(1);
+      if (s.refuge && s.spec.bar) s.spec.bar.body.enable = !ownsRefuge(reg, s.spec.id);
+    }
+    if (online.world.hires?.sahra && online.world.hires.sahra !== online.name) {
+      const sahra = this.npcs.find((n) => n.spec.role === "escort");
+      if (sahra && sahra.sprite.active) {
+        sahra.sprite.destroy();
+        sahra.shadow?.destroy();
+        if (sahra.it) sahra.it.hidden = true;
+        this.npcs = this.npcs.filter((n) => n !== sahra);
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------- blancos de los enemigos
+
+  /** A quién persigue un enemigo: solo, a ti; en línea, al jugador más cercano del mapa. */
+  targetFor(enemy) {
+    if (!this.net) return this.player;
+    let best = this.player;
+    let bd = this.player.state === "ko" ? Infinity : Math.hypot(this.player.x - enemy.x, this.player.y - enemy.y);
+    for (const t of this.net.targets()) {
+      if (t === this.player || t.state === "ko") continue;
+      const d = Math.hypot(t.x - enemy.x, t.y - enemy.y);
+      if (d < bd) { bd = d; best = t; }
+    }
+    return best;
+  }
+
+  damageTarget(t, halves, source, opts) {
+    if (t && t.remote) this.net?.damageRemote(t, halves, source, opts);
+    else this.damagePlayer(halves, source, opts);
+  }
+
+  targetBusy(t) {
+    return t?.remote ? t.busy : this.modal;
+  }
+
+  cargoOfTarget(t) {
+    return t?.remote ? t.cargo : this.cargoCount();
+  }
+
+  visibleOfTarget(t) {
+    return t?.remote ? t.vis : this.visibleCargo();
   }
 
   addHorse() {
@@ -312,9 +393,10 @@ export class WorldScene extends Phaser.Scene {
 
     if (this.modal || this.leaving) {
       this.player.body.setVelocity(0, 0);
-      for (const e of this.enemies) if (!e.dead) e.body?.setVelocity(0, 0);
+      if (!this.net?.auth) for (const e of this.enemies) if (!e.dead && !e.puppet) e.body?.setVelocity(0, 0);
       for (const n of this.npcs) n.sprite.body.setVelocity(0, 0);
       this.ui.prompt(null);
+      this.net?.update(dt, true);
       return;
     }
     if (this.controls.pressed("pause")) {
@@ -333,8 +415,9 @@ export class WorldScene extends Phaser.Scene {
     this.updateChaseMusic(dt);
     this.player.update(dt, this.controls, this.world);
     this.escort?.update(dt);
-    for (const e of this.enemies) if (!e.dead) e.update(dt);
+    for (const e of this.enemies) if (!e.dead && !e.puppet) e.update(dt);
     this.enemies = this.enemies.filter((e) => !e.dead || e.state === "down" || e.sprite.active);
+    this.net?.update(dt, false);
     for (const n of this.npcs) n.update(dt);
     this.updatePickups(dt);
     this.updateHorse();
@@ -456,6 +539,13 @@ export class WorldScene extends Phaser.Scene {
       { label: "Ahora no" },
     ], { note: item.effect });
     if (pick === 0) {
+      if (online.on && id === "escort" && gold(reg) >= item.cost) {
+        const r = await request({ t: "hire", who: "sahra" });
+        if (!r.ok) {
+          await this.ui.say([`—Ya trabajo con ${r.by ?? "alguien más"}. Búscate otra escolta.`], { name });
+          return;
+        }
+      }
       const res = purchaseUpgrade(reg, id);
       tone(this, res.ok ? "chest" : "deny");
       if (res.ok) sfx(this, "coins");
@@ -468,6 +558,13 @@ export class WorldScene extends Phaser.Scene {
     const reg = this.registry;
     img.setFrame(1);
     it.hidden = true;
+    if (online.on) {
+      const r = await request({ t: "claim", key: `chest-${spec.id}`, news: "abrió un cofre del camino." });
+      if (!r.ok) {
+        await this.ui.say(["Está vacío. Alguien llegó antes."]);
+        return;
+      }
+    }
     setFlag(reg, `chest-${spec.id}`);
     tone(this, "chest");
     sfx(this, "chest", { volume: 0.5 });
@@ -492,6 +589,8 @@ export class WorldScene extends Phaser.Scene {
   async pullLever(spec, img, it) {
     img.setFrame(1);
     it.hidden = true;
+    // En línea la reja es del mundo: si ya la abrió otro, sólo se ve abierta.
+    if (online.on && !(await request({ t: "claim", key: spec.id, news: "abrió la reja del farallón." })).ok) return;
     setFlag(this.registry, spec.id);
     sfx(this, "lever", { volume: 0.6 });
     const gate = this.gates?.[spec.id];
@@ -540,27 +639,40 @@ export class WorldScene extends Phaser.Scene {
     const y1 = Math.floor((rect.bottom - 1) / TILE);
     for (let y = y0; y <= y1; y += 1) {
       for (let x = x0; x <= x1; x += 1) {
-        const key = `${x},${y}`;
-        const g = this.world.tallGrass.get(key);
-        if (g && !g.cut) {
-          g.cut = true;
-          g.img.anims.stop();
-          g.img.setTexture("cutgrass").setOrigin(0, 1);
-          this.fx.grassBurst(x * TILE + 8, (y + 1) * TILE);
-          tone(this, "cut");
-          this.maybeDrop(x * TILE + 8, y * TILE + 10, 0.12);
-        }
-        const bush = this.world.bushes.get(key);
-        if (bush && !bush.cut) {
-          bush.cut = true;
-          bush.img.destroy();
-          this.world.layer.removeTileAt(x, y);
-          this.fx.grassBurst(x * TILE + 8, (y + 1) * TILE, true);
-          sfx(this, "chop", { volume: 0.35 });
-          this.maybeDrop(x * TILE + 8, y * TILE + 10, 0.3);
-        }
+        if (this.applyCut(`g:${x},${y}`, true)) this.net?.cut(`g:${x},${y}`);
+        if (this.applyCut(`b:${x},${y}`, true)) this.net?.cut(`b:${x},${y}`);
       }
     }
+  }
+
+  /** Corta pasto alto ("g:x,y") o un arbusto ("b:x,y"). `mine`: lo cortaste tú (suena y puede soltar algo). */
+  applyCut(key, mine) {
+    const [kind, pos] = key.split(":");
+    const [x, y] = pos.split(",").map(Number);
+    if (kind === "g") {
+      const g = this.world.tallGrass.get(pos);
+      if (!g || g.cut) return false;
+      g.cut = true;
+      g.img.anims.stop();
+      g.img.setTexture("cutgrass").setOrigin(0, 1);
+      if (mine) {
+        this.fx.grassBurst(x * TILE + 8, (y + 1) * TILE);
+        tone(this, "cut");
+        this.maybeDrop(x * TILE + 8, y * TILE + 10, 0.12);
+      }
+      return true;
+    }
+    const bush = this.world.bushes.get(pos);
+    if (!bush || bush.cut) return false;
+    bush.cut = true;
+    bush.img.destroy();
+    this.world.layer.removeTileAt(x, y);
+    this.fx.grassBurst(x * TILE + 8, (y + 1) * TILE, true);
+    if (mine) {
+      sfx(this, "chop", { volume: 0.35 });
+      this.maybeDrop(x * TILE + 8, y * TILE + 10, 0.3);
+    }
+    return true;
   }
 
   damagePlayer(halves, source, { steal = false } = {}) {
@@ -603,14 +715,19 @@ export class WorldScene extends Phaser.Scene {
     else this.spawnPickup("coin", x, y, { value: 1 });
   }
 
-  spawnPickup(kind, x, y, { good, value = 1, dx, dy } = {}) {
+  spawnPickup(kind, x, y, { good, value = 1, dx, dy, netId } = {}) {
     const key = kind === "stone" ? `gem-${good}` : kind === "heart" ? "heart-full" : "coin";
     const img = kind === "coin" ? this.add.sprite(x, y, "coin", 0).play("coin") : this.add.image(x, y, key);
     img.setOrigin(0.5, 1).setDepth(y);
     const shadow = this.add.image(x, y, "shadow").setOrigin(0.5, 0.6).setDepth(DEPTH.decal + 1).setScale(0.6);
     const tx = x + (dx ?? (Math.random() - 0.5) * 20);
     const ty = y + (dy ?? (Math.random() - 0.5) * 12);
-    const p = { kind, good, value, img, shadow, x: tx, y: ty, age: 0, ready: false };
+    const p = { kind, good, value, img, shadow, x: tx, y: ty, age: 0, ready: false, netId };
+    // En línea lo que cae al suelo lo ven y lo pueden levantar todos.
+    if (this.net && !netId) {
+      p.netId = this.net.newPickupId();
+      this.net.sharePickup(p);
+    }
     this.tweens.add({ targets: [img, shadow], x: tx, duration: 380 });
     this.tweens.add({ targets: shadow, y: ty, duration: 380 });
     this.tweens.add({ targets: img, y: ty - 12, duration: 190, ease: "Quad.Out", yoyo: false, onComplete: () => {
@@ -632,24 +749,41 @@ export class WorldScene extends Phaser.Scene {
       if (!p.ready || pl.state === "ko") continue;
       const d = Math.hypot(p.x - pl.x, p.y - pl.y + 4);
       if (d < 12) {
-        if (p.kind === "stone") {
-          if (!fits(reg, p.good)) continue;
-          const c = cargo(reg);
-          reg.set("cargo", { ...c, [p.good]: (c[p.good] ?? 0) + 1 });
-          this.fx.float(p.x, p.y - 12, `+1 ${GOODS[p.good].short}`, "font-gold");
-          tone(this, "pickup");
-        } else if (p.kind === "heart") {
-          heal(reg, 2);
-          tone(this, "heart");
-        } else {
-          reg.inc("gold", p.value);
-          this.fx.float(p.x, p.y - 10, `+${p.value}`, "font-gold");
-          tone(this, "pickup");
+        if (p.kind === "stone" && !fits(reg, p.good)) continue;
+        if (p.netId && this.net) {
+          // El servidor dice quién llegó primero; mientras, no se vuelve a pedir.
+          if (p.claiming) continue;
+          p.claiming = true;
+          this.net.claimPickup(p).then((ok) => {
+            if (p.taken) return;
+            if (ok) this.collectPickup(p);
+            else this.removePickup(p);
+          });
+          continue;
         }
-        this.removePickup(p);
+        this.collectPickup(p);
       }
     }
     this.pickups = this.pickups.filter((p) => !p.taken);
+  }
+
+  collectPickup(p) {
+    const reg = this.registry;
+    if (p.kind === "stone") {
+      if (!fits(reg, p.good)) { p.claiming = false; return; }
+      const c = cargo(reg);
+      reg.set("cargo", { ...c, [p.good]: (c[p.good] ?? 0) + 1 });
+      this.fx.float(p.x, p.y - 12, `+1 ${GOODS[p.good].short}`, "font-gold");
+      tone(this, "pickup");
+    } else if (p.kind === "heart") {
+      heal(reg, 2);
+      tone(this, "heart");
+    } else {
+      reg.inc("gold", p.value);
+      this.fx.float(p.x, p.y - 10, `+${p.value}`, "font-gold");
+      tone(this, "pickup");
+    }
+    this.removePickup(p);
   }
 
   removePickup(p) {
@@ -670,6 +804,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   takeLoose(p) {
+    if (p.netId && this.net) send({ t: "pickTake", map: this.mapId, id: p.netId });
     this.removePickup(p);
     return p.good;
   }
@@ -759,6 +894,8 @@ export class WorldScene extends Phaser.Scene {
   }
 
   onGuardCatch(guard) {
+    const t = guard.player();
+    if (t?.remote) { this.net?.inspectRemote(guard, t); return; }
     if (this.modal) return;
     this.runModal(() => this.inspection(guard, "patrol"));
   }
@@ -843,6 +980,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   clearGuard(guard, source) {
+    if (guard.puppet) this.net?.enemyAct(guard, "clear");
     guard.suspicion = 0;
     guard.bubble?.destroy();
     guard.bubble = null;
@@ -961,7 +1099,7 @@ export class WorldScene extends Phaser.Scene {
     this.leaving = true;
     this.cameras.main.fadeOut(300, 18, 14, 23);
     await new Promise((r) => this.time.delayedCall(320, r));
-    await this.ui.boatTrip(this.def.town, to, TRAVEL_DAYS.boat, day(reg));
+    await this.ui.boatTrip(this.def.town, to, online.on ? 0 : TRAVEL_DAYS.boat, day(reg));
     this.scene.restart({ map: to, entry: "dock", boat: true });
   }
 
@@ -988,7 +1126,7 @@ export class WorldScene extends Phaser.Scene {
     const reg = this.registry;
     const a = this.arrival;
     if (!a) return;
-    this.ui.toast(`Pasaron ${a.days} ${a.days === 1 ? "día" : "días"} · día ${day(reg)}`, "font-gold");
+    if (a.days) this.ui.toast(`Pasaron ${a.days} ${a.days === 1 ? "día" : "días"} · día ${day(reg)}`, "font-gold");
     if (a.melted) this.time.delayedCall(500, () => this.ui.toast(`Se te derritió la escarcha (${a.melted})`, "font-red"));
     this.runModal(async () => {
       if (debtDue(reg)) await this.debtCollector();
@@ -1012,10 +1150,18 @@ export class WorldScene extends Phaser.Scene {
    * A veces anda un buhonero por la ruta (una tirada por ruta y por día). Se para sobre el camino,
    * lejos de la entrada, de los enemigos, del retén y de las salidas.
    */
-  spawnPeddler() {
+  async spawnPeddler() {
     const reg = this.registry;
-    const p = peddlerFor(reg, this.mapId);
-    if (!p) return;
+    const route = this.mapId;
+    let p;
+    if (online.on) {
+      p = await peddlerOnline(reg, route);
+      // Mientras contestaba el servidor pudiste cambiar de mapa (la escena se reutiliza).
+      if (this.mapId !== route || !this.sys.isActive() || this.leaving) return;
+    } else {
+      p = peddlerFor(reg, route);
+    }
+    if (!p || this.npcs.some((n) => n.spec.role === "peddler")) return;
     let spot = p.spot;
     if (!spot) {
       const w = this.world;
@@ -1037,6 +1183,7 @@ export class WorldScene extends Phaser.Scene {
       if (!spots.length) return;
       spot = spots[(p.day * 7 + p.name.length * 13) % spots.length];
       reg.set("peddler", { ...p, spot });
+      if (online.on) send({ t: "peddler", route: this.mapId, op: "spot", spot });
     }
     const npc = new Npc(this, { type: "npc", cast: "peddler", name: p.name, x: spot.x, y: spot.y, dir: "down", role: "peddler", talk: [] });
     this.npcs.push(npc);
@@ -1153,7 +1300,21 @@ export class WorldScene extends Phaser.Scene {
       await this.ui.say([spec.kind === "tree" ? "Un tronco hueco, seco por dentro." : "Una grieta honda en la roca.", "Con herrajes, aquí cabría un alijo. El herrero de Ashfen sabe hacerlos."]);
       return;
     }
-    if (!flag(reg, key)) {
+    if (online.on) {
+      const owner = ownerOf(spec.id);
+      if (owner && !ownsRefuge(reg, spec.id)) {
+        await this.ui.say([`Un alijo con tapa clavada. Es de ${owner}.`, "Si te invita, lo puedes usar."]);
+        return;
+      }
+      if (!owner) {
+        const r = await request({ t: "own", id: spec.id });
+        if (!r.ok) { await this.ui.say([`Alguien se te adelantó: ahora es de ${r.owner ?? "otro"}.`]); return; }
+        img.setFrame(1);
+        tone(this, "chest");
+        sfx(this, "latch", { volume: 0.4 });
+        await this.ui.say(["Clavas la tapa y la atas con soga. Este alijo es tuyo."]);
+      } else if (ownerOf(spec.id) === online.name && (await this.inviteMenu(spec.id, "Alijo")) === "cancel") return;
+    } else if (!flag(reg, key)) {
       setFlag(reg, key);
       img.setFrame(1);
       tone(this, "chest");
@@ -1367,6 +1528,10 @@ export class WorldScene extends Phaser.Scene {
       await this.ui.say(["El claro es tuyo. Nadie más sabe de la reja.", "Yo no he visto nada, como siempre."], { name });
       return;
     }
+    if (online.on && ownerOf("refugio-r3")) {
+      await this.ui.say([`Ya se lo vendí a ${ownerOf("refugio-r3")}.`, "Si te invita, te dejo pasar."], { name });
+      return;
+    }
     await this.ui.say(npc.spec.talk, { name });
     if (reputation(reg) < info.fame) {
       await this.ui.say(["Pero no se lo vendo a cualquiera.", `(Necesitas fama ${info.fame}. Tienes ${reputation(reg)}. Sube vendiendo lo que un pueblo ocupa.)`], { name });
@@ -1377,6 +1542,10 @@ export class WorldScene extends Phaser.Scene {
       { label: "Ahora no" },
     ], { name });
     if (pick !== 0) return;
+    if (online.on) {
+      const r = await request({ t: "own", id: "refugio-r3", news: "compró una tierra escondida en la selva." });
+      if (!r.ok) { await this.ui.say([`Uy, se me adelantó ${r.owner ?? "alguien"}. Ya es suya.`], { name }); return; }
+    }
     pay(reg, info.price);
     setFlag(reg, "refuge-refugio-r3");
     tone(this, "chest");
@@ -1392,6 +1561,15 @@ export class WorldScene extends Phaser.Scene {
   async useRefugeDoor(spec, img) {
     const reg = this.registry;
     const info = REFUGES[spec.id];
+    if (online.on && ownerOf(spec.id)) {
+      if (!ownsRefuge(reg, spec.id)) {
+        await this.ui.say([`${info.name}: la puerta está cerrada.`, `Es de ${ownerOf(spec.id)}. Si te invita, puedes entrar.`]);
+        return;
+      }
+      if (ownerOf(spec.id) === online.name && (await this.inviteMenu(spec.id, info.name)) === "cancel") return;
+      this.enterMap(spec.id, "door");
+      return;
+    }
     if (!ownsRefuge(reg, spec.id)) {
       if (info.kind === "plot") {
         await this.ui.say(["Una reja entre la selva. Del otro lado se ve un claro.", "Es de Aurelio, el campesino de aquí al lado."]);
@@ -1400,6 +1578,10 @@ export class WorldScene extends Phaser.Scene {
       if (!hasUpgrade(reg, "stashKit")) {
         await this.ui.say(["Una cueva seca y honda. Aquí adentro nadie te vería.", "Con puerta y cerrojo sería tu refugio. Oskar, el herrero de Ashfen, hace herrajes."]);
         return;
+      }
+      if (online.on) {
+        const r = await request({ t: "own", id: spec.id, news: `se quedó con la ${info.name}.` });
+        if (!r.ok) { await this.ui.say([`Alguien se te adelantó: ${info.name} ya es de ${r.owner ?? "otro"}.`]); return; }
       }
       setFlag(reg, `refuge-${spec.id}`);
       if (info.cold) reg.set("stashes", { ...(reg.get("stashes") ?? {}), [spec.id]: { cold: true } });
@@ -1410,6 +1592,29 @@ export class WorldScene extends Phaser.Scene {
       saveGame(reg);
     }
     this.enterMap(spec.id, "door");
+  }
+
+  /**
+   * En línea, el dueño de un refugio o alijo puede invitar a los otros jugadores (o quitarles la
+   * invitación). Devuelve "enter" para seguir, o "cancel".
+   */
+  async inviteMenu(id, title) {
+    const invited = online.world.owners[id]?.invited ?? [];
+    const others = [...new Set([...online.players.values()].map((p) => p.name).filter((n) => n && n !== online.name))];
+    const options = [{ id: "enter", label: "Entrar" }];
+    for (const n of others) options.push({ id: n, label: invited.includes(n) ? `Quitar la invitación a ${n}` : `Invitar a ${n}`, note: invited.includes(n) ? "Ya no podrá entrar ni usar el estante" : "Podrá entrar y usar el estante" });
+    for (const n of invited.filter((x) => !others.includes(x))) options.push({ id: n, label: `Quitar la invitación a ${n}` });
+    if (options.length === 1) return "enter";
+    options.push({ id: "cancel", label: "Nada" });
+    const pick = await this.ui.choose(title, options);
+    const opt = options[pick];
+    if (!opt || opt.id === "cancel") return "cancel";
+    if (opt.id === "enter") return "enter";
+    const on = !invited.includes(opt.id);
+    const r = await request({ t: "invite", id, who: opt.id, on });
+    tone(this, r.ok ? "confirm" : "deny");
+    this.ui.toast(r.ok ? (on ? `${opt.id} ya puede entrar` : `${opt.id} ya no puede entrar`) : "No se pudo", r.ok ? "font-gold" : "font-red");
+    return "cancel";
   }
 
   /** Cambia de mapa con un fundido. */
@@ -1441,6 +1646,10 @@ export class WorldScene extends Phaser.Scene {
     const pick = await this.ui.choose(`${info.name}: mejoras`, options);
     const opt = options[pick];
     if (!opt?.id) return;
+    if (online.on && !(await request({ t: "upgrade", id: spec.id, up: opt.id })).ok) {
+      await this.ui.say(["No se pudo. ¿Sigues invitado?"]);
+      return;
+    }
     pay(reg, REFUGE_UPGRADES[opt.id].cost);
     setFlag(reg, `${spec.id}-${opt.id}`);
     tone(this, "chest");
@@ -1453,11 +1662,12 @@ export class WorldScene extends Phaser.Scene {
 
   async useCot() {
     const reg = this.registry;
-    const pick = await this.ui.choose("Catre", [{ label: "Dormir un día", note: "Te curas; el mundo sigue" }, { label: "Ahora no" }]);
+    const pick = await this.ui.choose("Catre", [{ label: online.on ? "Descansar" : "Dormir un día", note: "Te curas; el mundo sigue" }, { label: "Ahora no" }]);
     if (pick !== 0) return;
     this.cameras.main.fadeOut(400, 0, 0, 0);
     await new Promise((r) => this.time.delayedCall(450, r));
-    const report = passDays(reg, 1, { cold: this.def.cold ? 1 : 0 });
+    // En línea el día no se salta: el reloj es de todos.
+    const report = online.on ? { melted: 0 } : passDays(reg, 1, { cold: this.def.cold ? 1 : 0 });
     heal(reg);
     this.cameras.main.fadeIn(500, 0, 0, 0);
     this.ui.toast(`Dormiste. Día ${day(reg)}`, "font-gold");

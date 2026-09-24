@@ -174,3 +174,10 @@ Regla: una línea por decisión, con fecha. No borrar: si se revierte, se agrega
 - **Sí / Leo** — La barca: animación corta del mapa con la barquita cruzando el golfo (unos 4 s), en vez de pantallas de texto.
 - **Sí / Leo** — Pueblo nuevo de bosque entre el desierto y la nieve: **Mossgrove**, sin piedra propia ("ya no importa si no creas una nueva"). Ruta 5 (Duneshade ↔ Mossgrove) nueva; la Ruta 4 ahora va de Mossgrove a Frostholm y empieza en bosque.
 - **Anotado / Leo** — El vaivén, la fama por vender y el buhonero son reglas provisionales: falta una sesión para analizarlas y dejarlas claras.
+
+## 2026-09-23 — en línea: todo el mundo compartido
+
+- **Sí / Leo** — Prueba en línea para dos personas, con micrófono desde el principio.
+- **Sí / Leo, reemplaza "enemigos y refugios de cada quien"** — "Todo debería ser parte de que estás en el mismo mundo": los mismos enemigos, cofres (el primero se lo lleva), rejas, palancas, refugios con dueño que invita, Sahra única.
+- **Sí / por defecto** — Un día del mundo cada 3 minutos; primer jugador en Ashfen, segundo en Duneshade; voz por cercanía con mantener T; chat con Enter; el nombre es la identidad (sin cuentas).
+- **Construido** — Rama `online`: `server/`, `src/net/`, `studio/online.md`. Se arranca con `npm run online` y un túnel de Cloudflare.

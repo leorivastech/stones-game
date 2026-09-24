@@ -8,6 +8,7 @@ import { VIEW_H, VIEW_W } from "../config.js";
 import { startMusic } from "../music.js";
 import { tone } from "../sfx.js";
 import { hasSave, loadGame, resetRun } from "../state.js";
+import { online } from "../net/online.js";
 import { centerX } from "../art/font.js";
 
 export class TitleScene extends Phaser.Scene {
@@ -41,18 +42,20 @@ export class TitleScene extends Phaser.Scene {
     top.add(centerX(this.add.bitmapText(VIEW_W / 2, 90, "font-gold", "contrabando de piedras de hechizo")));
 
     this.options = [];
-    if (hasSave()) this.options.push({ label: "Continuar", act: () => this.go(true) });
-    this.options.push({ label: "Nueva partida", act: () => this.go(false) });
-    this.rows = this.options.map((o, i) => {
-      const t = centerX(this.add.bitmapText(VIEW_W / 2, 190 + i * 16, "font", o.label));
-      top.add(t);
-      return t;
-    });
-    this.cursor = this.add.bitmapText(0, 190, "font-gold", "▶");
-    top.add(this.cursor);
+    this.rows = [];
+    this.top = top;
     top.add(centerX(this.add.bitmapText(VIEW_W / 2, VIEW_H - 16, "font-dim", `${keyName("confirm")} elegir · ↑↓ mover`)));
-    this.index = 0;
-    this.moveCursor(0);
+    // En línea hay que esperar al servidor: de ahí salen el nombre, el mercado y dónde empiezas.
+    if (online.on && !online.connected) {
+      const wait = centerX(this.add.bitmapText(VIEW_W / 2, 190, "font-dim", "Conectando al mundo…"));
+      top.add(wait);
+      const tick = this.time.addEvent({ delay: 150, loop: true, callback: () => {
+        if (!online.connected) return;
+        tick.remove();
+        wait.destroy();
+        this.buildMenu();
+      } });
+    } else this.buildMenu();
 
     // La cámara del mundo no dibuja la interfaz y viceversa.
     cam.ignore(top);
@@ -64,7 +67,25 @@ export class TitleScene extends Phaser.Scene {
     this.busy = false;
   }
 
+  buildMenu() {
+    const top = this.top;
+    if (hasSave()) this.options.push({ label: "Continuar", act: () => this.go(true) });
+    this.options.push({ label: "Nueva partida", act: () => this.go(false) });
+    this.rows = this.options.map((o, i) => {
+      const t = centerX(this.add.bitmapText(VIEW_W / 2, 190 + i * 16, "font", o.label));
+      top.add(t);
+      return t;
+    });
+    this.cursor = this.add.bitmapText(0, 190, "font-gold", "▶");
+    top.add(this.cursor);
+    if (online.on) top.add(centerX(this.add.bitmapText(VIEW_W / 2, 176, "font-gold", `En línea como ${online.name}`)));
+    this.cameras.cameras[0].ignore(top);
+    this.index = 0;
+    this.moveCursor(0);
+  }
+
   moveCursor(d) {
+    if (!this.rows.length) return;
     this.index = (this.index + d + this.options.length) % this.options.length;
     const row = this.rows[this.index];
     this.cursor.setPosition(row.x - 14, row.y);
@@ -72,7 +93,7 @@ export class TitleScene extends Phaser.Scene {
   }
 
   update() {
-    if (this.busy) return;
+    if (this.busy || !this.rows.length) return;
     this.controls.update();
     if (this.controls.pressed("down")) { this.moveCursor(1); tone(this, "select"); }
     if (this.controls.pressed("up")) { this.moveCursor(-1); tone(this, "select"); }
@@ -85,7 +106,8 @@ export class TitleScene extends Phaser.Scene {
   go(resume) {
     this.busy = true;
     if (!resume || !loadGame(this.registry)) resetRun(this.registry);
-    const map = resume ? this.registry.get("mapId") ?? "ashfen" : "ashfen";
+    const home = online.on && online.start ? online.start : "ashfen";
+    const map = resume ? this.registry.get("mapId") ?? home : home;
     this.cameras.main.fadeOut(400, 18, 14, 23);
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
       if (!this.scene.isActive("ui")) this.scene.launch("ui");

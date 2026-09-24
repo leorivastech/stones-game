@@ -48,8 +48,12 @@ class Enemy {
     this.stateTime = 0;
   }
 
+  /**
+   * A quién persigue. Solo: el jugador. En línea: el jugador más cercano de los que andan en el
+   * mapa (el de este aparato o el de otro); ver WorldScene.targetFor.
+   */
   player() {
-    return this.scene.player;
+    return this.scene.targetFor ? this.scene.targetFor(this) : this.scene.player;
   }
 
   distToPlayer() {
@@ -90,6 +94,16 @@ class Enemy {
 
   hit(damage, fromX, fromY) {
     if (this.dead || this.invuln > 0) return false;
+    // En línea, si este enemigo lo mueve otro jugador, el golpe se le manda a él.
+    if (this.puppet) {
+      this.invuln = 260;
+      this.flash = 120;
+      const c = this.center();
+      this.scene.fx.spark(c.x, c.y);
+      tone(this.scene, "hit");
+      this.scene.net?.hitPuppet(this, damage, fromX, fromY);
+      return true;
+    }
     this.hp -= damage;
     this.invuln = 260;
     this.flash = 120;
@@ -112,7 +126,8 @@ class Enemy {
     this.bubble?.destroy();
     this.scene.fx.poof(this.x, this.y - 6);
     sfx(this.scene, "die", { volume: 0.3, detune: (Math.random() - 0.5) * 300 });
-    this.scene.onEnemyDefeated(this);
+    if (!this.puppet) this.scene.onEnemyDefeated(this);
+    this.scene.net?.enemyDied(this);
     this.scene.tweens.add({ targets: [this.sprite, this.shadow], alpha: 0, duration: 200, onComplete: () => this.destroy() });
   }
 
@@ -206,7 +221,7 @@ export class Boar extends Enemy {
         this.anim(`${this.kind}-run`);
         this.sprite.setFlipX(this.chargeDir.x < 0);
         if (Math.floor(this.stateTime / 90) !== Math.floor((this.stateTime - dt) / 90)) this.scene.fx.dust(this.x, this.y, 0.8);
-        if (this.touching()) this.scene.damagePlayer(cfg.damage, this, { steal: false });
+        if (this.touching()) this.scene.damageTarget(this.player(), cfg.damage, this, { steal: false });
         const b = this.body.blocked;
         if (this.stateTime > 120 && (b.left || b.right || b.up || b.down)) {
           this.setState("stunned");
@@ -292,7 +307,7 @@ class Humanoid extends Enemy {
   }
 
   checkLungeHit() {
-    if (this.touching(6)) this.scene.damagePlayer(this.lungeDamage, this, this.lungeHit);
+    if (this.touching(6)) this.scene.damageTarget(this.player(), this.lungeDamage, this, this.lungeHit);
   }
 
   faceToward(tx, ty) {
@@ -318,8 +333,8 @@ export class Bandit extends Humanoid {
 
   wantsPlayer() {
     const p = this.player();
-    if (p.state === "ko" || this.scene.modal) return false;
-    if ((this.spec.minCargo ?? 0) > this.scene.cargoCount()) return false;
+    if (p.state === "ko" || this.scene.targetBusy(p)) return false;
+    if ((this.spec.minCargo ?? 0) > this.scene.cargoOfTarget(p)) return false;
     const d = this.distToPlayer();
     const sight = p.hidden ? 20 : p.crouching ? ENEMY.bandit.sight * 0.6 : ENEMY.bandit.sight;
     return d < sight && this.lineOfSight(p.x, p.y - 8);
@@ -505,7 +520,7 @@ export class Guard extends Humanoid {
   /** ¿Ve al jugador? Distancia, ángulo del cono y línea de vista. */
   sees() {
     const p = this.player();
-    if (p.state === "ko" || this.scene.modal) return false;
+    if (p.state === "ko" || this.scene.targetBusy(p)) return false;
     const d = this.distToPlayer();
     if (d < 18 && !p.hidden) return true;
     if (d > this.sightRange()) return false;
@@ -517,7 +532,7 @@ export class Guard extends Humanoid {
   }
 
   suspicious() {
-    return this.hostile || this.scene.visibleCargo() > 0;
+    return this.hostile || this.scene.visibleOfTarget(this.player()) > 0;
   }
 
   drawCone() {
@@ -718,13 +733,15 @@ export class Guard extends Humanoid {
     this.sprite.anims.stop();
     this.sprite.setTexture("ko-guard");
     this.scene.fx.poof(this.x, this.y - 6);
-    this.scene.onEnemyDefeated(this);
+    if (!this.puppet) this.scene.onEnemyDefeated(this);
+    this.scene.net?.enemyDied(this);
   }
 
   /** Empujón al huir de una revisión: el guardia se queda aturdido un momento. */
   shove() {
     // Si el mapa cambió a media revisión, este guardia ya no existe.
     if (!this.body) return;
+    if (this.puppet) { this.scene.net?.enemyAct(this, "shove"); return; }
     this.setState("stunned");
     this.hostile = true;
     const p = this.player();
@@ -762,7 +779,7 @@ export class Scorpion extends Enemy {
         s.setFrame(3);
         // La arena tiembla un poco para que el jugador atento lo note.
         s.x = this.home.x + (Math.floor(this.stateTime / 90) % 2 ? 0.5 : -0.5);
-        if (d < cfg.sight && p.state !== "ko" && !this.scene.modal) {
+        if (d < cfg.sight && p.state !== "ko" && !this.scene.targetBusy(p)) {
           this.setState("emerge");
           this.scene.fx.dust(this.x, this.y, 0.8);
           tone(this.scene, "suspect");
@@ -798,7 +815,7 @@ export class Scorpion extends Enemy {
         }
         break;
       case "strike":
-        if (this.touching(4)) this.scene.damagePlayer(cfg.damage, this, { steal: false });
+        if (this.touching(4)) this.scene.damageTarget(this.player(), cfg.damage, this, { steal: false });
         if (this.stateTime > 160) {
           this.body.setVelocity(0, 0);
           this.setState("recover");

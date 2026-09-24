@@ -5,6 +5,9 @@ import { WorldScene } from "./scenes/world.js";
 import { UIScene } from "./scenes/ui.js";
 import { VIEW_H, VIEW_W } from "./config.js";
 import { SIDE, setupTouch, touch } from "./engine/touch.js";
+import { online, connect } from "./net/online.js";
+import { setupHud, askName } from "./net/hud.js";
+import { setupVoice, voice } from "./net/voice.js";
 
 const params = new URLSearchParams(location.search);
 // ?capture=1 → modo grabación para trailers (trailer/capture.mjs): tamaño nativo, sin audio.
@@ -43,6 +46,18 @@ const game = new Phaser.Game({
 });
 
 if (!CAPTURE) window.addEventListener("resize", () => game.scale.setZoom(fitZoom()));
+
+globalThis.__stonesGame = game;
+// Para revisar el modo en línea desde el navegador (y en las pruebas).
+globalThis.__online = online;
+globalThis.__voice = voice;
+
+// En línea (?online=1): nombre, conexión al servidor, chat y voz.
+if (online.on) {
+  setupHud();
+  setupVoice();
+  askName().then(() => connect(game.registry));
+}
 
 // Si los botones se prenden después (primer toque en una compu con pantalla táctil), se hace lugar.
 window.addEventListener("touchcontrols", () => game.scale.setZoom(fitZoom()));

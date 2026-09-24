@@ -8,6 +8,7 @@ import {
   GOOD_IDS, STONE, TRAVEL_DAYS, freshEconomy, freshDrift, quote, takeFromMarket, giveToMarket, stepDay, meltAfter, mixChill,
 } from "./economy.js";
 import { rollDay, rumor as makeRumor, activeEvents } from "./director.js";
+import { online, send, request, isWorldFlag, canUse } from "./net/online.js";
 
 export { GOODS, TOWNS } from "./world.js";
 export { STONE, TRAVEL_DAYS, GOOD_IDS } from "./economy.js";
@@ -78,7 +79,7 @@ export function freshRun() {
     baseCapacity: 4,
     reputation: 0,
     trips: 0,
-    currentTown: "ashfen",
+    currentTown: online.on && online.start ? online.start : "ashfen",
     lastRoute: null,
     day: eco.day,
     market: eco.market,
@@ -98,7 +99,7 @@ export function freshRun() {
     // Alijos de los caminos: { id: { amber: 2, …, chill } }
     stashes: {},
     flags: {},
-    mapId: "ashfen",
+    mapId: online.on && online.start ? online.start : "ashfen",
   };
 }
 
@@ -250,11 +251,13 @@ export function lodgingFee(registry, who) {
 // ---------- Refugios ----------
 
 export function ownsRefuge(registry, id) {
+  if (online.on) return canUse(id);
   return flag(registry, `refuge-${id}`);
 }
 
 export function refugeHas(registry, id, upgrade) {
   if (upgrade === "corral" && REFUGES[id]?.corral) return true;
+  if (online.on) return Boolean(online.world.owners[id]?.ups?.[upgrade]);
   return flag(registry, `${id}-${upgrade}`);
 }
 
@@ -301,6 +304,7 @@ export function drinkTonic(registry) {
 // ---------- Alijos ----------
 
 export function stashOf(registry, id) {
+  if (online.on) return online.world.stashes[id] ?? {};
   return getRecord(registry, "stashes", {})[id] ?? {};
 }
 
@@ -311,6 +315,7 @@ export function stashCount(registry, id) {
 
 /** Pasa una piedra entre la carga y el alijo. dir = +1 guarda, −1 saca. La escarcha lleva su frío. */
 export function moveStash(registry, id, good, dir) {
+  if (online.on) return moveStashOnline(registry, id, good, dir);
   const st = { ...stashOf(registry, id) };
   const c = { ...cargo(registry) };
   if (dir > 0) {
@@ -329,7 +334,43 @@ export function moveStash(registry, id, good, dir) {
   return true;
 }
 
+/**
+ * En línea el estante es del mundo: se mueve al instante en pantalla y el servidor confirma.
+ * Si otro jugador se ganó la última piedra (o el último lugar), se deshace.
+ */
+function moveStashOnline(registry, id, good, dir) {
+  const st = { ...stashOf(registry, id) };
+  const c = { ...cargo(registry) };
+  if (dir > 0) {
+    if (!(c[good] > 0) || stashCount(registry, id) >= stashCapacity(registry, id)) return false;
+    c[good] -= 1;
+    st[good] = (st[good] ?? 0) + 1;
+  } else {
+    if (!(st[good] > 0) || !fits(registry, good)) return false;
+    st[good] -= 1;
+    c[good] = (c[good] ?? 0) + 1;
+  }
+  const chillBefore = chill(registry);
+  registry.set("cargo", c);
+  online.world.stashes = { ...online.world.stashes, [id]: st };
+  request({ t: "stash", id, good, dir, chill: chillBefore }).then((r) => {
+    if (!r.ok) {
+      const back = { ...cargo(registry) };
+      back[good] = Math.max(0, (back[good] ?? 0) + (dir > 0 ? 1 : -1));
+      registry.set("cargo", back);
+      return;
+    }
+    if (good === "frost" && dir < 0) registry.set("chill", mixChill((cargo(registry).frost ?? 1) - 1, chillBefore, 1, r.chill ?? 100));
+  });
+  return true;
+}
+
 export function emptyStash(registry, id) {
+  if (online.on) {
+    const lost = stashCount(registry, id);
+    send({ t: "raid", id });
+    return lost;
+  }
   const lost = stashCount(registry, id);
   registry.set("stashes", { ...getRecord(registry, "stashes", {}), [id]: {} });
   return lost;
@@ -370,6 +411,7 @@ export function maybeBreakRune(registry, roll = Math.random()) {
 // ---------- Banderas del mundo (cofres, rejas) ----------
 
 export function flag(registry, id) {
+  if (online.on && isWorldFlag(id)) return Boolean(online.world.flags[id]);
   return Boolean(getRecord(registry, "flags", {})[id]);
 }
 
@@ -389,6 +431,7 @@ export function routeHeat(registry, fromId, toId) {
 
 export function addHeat(registry, townId, amount) {
   setRecordValue(registry, "heat", townId, Math.min(100, Math.max(0, heat(registry, townId) + amount)));
+  if (online.on) send({ t: "heat", town: townId, n: amount });
 }
 
 /** Calor que importa donde está el jugador: el del pueblo, o el promedio de la ruta. */
@@ -432,6 +475,14 @@ export function buy(registry, townId, good) {
   takeFromMarket(st, townId, good);
   st.heat[townId] = Math.min(100, st.heat[townId] + 1);
   commit(registry, st);
+  if (online.on) {
+    // Si otro jugador se llevó la última al mismo tiempo, se devuelve el oro.
+    request({ t: "trade", town: townId, good, side: "buy" }).then((r) => {
+      if (r.ok || r.offline) return;
+      registry.inc("gold", q.buy);
+      setRecordValue(registry, "cargo", good, Math.max(0, cargoOf(registry, good) - 1), cargoRecord());
+    });
+  }
   return { good: GOODS[good], price: q.buy };
 }
 
@@ -448,6 +499,14 @@ export const PEDDLER = {
   sellRate: [0.55, 0.7], // te vende entre 55 % y 70 % del valor
   names: ["Ruperto", "Casilda", "Anselmo", "Brígida", "Tadeo", "Remedios"],
 };
+
+/** En línea: el buhonero de la ruta lo decide el servidor, igual para todos. */
+export async function peddlerOnline(registry, routeId) {
+  const r = await request({ t: "peddler", route: routeId, op: "get" });
+  const p = r.ok && !r.p.none ? r.p : null;
+  registry.set("peddler", p ?? { route: routeId, day: day(registry), none: true });
+  return p;
+}
 
 /** El buhonero de esta ruta hoy (o null). La primera vez del día se tira el dado. */
 export function peddlerFor(registry, routeId, rand = Math.random) {
@@ -485,6 +544,7 @@ export function sellToPeddler(registry) {
   setRecordValue(registry, "cargo", good, cargoOf(registry, good) - 1, cargoRecord());
   if (good === "frost" && !cargoOf(registry, "frost")) registry.set("chill", 100);
   registry.set("peddler", { ...p, buys: { ...p.buys, left: p.buys.left - 1 } });
+  if (online.on) send({ t: "peddler", route: p.route, op: "sell" });
   return { good: GOODS[good], price };
 }
 
@@ -497,6 +557,7 @@ export function buyFromPeddler(registry) {
   registry.inc("gold", -price);
   setRecordValue(registry, "cargo", good, cargoOf(registry, good) + 1, cargoRecord());
   registry.set("peddler", { ...p, sells: { ...p.sells, left: left - 1 } });
+  if (online.on) send({ t: "peddler", route: p.route, op: "buy" });
   return { good: GOODS[good], price };
 }
 
@@ -524,6 +585,7 @@ export function sell(registry, townId, good) {
   giveToMarket(st, townId, good);
   st.heat[townId] = Math.min(100, st.heat[townId] + STONE[good].sellHeat);
   commit(registry, st);
+  if (online.on) send({ t: "trade", town: townId, good, side: "sell" });
   return { good: GOODS[good], price: q.sell, fame };
 }
 
@@ -548,11 +610,13 @@ export function passDays(registry, n, { cold = 0 } = {}) {
   const st = econ(registry);
   const ended = [];
   const started = [];
-  for (let i = 0; i < n; i += 1) {
-    ended.push(...stepDay(st));
-    started.push(...rollDay(st));
+  if (!online.on) {
+    for (let i = 0; i < n; i += 1) {
+      ended.push(...stepDay(st));
+      started.push(...rollDay(st));
+    }
+    commit(registry, st);
   }
-  commit(registry, st);
   const icebox = hasUpgrade(registry, "icebox");
   let melted = 0;
   if (cargoOf(registry, "frost")) {
@@ -564,13 +628,14 @@ export function passDays(registry, n, { cold = 0 } = {}) {
       registry.set("chill", 100);
     }
   }
-  const stashes = { ...getRecord(registry, "stashes", {}) };
+  // En línea los estantes son del mundo: el servidor derrite su escarcha.
+  const stashes = online.on ? {} : { ...getRecord(registry, "stashes", {}) };
   for (const [id, s] of Object.entries(stashes)) {
     if (!s.frost || s.cold) continue;
     const next = meltAfter(s.chill ?? 100, n);
     stashes[id] = next <= 0 ? { ...s, frost: 0, chill: 100 } : { ...s, chill: next };
   }
-  registry.set("stashes", stashes);
+  if (!online.on) registry.set("stashes", stashes);
   return { ended, started, melted };
 }
 
@@ -578,7 +643,11 @@ export function passDays(registry, n, { cold = 0 } = {}) {
 
 /** Un rumor de la gente. Se guardan los últimos que oíste. */
 export function hearRumor(registry, honest) {
-  const r = makeRumor(econ(registry), { honest });
+  let r = makeRumor(econ(registry), { honest });
+  if (online.on && Math.random() < 0.5) {
+    const others = online.world.news.filter((n) => !n.text.startsWith(online.name));
+    if (others.length) r = { text: `Dicen por ahí: ${others[Math.floor(Math.random() * Math.min(4, others.length))].text}`, true: true };
+  }
   const list = [{ day: day(registry), text: r.text }, ...getRecord(registry, "rumors", [])].slice(0, 5);
   registry.set("rumors", list);
   return r;
@@ -701,7 +770,8 @@ export function confiscateVisible(registry) {
 
 // ---------- Guardado ----------
 
-const SAVE_KEY = "stones-save-v4";
+const BASE_KEY = "stones-save-v4";
+const saveKey = () => (online.on && online.name ? `${BASE_KEY}-online-${online.name}` : BASE_KEY);
 const SAVED = [
   "gold", "cargo", "chill", "baseCapacity", "reputation", "trips", "currentTown", "lastRoute", "day", "market", "drift", "mods",
   "heat", "seen", "rumors", "debt", "fameSold", "peddler", "upgrades", "hp", "maxHp", "tonics",
@@ -711,7 +781,7 @@ const SAVED = [
 export function saveGame(registry) {
   try {
     const data = Object.fromEntries(SAVED.map((k) => [k, registry.get(k)]));
-    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+    localStorage.setItem(saveKey(), JSON.stringify(data));
     return true;
   } catch {
     return false;
@@ -720,7 +790,7 @@ export function saveGame(registry) {
 
 export function hasSave() {
   try {
-    return Boolean(localStorage.getItem(SAVE_KEY));
+    return Boolean(localStorage.getItem(saveKey()));
   } catch {
     return false;
   }
@@ -728,9 +798,12 @@ export function hasSave() {
 
 export function loadGame(registry) {
   try {
-    const data = JSON.parse(localStorage.getItem(SAVE_KEY));
+    const data = JSON.parse(localStorage.getItem(saveKey()));
     if (!data) return false;
-    registry.set({ ...freshRun(), ...data });
+    // En línea el mercado y el día vienen del servidor, no del guardado.
+    if (online.on) for (const k of ["day", "market", "drift", "mods", "heat", "peddler"]) delete data[k];
+    const keep = online.on ? Object.fromEntries(["day", "market", "drift", "mods", "heat"].map((k) => [k, registry.get(k)])) : {};
+    registry.set({ ...freshRun(), ...data, ...keep });
     return true;
   } catch {
     return false;
@@ -738,7 +811,8 @@ export function loadGame(registry) {
 }
 
 export function resetRun(registry) {
-  registry.set(freshRun());
+  const keep = online.on ? Object.fromEntries(["day", "market", "drift", "mods", "heat"].map((k) => [k, registry.get(k)])) : {};
+  registry.set({ ...freshRun(), ...keep });
 }
 
 export function ensureRun(registry) {
