@@ -88,7 +88,7 @@ export default {
     },
     {
       type: "npc", cast: "merchant", name: "Brena", x: 21.2, y: 13.2, dir: "down", role: "market",
-      talk: ["Ámbar de sello, recién sacado de la cantera.", "Valkeep lo paga mejor que nadie. Pero ojo con la calzada."],
+      talk: ["Ámbar de sello, recién sacado de la cantera.", "Lo que hoy sobra aquí, mañana falta en otro lado. Ojo con la calzada."],
     },
     {
       type: "npc", cast: "smith", name: "Oskar", x: 28.4, y: 16.2, dir: "down", role: "smith",

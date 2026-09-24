@@ -71,7 +71,7 @@ export default {
     { type: "sign", x: 22.6, y: 27.4, text: ["↓ RUTA 4 · PASO DEL HIELO", "Del desierto a la nieve en un día de camino."] },
     {
       type: "npc", cast: "merchant", name: "Kader", x: 21.3, y: 10.4, dir: "down", role: "market",
-      talk: ["Piedra solar: guarda el calor del mediodía.", "En Frostholm la necesitan para no helarse."],
+      talk: ["Piedra solar: guarda el calor del mediodía.", "Unos días la queman como leña, otros ni la miran."],
     },
     {
       type: "npc", cast: "archer", name: "Sahra", x: 8.6, y: 25.2, dir: "up", role: "escort",

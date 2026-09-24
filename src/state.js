@@ -5,7 +5,7 @@
 
 import { GOODS, TOWNS, TOWN_IDS } from "./world.js";
 import {
-  GOOD_IDS, STONE, TRAVEL_DAYS, freshEconomy, quote, takeFromMarket, giveToMarket, stepDay, meltAfter, mixChill,
+  GOOD_IDS, STONE, TRAVEL_DAYS, freshEconomy, freshDrift, quote, takeFromMarket, giveToMarket, stepDay, meltAfter, mixChill,
 } from "./economy.js";
 import { rollDay, rumor as makeRumor, activeEvents } from "./director.js";
 
@@ -82,6 +82,7 @@ export function freshRun() {
     lastRoute: null,
     day: eco.day,
     market: eco.market,
+    drift: eco.drift,
     mods: eco.mods,
     heat: eco.heat,
     seen: {},
@@ -113,10 +114,13 @@ function setRecordValue(registry, key, id, value, fallback = {}) {
 
 /** Copia del estado económico para trabajar con economy.js. */
 export function econ(registry) {
+  // El vaivén de precios se crea una vez por partida (las partidas viejas lo reciben aquí) y se guarda.
+  if (!registry.get("drift")) registry.set("drift", freshDrift());
   const fresh = freshEconomy();
   return {
     day: registry.get("day") ?? 1,
     market: structuredClone(registry.get("market") ?? fresh.market),
+    drift: structuredClone(registry.get("drift")),
     mods: structuredClone(registry.get("mods") ?? []),
     heat: { ...fresh.heat, ...(registry.get("heat") ?? {}) },
   };
@@ -125,6 +129,7 @@ export function econ(registry) {
 function commit(registry, st) {
   registry.set("day", st.day);
   registry.set("market", st.market);
+  registry.set("drift", st.drift);
   registry.set("mods", st.mods);
   registry.set("heat", st.heat);
 }
@@ -696,7 +701,7 @@ export function confiscateVisible(registry) {
 
 const SAVE_KEY = "stones-save-v4";
 const SAVED = [
-  "gold", "cargo", "chill", "baseCapacity", "reputation", "trips", "currentTown", "lastRoute", "day", "market", "mods",
+  "gold", "cargo", "chill", "baseCapacity", "reputation", "trips", "currentTown", "lastRoute", "day", "market", "drift", "mods",
   "heat", "seen", "rumors", "debt", "fameSold", "peddler", "upgrades", "hp", "maxHp", "tonics",
   "stashes", "flags", "mapId", "crew",
 ];

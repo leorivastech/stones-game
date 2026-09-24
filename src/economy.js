@@ -2,11 +2,14 @@
  * Mercado vivo de Stones. Lógica pura: trabaja sobre objetos planos y no conoce Phaser,
  * para poder simularlo en Node (studio/sim) y, algún día, correrlo en un servidor.
  *
- * Cada pueblo tiene existencias de las 5 piedras. Cada día produce su piedra, consume la que
- * necesita y un poco de las demás. El precio sale de lo que hay contra lo que el pueblo quiere
- * tener: si sobra, barato; si falta, caro. Nunca más caro que la Corona: por eso te compran a ti.
+ * Cada pueblo tiene existencias de las 5 piedras. Cada día produce mucho de la suya y un poco de
+ * las demás, y consume de todas. Sin orden fijo: las ganas de comprar y lo que llega de cada piedra
+ * se mueven solas en todos los pueblos (vaivén) y con los sucesos. El precio sale de lo que hay
+ * contra lo que el pueblo quiere tener: si sobra, barato; si falta, caro. Nunca más caro que la
+ * Corona: por eso te compran a ti.
  *
- *   estado = { day, market: { pueblo: { piedra: existencias } }, mods: [sucesos activos], heat: { pueblo: n } }
+ *   estado = { day, market: { pueblo: { piedra: existencias } }, drift: { pueblo: { piedra: {d, s} } },
+ *              mods: [sucesos activos], heat: { pueblo: n } }
  */
 
 import { GOODS, TOWNS, TOWN_IDS } from "./world.js";
@@ -40,19 +43,78 @@ export const TRAVEL_DAYS = { route: 2, boat: 3, back: 1 };
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
-/** Qué produce y consume cada pueblo por día y cuánto quiere tener guardado. */
+/**
+ * Vaivén: sin orden fijo. Cada pueblo tiene, para cada piedra, cuántas ganas tiene de comprarla
+ * (`d`, demanda) y cuánta le llega por su cuenta (`s`, oferta). Cambian solas día con día en todos
+ * lados (caminata al azar que vuelve poco a poco a lo normal) y a veces pegan un salto. Así una
+ * piedra puede estar cara o barata en cualquier pueblo; no hay "compra aquí y vende en el siguiente".
+ */
+export const DRIFT = {
+  start: 0.45, // qué tan revuelto arranca (desviación en escala logarítmica)
+  step: 0.2, // cuánto se mueve cada día
+  keep: 0.88, // cuánto conserva del día anterior (el resto vuelve a lo normal)
+  jump: 0.015, // probabilidad diaria de un salto por pueblo y piedra
+  min: 0.3,
+  max: 3,
+};
+
+function gauss(rng) {
+  const u = Math.max(1e-9, rng());
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rng());
+}
+
+/** Demanda y oferta iniciales, revueltas. */
+export function freshDrift(rng = Math.random) {
+  const drift = {};
+  for (const id of TOWN_IDS) {
+    drift[id] = {};
+    for (const g of GOOD_IDS) {
+      drift[id][g] = {
+        d: clamp(Math.exp(gauss(rng) * DRIFT.start), DRIFT.min, DRIFT.max),
+        s: clamp(Math.exp(gauss(rng) * DRIFT.start), DRIFT.min, DRIFT.max),
+      };
+    }
+  }
+  return drift;
+}
+
+/** Un día de vaivén en todos los pueblos. */
+export function stepDrift(state, rng = Math.random) {
+  state.drift ??= freshDrift(rng);
+  for (const id of TOWN_IDS) {
+    for (const g of GOOD_IDS) {
+      const cur = state.drift[id][g];
+      for (const k of ["d", "s"]) {
+        let v = Math.log(cur[k]) * DRIFT.keep + gauss(rng) * DRIFT.step;
+        if (rng() < DRIFT.jump) v += (rng() < 0.5 ? -1 : 1) * (0.7 + rng() * 0.5);
+        cur[k] = clamp(Math.exp(v), DRIFT.min, DRIFT.max);
+      }
+    }
+  }
+}
+
+/**
+ * Qué produce y consume cada pueblo por día y cuánto quiere tener guardado. Cada pueblo saca su
+ * piedra (la produce mucho); de las demás, poco y parejo. El vaivén hace el resto.
+ */
 export function baseProfile(townId) {
   const t = TOWNS[townId];
   const prof = {};
-  for (const g of GOOD_IDS) prof[g] = { prod: 0.5, cons: 0.5, target: 4 };
-  prof[t.produce] = { prod: 3, cons: 0.5, target: 6 };
-  prof[t.need] = { prod: 0, cons: 2, target: 10 };
+  for (const g of GOOD_IDS) prof[g] = { prod: 0.6, cons: 0.8, target: 6 };
+  prof[t.produce] = { prod: 1.8, cons: 0.5, target: 6 };
   return prof;
 }
 
-/** El perfil con los sucesos activos aplicados (sequía, helada, feria…). */
+/** El perfil con el vaivén y los sucesos activos aplicados (sequía, helada, feria…). */
 export function profile(state, townId) {
   const prof = baseProfile(townId);
+  for (const g of GOOD_IDS) {
+    const dr = state.drift?.[townId]?.[g];
+    if (!dr) continue;
+    prof[g].target *= dr.d;
+    prof[g].cons *= dr.d;
+    prof[g].prod *= dr.s;
+  }
   for (const m of state.mods ?? []) {
     if (m.town && m.town !== townId) continue;
     for (const g of m.good ? [m.good] : GOOD_IDS) {
@@ -67,13 +129,13 @@ export function initialMarket() {
   for (const id of TOWN_IDS) {
     const t = TOWNS[id];
     market[id] = {};
-    for (const g of GOOD_IDS) market[id][g] = g === t.produce ? 16 : g === t.need ? 3 : 4;
+    for (const g of GOOD_IDS) market[id][g] = g === t.produce ? 12 : 5;
   }
   return market;
 }
 
-export function freshEconomy() {
-  return { day: 1, market: initialMarket(), mods: [], heat: Object.fromEntries(TOWN_IDS.map((id) => [id, 0])) };
+export function freshEconomy(rng = Math.random) {
+  return { day: 1, market: initialMarket(), mods: [], drift: freshDrift(rng), heat: Object.fromEntries(TOWN_IDS.map((id) => [id, 0])) };
 }
 
 /** Precio de una piedra en un pueblo. `chill` (0-100) sólo cuenta para vender escarcha. */
@@ -110,9 +172,10 @@ export function giveToMarket(state, townId, good) {
   state.market[townId][good] = Math.min(MARKET.cap, state.market[townId][good] + 1);
 }
 
-/** Un día: cada pueblo produce y consume (el consumo crece con lo que hay), baja el calor, caducan sucesos. */
-export function stepDay(state) {
+/** Un día: se mueve el vaivén, cada pueblo produce y consume (el consumo crece con lo que hay), baja el calor, caducan sucesos. */
+export function stepDay(state, rng = Math.random) {
   state.day += 1;
+  stepDrift(state, rng);
   for (const id of TOWN_IDS) {
     const prof = profile(state, id);
     for (const g of GOOD_IDS) {

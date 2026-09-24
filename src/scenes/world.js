@@ -959,9 +959,9 @@ export class WorldScene extends Phaser.Scene {
     pay(reg, fare);
     sfx(this, "coins");
     this.leaving = true;
-    this.cameras.main.fadeOut(600, 18, 14, 23);
-    await new Promise((r) => this.time.delayedCall(650, r));
-    await this.ui.say(["La barca se aparta del muelle. El golfo está en calma.", `Al caer la tarde asoma ${TOWNS[to].name}.`]);
+    this.cameras.main.fadeOut(300, 18, 14, 23);
+    await new Promise((r) => this.time.delayedCall(320, r));
+    await this.ui.boatTrip(this.def.town, to, TRAVEL_DAYS.boat, day(reg));
     this.scene.restart({ map: to, entry: "dock", boat: true });
   }
 

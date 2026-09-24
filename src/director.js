@@ -8,7 +8,8 @@
  * Para crecer: agregar sucesos a DECK. Nada más.
  */
 
-import { TOWNS } from "./world.js";
+import { GOODS, TOWNS, TOWN_IDS } from "./world.js";
+import { GOOD_IDS, STONE, quote } from "./economy.js";
 
 const MAX_ACTIVE = 2;
 
@@ -106,7 +107,7 @@ const FAKE = [
 
 /** Lo que se dice cuando no pasa nada: pistas del mercado de siempre. */
 const CALM = [
-  "Aquí nadie tiene lo que produce el pueblo vecino. Eso siempre se paga.",
+  "Los precios cambian cada día en todos lados. El que escucha, gana.",
   "El que compra donde sobra y vende donde falta, come caliente.",
   "La escarcha no aguanta el sol del desierto. El barquero de Frostholm lo sabe.",
   "La perla pesa como piedra de verdad. Con caballo sale la cuenta.",
@@ -129,5 +130,40 @@ export function rumor(state, { honest = 0.85, rng = Math.random } = {}) {
     const ev = events[Math.floor(rng() * events.length)];
     return { text: ev.news, true: true, event: ev.id };
   }
+  // Sin sucesos, casi siempre alguien trae noticias del mercado de otro pueblo (verdaderas).
+  if (rng() < 0.7) {
+    const news = marketNews(state, rng);
+    if (news) return { text: news, true: true };
+  }
   return { text: CALM[Math.floor(rng() * CALM.length)], true: true };
 }
+
+/** Lo más caro o lo más barato de hoy en algún pueblo, dicho como lo cuenta un arriero. */
+function marketNews(state, rng) {
+  if (!state.market) return null;
+  const all = [];
+  for (const t of TOWN_IDS) {
+    for (const g of GOOD_IDS) {
+      const q = quote(state, t, g);
+      all.push({ t, g, hot: q.sell / STONE[g].value, cheap: q.buy / STONE[g].value });
+    }
+  }
+  const name = (g) => GOODS[g].name.toLowerCase();
+  // Artículo y pronombre de cada piedra: el ámbar, la perla…
+  const la = (g) => (["rain", "sun"].includes(g) ? "la" : "el");
+  const lo = (g) => (["rain", "sun"].includes(g) ? "la" : "lo");
+  if (rng() < 0.65) {
+    const top = [...all].sort((a, b) => b.hot - a.hot).slice(0, 3);
+    const n = top[Math.floor(rng() * top.length)];
+    if (n.hot < 1.1) return null;
+    return [
+      `Vengo de ${TOWNS[n.t].name}: allá andan buscando ${name(n.g)}.`,
+      `En ${TOWNS[n.t].name} se les acabó ${la(n.g)} ${name(n.g)}. ${lo(n.g) === "la" ? "La" : "Lo"} están pagando bien.`,
+    ][Math.floor(rng() * 2)];
+  }
+  const low = [...all].sort((a, b) => a.cheap - b.cheap).slice(0, 3);
+  const n = low[Math.floor(rng() * low.length)];
+  if (n.cheap > 0.85) return null;
+  return `En ${TOWNS[n.t].name} les sobra ${name(n.g)}: ${lo(n.g)} dan ${lo(n.g) === "la" ? "barata" : "barato"}.`;
+}
+

@@ -46,25 +46,34 @@ pasa a pantalla completa al primer toque (iPhone no lo permite desde el navegado
 
 ## El tiempo: días
 
-- Cruzar una ruta de pueblo a pueblo: **2 días**. Barca: **3 días**. Volver al mismo pueblo: 1 día.
+- Cruzar una ruta de pueblo a pueblo: **2 días**. Barca: **3 días** (se ve el mapa con la barquita
+  cruzando el golfo; unos 4 s, A lo adelanta). Volver al mismo pueblo: 1 día.
   Dormir en el catre de un refugio: 1 día.
 - Cada día los pueblos producen y consumen, el calor baja y el director tira los dados de sucesos.
 - El día se ve en el HUD. Al llegar a un pueblo avisa cuántos días pasaron.
 
 ## Las piedras
 
-| Piedra | La hace | Le falta a | Valor | Carácter |
-|---|---|---|---:|---|
-| Ámbar de sello | Ashfen | Valkeep | 14 | **Casi legal**: la Corona no la confisca, cobra 2 de impuesto por piedra |
-| Vidrio rúnico | Valkeep | Verdelume | 22 | **Frágil**: cada golpe que recibes tiene 30 % de romper una |
-| Perla de lluvia | Verdelume | Duneshade | 30 | **Pesada**: ocupa 2 lugares de carga |
-| Piedra solar | Duneshade | Frostholm | 36 | **Vigilada**: confiscarla sube 8 de calor por piedra; el soborno cuesta más; vender sube 7 de calor |
-| Cristal de escarcha | Frostholm | Ashfen | 44 | **Se derrite**: pierde 9 % de frío por día (3 % con hielera; la mitad por la Ruta 4); se paga en proporción; en 0 es agua |
+| Piedra | La hace | Valor | Carácter |
+|---|---|---:|---|
+| Ámbar de sello | Ashfen | 14 | **Casi legal**: la Corona no la confisca, cobra 2 de impuesto por piedra |
+| Vidrio rúnico | Valkeep | 22 | **Frágil**: cada golpe que recibes tiene 30 % de romper una |
+| Perla de lluvia | Verdelume | 30 | **Pesada**: ocupa 2 lugares de carga |
+| Piedra solar | Duneshade | 36 | **Vigilada**: confiscarla sube 8 de calor por piedra; el soborno cuesta más; vender sube 7 de calor |
+| Cristal de escarcha | Frostholm | 44 | **Se derrite**: pierde 9 % de frío por día (3 % con hielera; la mitad por la Ruta 4); se paga en proporción; en 0 es agua |
 
 ## Mercado (oferta y demanda)
 
-- **Todos los pueblos compran y venden las 5 piedras.** Cada uno produce mucho de la suya (sobra,
-  barata), consume mucho de la que le falta (cara) y poco de las demás.
+- **Todos los pueblos compran y venden las 5 piedras.** Cada uno produce más de la suya y un poco
+  de las demás, y consume de todas.
+- **Sin orden fijo** (23-sep, Leo: "que bajen y suban en todos lados, no nomás en el orden"). Ya no
+  hay "a cada pueblo le falta la del vecino". Cada pueblo tiene, por piedra, **ganas de comprar** y
+  **lo que le llega**, y las dos se mueven solas día con día en todos lados (caminata al azar que
+  vuelve poco a poco a lo normal, con saltos de vez en cuando), además de los sucesos. Así cualquier
+  piedra puede estar cara o barata en cualquier pueblo. Números en `DRIFT` (`src/economy.js`); se
+  guarda con la partida (`drift`).
+- Los rumores verdaderos traen noticias del mercado de otros pueblos: "Vengo de Duneshade: allá
+  andan buscando perla de lluvia", "En Valkeep les sobra piedra solar: la dan barata".
 - El precio sale de **lo que hay contra lo que el pueblo quiere tener**. Comprar vacía, vender
   llena; lo que vendes baja el precio para la siguiente.
 - **La Corona** vende a 1,6 × el valor. Un pueblo te paga como mucho el 90 % de eso: por eso te
@@ -78,8 +87,8 @@ pasa a pantalla completa al primer toque (iPhone no lo permite desde el navegado
     (con "+fama" si todavía da) y lo que sobra, con sus gemas. Una vez por pueblo y por día.
   - Sobre el comerciante flota una burbuja con la gema que ahí ocupan.
 - **Lo que sabes de otros pueblos envejece**: la pausa muestra lo que pagaban "hace N días".
-- Simulación: `node studio/sim/mercado.mjs`. Ir en el sentido del círculo gana más; el contrario
-  también deja. El caballo da ~35 % más con más calor.
+- Simulación: `node studio/sim/mercado.mjs`. Con el vaivén ya no hay un sentido que gane siempre:
+  los dos dejan (patrimonio de ~90 a ~500-600 en 34 días a pie).
 
 ## Buhonero de camino
 

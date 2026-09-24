@@ -65,7 +65,7 @@ export default {
     { type: "sign", x: 35.6, y: 12.4, text: ["→ RUTA 3 · SELVA DEL TRÁNSITO", "Al final de la selva empieza el desierto."] },
     {
       type: "npc", cast: "merchant", name: "Oruba", x: 21.3, y: 10.4, dir: "down", role: "market",
-      talk: ["Perlas de lluvia: guardan el agua de una tormenta entera.", "En Duneshade las pagan como si fueran oro."],
+      talk: ["Perlas de lluvia: guardan el agua de una tormenta entera.", "Hay días que las pagan como si fueran oro. Otros, ni quién."],
     },
     {
       type: "npc", cast: "healer", name: "Ama", x: 8, y: 22.6, dir: "down", role: "healer",

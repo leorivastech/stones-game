@@ -63,7 +63,7 @@ export default {
     { type: "sign", x: 6.6, y: 13, text: ["TÚNEL VIEJO", "Cerrado. Del otro lado dicen que está Verdelume."] },
     {
       type: "npc", cast: "merchant", name: "Hilde", x: 21.3, y: 11.4, dir: "down", role: "market",
-      talk: ["Cristal de escarcha: conserva la comida todo el invierno.", "En Ashfen, al otro lado del golfo, lo pagan caro."],
+      talk: ["Cristal de escarcha: conserva la comida todo el invierno.", "Se derrite lejos del frío: véndelo pronto."],
     },
     {
       type: "npc", cast: "ferryman", name: "Ceno", x: 21.8, y: 22.4, dir: "left", role: "ferry",

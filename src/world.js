@@ -12,7 +12,7 @@ export const TOWNS = {
   ashfen: {
     id: "ashfen", name: "Ashfen", region: "TIERRAS TEMPLADAS",
     blurb: "Campos y cantera. El ámbar protege la cosecha.",
-    produce: "amber", need: "frost", buyBase: 8, sellBase: 40,
+    produce: "amber",
     ground: "grass", path: "dirt", plaza: "cobble", biome: "temperate", music: "ashfen",
     houseTint: 0xfff0d2, treeTint: 0xffffff,
     exits: { north: "valkeep" }, boat: "frostholm", service: "stashKit",
@@ -20,7 +20,7 @@ export const TOWNS = {
   valkeep: {
     id: "valkeep", name: "Valkeep", region: "FALDAS DE MONTAÑA",
     blurb: "Pueblo de piedra entre picos. Los escribas funden vidrio rúnico.",
-    produce: "rune", need: "amber", buyBase: 12, sellBase: 17,
+    produce: "rune",
     ground: "highland", path: "dirt", plaza: "cobble", biome: "mountain", music: "valkeep",
     houseTint: 0xdcd5c6, treeTint: 0xa9c0a4,
     exits: { south: "ashfen", north: "verdelume" }, service: "horse",
@@ -28,7 +28,7 @@ export const TOWNS = {
   verdelume: {
     id: "verdelume", name: "Verdelume", region: "SELVA DE LLUVIA",
     blurb: "Canales y raíces. Las perlas guardan lluvia.",
-    produce: "rain", need: "rune", buyBase: 15, sellBase: 26,
+    produce: "rain",
     ground: "jungle", path: "mud", plaza: "cobble", biome: "tropical", music: "ashfen",
     houseTint: 0xe2d6a6, treeTint: 0x74ad68,
     exits: { south: "valkeep", east: "duneshade" }, service: "tonic",
@@ -36,7 +36,7 @@ export const TOWNS = {
   duneshade: {
     id: "duneshade", name: "Duneshade", region: "MAR DE DUNAS",
     blurb: "Pozos bajo el sol. Sus hornos crean piedra solar.",
-    produce: "sun", need: "rain", buyBase: 18, sellBase: 32,
+    produce: "sun",
     ground: "sand", path: "dirt", plaza: "cobble", biome: "desert", music: "road",
     houseTint: 0xe8c98a, treeTint: 0xc5a86a,
     exits: { west: "verdelume", south: "frostholm" }, service: "escort",
@@ -44,7 +44,7 @@ export const TOWNS = {
   frostholm: {
     id: "frostholm", name: "Frostholm", region: "PASO NEVADO",
     blurb: "Graneros de hielo. La escarcha conserva alimento.",
-    produce: "frost", need: "sun", buyBase: 22, sellBase: 39,
+    produce: "frost",
     ground: "snow", path: "packed", plaza: "cobble", biome: "snow", music: "valkeep",
     houseTint: 0xd9e7ee, treeTint: 0xb8cad0,
     exits: { north: "duneshade" }, boat: "ashfen", service: "ferry",

@@ -7,7 +7,7 @@ import Phaser from "phaser";
 import { Controls, keyName } from "../engine/input.js";
 import { VIEW_H, VIEW_W } from "../config.js";
 import { centerX, textWidth } from "../art/font.js";
-import { WORLD_PINS, WORLD_ROADS, panelDark, panelPaper, panelTag } from "../art/ui.js";
+import { WORLD_MAP, WORLD_PINS, WORLD_ROADS, panelDark, panelPaper, panelTag } from "../art/ui.js";
 import { ninePatch } from "../art/pixel.js";
 import { touch } from "../engine/touch.js";
 import { tone, sfx } from "../sfx.js";
@@ -139,6 +139,9 @@ export class UIScene extends Phaser.Scene {
 
   enterMap(def) {
     this.resetModals();
+    // El cartel "HOY EN …" es del lugar que dejaste: se va.
+    this.needsObj?.destroy();
+    this.needsObj = null;
     this.def = def;
     if (def.kind === "town") setFlag(this.registry, `visited-${def.town}`);
     this.refresh();
@@ -191,6 +194,101 @@ export class UIScene extends Phaser.Scene {
     this.needsObj = c;
     this.tweens.add({ targets: c, x, delay, duration: 280, ease: "Back.Out", onStart: () => sfx(this, "coin", { volume: 0.25 }) });
     this.tweens.add({ targets: c, x: VIEW_W + 4, delay: delay + 7000, duration: 260, ease: "Quad.In", onComplete: () => c.destroy() });
+  }
+
+  /**
+   * Cruce en barca: el mapa del mundo con la barquita yendo de un muelle al otro por el golfo,
+   * mientras corren los días. Unos 3 segundos; A (o cualquier tecla de acción) lo adelanta.
+   */
+  boatTrip(from, to, days, startDay) {
+    return new Promise((resolve) => {
+      this.closeAll();
+      this.mode = "boat";
+      const S = 2;
+      const mw = WORLD_MAP.w * S;
+      const mh = WORLD_MAP.h * S;
+      const x0 = Math.round((VIEW_W - mw) / 2);
+      const y0 = Math.round((VIEW_H - mh) / 2) + 6;
+      const box = this.add.container(0, 0).setDepth(D + 14).setAlpha(0);
+      box.add(this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0x120e17, 1).setOrigin(0, 0));
+      box.add(this.add.image(x0, y0, "worldmap").setOrigin(0, 0).setScale(S));
+      const g = this.add.graphics();
+      box.add(g);
+      const pin = (id, color) => {
+        const [px, py] = WORLD_PINS[id];
+        g.fillStyle(0x1b1422, 1).fillRect(x0 + px * S - 5, y0 + py * S - 5, 10, 10);
+        g.fillStyle(color, 1).fillRect(x0 + px * S - 3, y0 + py * S - 3, 6, 6);
+      };
+      pin(from, 0x9b896f);
+      pin(to, 0xe6b736);
+      const title = `${TOWNS[from].name} → ${TOWNS[to].name}`;
+      const w = even(textWidth(title) + 24);
+      box.add(this.panel(VIEW_W / 2 - w / 2, 4, "ui-dark", w, 17));
+      box.add(centerX(this.add.bitmapText(VIEW_W / 2, 7, "font-gold", title)));
+      const dayText = this.add.bitmapText(VIEW_W - 10, VIEW_H - 16, "font-o", `Día ${startDay}`).setOrigin(1, 0);
+      box.add(dayText);
+      // Barquita en píxeles: casco de madera, vela crema, banderín rojo.
+      const boat = this.add.container(0, 0);
+      const px = (x, y, w2, h2, c) => boat.add(this.add.rectangle(x, y, w2, h2, c, 1).setOrigin(0, 0));
+      px(-7, 0, 14, 3, 0x683c24);
+      px(-5, 3, 10, 2, 0x48291b);
+      px(-1, -10, 2, 10, 0x2c1813);
+      px(1, -9, 5, 7, 0xfaf3e1);
+      px(1, -3, 5, 1, 0xc7b799);
+      px(-1, -12, 4, 2, 0xb6292f);
+      box.add(boat);
+      // Curva por dentro del golfo, de muelle a muelle.
+      const [ax, ay] = WORLD_PINS[from];
+      const [bx, by] = WORLD_PINS[to];
+      const cx = (ax + bx) / 2;
+      const cy = Math.max(ay, by) + 34;
+      const at = (t) => ({
+        x: x0 + S * ((1 - t) * (1 - t) * ax + 2 * (1 - t) * t * cx + t * t * bx),
+        y: y0 + S * ((1 - t) * (1 - t) * ay + 2 * (1 - t) * t * cy + t * t * by),
+      });
+      const trail = { t: 0 };
+      let lastDot = -1;
+      const place = () => {
+        const p = at(trail.t);
+        const bob = Math.round(Math.sin(trail.t * 40) * 1);
+        boat.setPosition(Math.round(p.x), Math.round(p.y) + bob);
+        const ahead = at(Math.min(1, trail.t + 0.02));
+        boat.setScale(ahead.x < p.x ? -1 : 1, 1);
+        const dot = Math.floor(trail.t * 40);
+        if (dot !== lastDot && dot % 2 === 0) {
+          lastDot = dot;
+          g.fillStyle(0xd6f3f5, 0.8).fillRect(Math.round(p.x) - 1, Math.round(p.y) + 4, 2, 2);
+        }
+        dayText.setText(`Día ${startDay + Math.min(days, Math.floor(trail.t * (days + 0.999)))}`);
+      };
+      place();
+      this.tweens.add({ targets: box, alpha: 1, duration: 200 });
+      sfx(this, "splash", { volume: 0.35 });
+      const done = () => {
+        if (this.boatState?.finished) return;
+        this.boatState.finished = true;
+        this.boatState.tween.stop();
+        trail.t = 1;
+        place();
+        this.tweens.add({
+          targets: box, alpha: 0, delay: 350, duration: 250,
+          onComplete: () => {
+            box.destroy();
+            this.boatState = null;
+            this.mode = null;
+            resolve();
+          },
+        });
+      };
+      const tween = this.tweens.add({ targets: trail, t: 1, duration: 2800, ease: "Sine.InOut", onUpdate: place, onComplete: done });
+      this.time.delayedCall(1400, () => this.boatState && !this.boatState.finished && sfx(this, "splash", { volume: 0.25 }));
+      this.boatState = { box, tween, done, finished: false };
+    });
+  }
+
+  updateBoat() {
+    if (this.time.now - this.openedAt < 400) return;
+    if (this.controls.pressed("confirm") || this.controls.pressed("cancel")) this.boatState.done();
   }
 
   // ------------------------------------------------------------------ indicador y avisos
@@ -864,5 +962,6 @@ export class UIScene extends Phaser.Scene {
     else if (this.mode === "shop" && this.shopState) this.updateShop();
     else if (this.mode === "pause" && this.pauseState) this.updatePause();
     else if (this.mode === "stash" && this.stashState) this.updateStash();
+    else if (this.mode === "boat" && this.boatState) this.updateBoat();
   }
 }

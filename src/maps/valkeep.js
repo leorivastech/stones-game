@@ -70,7 +70,7 @@ export default {
     { type: "sign", x: 22, y: 27.4, text: ["VALKEEP", "↓ Ruta 1 · Ashfen"] },
     {
       type: "npc", cast: "merchant", name: "Maese Ivo", x: 21.3, y: 13.4, dir: "down", role: "market",
-      talk: ["Vidrio rúnico, fundido por los escribas.", "Traigan ámbar: aquí se paga."],
+      talk: ["Vidrio rúnico, fundido por los escribas.", "Lo que aquí se busca cambia cada semana."],
     },
     {
       type: "npc", cast: "stablehand", name: "Nella", x: 32.4, y: 22.2, dir: "left", role: "stable",
