@@ -20,7 +20,7 @@ export const UPGRADES = {
   hideout: { id: "hideout", name: "Fondo falso", cost: 240, reputation: 10, effect: "oculta 2 piedras ante guardias" },
 };
 
-/** Niveles de fama: las "medallas" del caminante. La fama sólo sube con misiones. */
+/** Niveles de fama: las "medallas" del caminante. Sube vendiendo lo que un pueblo ocupa. */
 export const FAME_TITLES = [
   { min: 0, name: "Desconocido" },
   { min: 2, name: "Mensajero" },
@@ -87,8 +87,7 @@ export function freshRun() {
     seen: {},
     rumors: [],
     debt: { owed: DEBT.start, due: 1 + DEBT.every, missed: 0 },
-    missions: [],
-    missionsDone: {},
+    fameSold: {},
     upgrades: { stashKit: false, horse: false, icebox: false, escort: false, hideout: false },
     crew: {},
     // Vida en medios corazones.
@@ -429,18 +428,31 @@ export function buy(registry, townId, good) {
   return { good: GOODS[good], price: q.buy };
 }
 
+/** Aquí la ocupan: falta, o la pagan al menos 10 % arriba de su valor. */
+export function isWanted(q) {
+  return q.mood === "falta" || q.sell / STONE[q.good].value >= 1.1;
+}
+
+/** Fama por vender: vender lo que un pueblo ocupa da +1, una vez por pueblo y por día. */
+export const FAME_PER_SALE = 1;
+
 export function sell(registry, townId, good) {
   if (!canSell(registry, townId, good)) return null;
   const st = econ(registry);
   const q = quote(st, townId, good, chill(registry));
+  const famed = getRecord(registry, "fameSold", {});
+  const fame = isWanted(q) && famed[townId] !== day(registry) ? FAME_PER_SALE : 0;
+  if (fame) {
+    addFame(registry, fame);
+    setRecordValue(registry, "fameSold", townId, day(registry));
+  }
   registry.inc("gold", q.sell);
   setRecordValue(registry, "cargo", good, cargoOf(registry, good) - 1, cargoRecord());
   if (good === "frost" && !cargoOf(registry, "frost")) registry.set("chill", 100);
   giveToMarket(st, townId, good);
   st.heat[townId] = Math.min(100, st.heat[townId] + STONE[good].sellHeat);
   commit(registry, st);
-  progressMissions(registry, townId, good);
-  return { good: GOODS[good], price: q.sell };
+  return { good: GOODS[good], price: q.sell, fame };
 }
 
 /** Lo que el jugador sabe de un mercado: los precios del día en que lo vio. */
@@ -487,8 +499,7 @@ export function passDays(registry, n, { cold = 0 } = {}) {
     stashes[id] = next <= 0 ? { ...s, frost: 0, chill: 100 } : { ...s, chill: next };
   }
   registry.set("stashes", stashes);
-  const expired = expireMissions(registry);
-  return { ended, started, melted, expired };
+  return { ended, started, melted };
 }
 
 // ---------- Rumores ----------
@@ -542,70 +553,23 @@ export function missDebt(registry) {
   return d;
 }
 
-// ---------- Misiones (encargos) ----------
-
-export function missions(registry) {
-  return getRecord(registry, "missions", []);
-}
-
-export function acceptMission(registry, m) {
-  registry.set("missions", [...missions(registry), { ...m, delivered: 0 }]);
-}
-
-/** Vender la piedra pedida en el pueblo pedido cuenta para el encargo. */
-export function progressMissions(registry, townId, good) {
-  let changed = false;
-  const list = missions(registry).map((m) => {
-    if (m.to !== townId || m.good !== good || m.delivered >= m.count) return m;
-    changed = true;
-    return { ...m, delivered: m.delivered + 1 };
-  });
-  if (changed) registry.set("missions", list);
-}
-
-/** Encargos cumplidos en este pueblo: se cobran (oro y fama) y salen de la lista. */
-export function claimMissions(registry, townId) {
-  const done = missions(registry).filter((m) => m.to === townId && m.delivered >= m.count);
-  if (!done.length) return [];
-  registry.set("missions", missions(registry).filter((m) => !done.includes(m)));
-  const record = { ...getRecord(registry, "missionsDone", {}) };
-  for (const m of done) {
-    registry.inc("gold", m.reward);
-    addFame(registry, m.fame);
-    record[m.id] = true;
-  }
-  registry.set("missionsDone", record);
-  return done;
-}
-
-function expireMissions(registry) {
-  const today = day(registry);
-  const list = missions(registry);
-  const alive = list.filter((m) => !m.deadline || m.deadline >= today || m.delivered >= m.count);
-  if (alive.length !== list.length) {
-    registry.set("missions", alive);
-    registry.set("missionsFailed", (registry.get("missionsFailed") ?? 0) + list.length - alive.length);
-  }
-  return list.filter((m) => !alive.includes(m));
-}
-
 /**
  * Lo que conviene en este pueblo hoy, para decirlo claro al llegar y en la burbuja del comerciante:
  * - `wanted`: lo que aquí pagan bien (falta), de mejor a peor.
  * - `cheap`: lo que aquí sobra y se compra barato.
  * - `yours`: lo que llevas y aquí te pagan bien.
- * - `orders`: tus pedidos que se entregan aquí.
+ * - `fameToday`: si vender lo que ocupan aquí todavía da fama hoy.
  */
 export function townTips(registry, townId) {
   const all = GOOD_IDS.map((g) => {
     const q = priceOf(registry, townId, g);
     return { good: g, ...q, rate: q.sell / STONE[g].value, cost: q.buy / STONE[g].value };
   });
-  const wanted = all.filter((q) => q.mood === "falta" || q.rate >= 1.1).sort((a, b) => b.rate - a.rate);
+  const wanted = all.filter(isWanted).sort((a, b) => b.rate - a.rate);
   const cheap = all.filter((q) => q.stock >= 1 && (q.mood === "sobra" || q.cost <= 0.85)).sort((a, b) => a.cost - b.cost);
   const yours = all.filter((q) => cargoOf(registry, q.good) > 0 && q.rate >= 1).sort((a, b) => b.sell - a.sell);
-  const orders = missions(registry).filter((m) => m.to === townId);
-  return { wanted, cheap, yours, orders };
+  const fameToday = getRecord(registry, "fameSold", {})[townId] !== day(registry);
+  return { wanted, cheap, yours, fameToday };
 }
 
 // ---------- Mejoras ----------
@@ -668,7 +632,7 @@ export function confiscateVisible(registry) {
 const SAVE_KEY = "stones-save-v4";
 const SAVED = [
   "gold", "cargo", "chill", "baseCapacity", "reputation", "trips", "currentTown", "lastRoute", "day", "market", "mods",
-  "heat", "seen", "rumors", "debt", "missions", "missionsDone", "missionsFailed", "upgrades", "hp", "maxHp", "tonics",
+  "heat", "seen", "rumors", "debt", "fameSold", "upgrades", "hp", "maxHp", "tonics",
   "stashes", "flags", "mapId", "crew",
 ];
 

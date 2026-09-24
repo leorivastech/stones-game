@@ -161,3 +161,9 @@ Regla: una línea por decisión, con fecha. No borrar: si se revierte, se agrega
 - **Sí / Leo** — Primera versión para celular: detecta pantalla táctil y pone palanca y botones A/B/C/T/II en franjas a los lados.
 - **Sí / Leo** — Teclas juntas: WASD + J K L I, o flechas + Z X C V. Un solo botón de acción (habla si hay alguien enfrente, si no golpea).
 - **Sí / Leo** — Que se entienda qué vender: cartel "HOY EN …" al llegar, burbuja sobre el comerciante (! = pedido, gema = lo que ocupan), mercado con OCUPAN / SOBRA, pedidos en el HUD, aviso de pedido vencido. "Encargos" pasan a llamarse "pedidos".
+
+## 2026-09-23 — sin pedidos: comprar y vender y ya
+
+- **Sí / Leo, reemplaza los pedidos** — Se quitan los pedidos de los comerciantes ("si lo llevas al hielo te pago 60 más" no se entendía). Llegas, compras y vendes según la oferta y la demanda.
+- **Sí / por defecto, a confirmar con Leo** — La fama sale de vender lo que un pueblo OCUPA: +1 por pueblo y por día. Sin esto, herrajes, caballo, arquera, fondo falso y refugios quedaban cerrados para siempre.
+- **Propuesto / Leo** — Compradores y vendedores que aparecen de vez en cuando en los caminos. Falta elegir cómo (ver panorama §3).

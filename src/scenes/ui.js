@@ -14,7 +14,7 @@ import { tone, sfx } from "../sfx.js";
 import {
   GOODS, GOOD_IDS, STONE, TOWNS, UPGRADES, buy, canBuy, capacity, cargo, cargoOf, chill, day, debt, flag, gold,
   hasUpgrade, heatLevel, hiddenCapacity, hp, load, localHeat, maxHp, priceOf, reputation, saveGame, sell, setFlag,
-  seenOf, stones, missions, rumors, fameTitle, nextFameTitle, moveStash, stashOf, stashCount, STASH_CAPACITY, STASH_RAID_HEAT,
+  seenOf, stones, rumors, fameTitle, nextFameTitle, moveStash, stashOf, stashCount, STASH_CAPACITY, STASH_RAID_HEAT,
   tonics, TONIC, townTips,
 } from "../state.js";
 
@@ -57,28 +57,6 @@ export class UIScene extends Phaser.Scene {
     this.tonicIcon = this.add.image(7, 28, "tonic").setOrigin(0, 0);
     this.tonicText = this.add.bitmapText(18, 29, "font-o", "");
     this.hud.add([this.coinIcon, this.goldText, this.eye, ...this.pips, this.star, this.fameText, this.dayText, this.tonicIcon, this.tonicText]);
-    this.orderRows = [];
-  }
-
-  /** Tus pedidos, siempre a la vista: piedra, cuántas llevas entregadas, a dónde y hasta qué día. */
-  drawOrders() {
-    const list = missions(this.registry).slice(0, 2);
-    while (this.orderRows.length < list.length) {
-      const y = 41 + this.orderRows.length * 12;
-      const r = { gem: this.add.image(7, y, "gem-amber").setOrigin(0, 0), text: this.add.bitmapText(19, y + 1, "font-o", "") };
-      this.hud.add([r.gem, r.text]);
-      this.orderRows.push(r);
-    }
-    this.orderRows.forEach((r, i) => {
-      const m = list[i];
-      r.gem.setVisible(Boolean(m));
-      r.text.setVisible(Boolean(m));
-      if (!m) return;
-      r.gem.setTexture(`gem-${m.good}`);
-      const done = m.delivered >= m.count;
-      r.text.setText(done ? `¡Listo! cóbralo en ${TOWNS[m.to].name}` : `${m.delivered}/${m.count} → ${TOWNS[m.to].name} · antes del día ${m.deadline}`);
-      r.text.setFont(done ? "font-gold" : "font-o");
-    });
   }
 
   refresh() {
@@ -146,7 +124,6 @@ export class UIScene extends Phaser.Scene {
     this.pips.forEach((p, i) => p.setTexture(i < on ? "ui-pip-on" : "ui-pip-off"));
     this.fameText.setText(String(reputation(reg)));
     this.dayText.setText(`Día ${day(reg)}`);
-    this.drawOrders();
   }
 
   /** Cierra cualquier ventana abierta (por si el mapa cambió con una abierta). */
@@ -182,21 +159,19 @@ export class UIScene extends Phaser.Scene {
   }
 
   /**
-   * Lo que conviene en este pueblo hoy, con sus gemas: tus pedidos de aquí, lo tuyo que aquí
-   * pagan bien, lo que ocupan y lo que sobra. Sale solo al llegar y se va.
+   * Lo que conviene en este pueblo hoy, con sus gemas: lo tuyo que aquí pagan bien, lo que ocupan
+   * (venderlo da fama) y lo que sobra. Sale solo al llegar y se va.
    */
   townNeeds(townId, delay = 0) {
     this.needsObj?.destroy();
     const tips = townTips(this.registry, townId);
     const short = (g) => GOODS[g].short.toLowerCase();
     const rows = [];
-    for (const m of tips.orders) {
-      rows.push({ good: m.good, font: "font-gold", text: m.delivered >= m.count ? "Tu pedido está listo: cóbralo" : `Tu pedido: vende aquí ${m.count - m.delivered} ${short(m.good)}` });
-    }
-    const mine = tips.yours.find((q) => !tips.orders.some((m) => m.good === q.good));
-    if (mine) rows.push({ good: mine.good, font: "font-gold", text: `Vende aquí tu ${short(mine.good)}: ${mine.sell} c/u` });
+    const mine = tips.yours[0];
+    const mineFame = mine && tips.fameToday && tips.wanted.some((q) => q.good === mine.good);
+    if (mine) rows.push({ good: mine.good, font: "font-gold", text: `Vende aquí tu ${short(mine.good)}: ${mine.sell} c/u${mineFame ? " · +fama" : ""}` });
     const want = tips.wanted.find((q) => q.good !== mine?.good);
-    if (want) rows.push({ good: want.good, font: "font-green", text: `Ocupan ${short(want.good)} · pagan ${want.sell}` });
+    if (want) rows.push({ good: want.good, font: "font-green", text: `Ocupan ${short(want.good)} · pagan ${want.sell}${tips.fameToday ? " · +fama" : ""}` });
     const cheap = tips.cheap.find((q) => q.good !== want?.good);
     if (cheap) rows.push({ good: cheap.good, font: "font", text: `Sobra ${short(cheap.good)} · cuesta ${cheap.buy}` });
     if (!rows.length) rows.push({ good: null, font: "font-dim", text: "Hoy no hay gran negocio aquí" });
@@ -477,7 +452,7 @@ export class UIScene extends Phaser.Scene {
     s.cursor.setY(row.y);
     s.pick.setPosition(s.side === 0 ? s.col.buy : s.col.sell, row.y - 2);
     const q = priceOf(reg, s.townId, row.good);
-    const mood = tips.wanted.some((w) => w.good === row.good) ? "Aquí la ocupan: te la pagan bien." : tips.cheap.some((c) => c.good === row.good) ? "Aquí sobra: cómprala barata y llévala." : "";
+    const mood = tips.wanted.some((w) => w.good === row.good) ? `Aquí la ocupan: te la pagan bien${tips.fameToday ? " y da fama" : ""}.` : tips.cheap.some((c) => c.good === row.good) ? "Aquí sobra: cómprala barata y llévala." : "";
     const frost = row.good === "frost" && cargoOf(reg, "frost") ? ` Tu escarcha: ${chill(reg)} % de frío.` : "";
     s.info.setText(`${STONE[row.good].trait} ${mood}${frost}`);
     const d = debt(reg);
@@ -508,6 +483,15 @@ export class UIScene extends Phaser.Scene {
     const t = this.add.bitmapText(cell.x, row.y - 2, buying ? "font-red" : "font-gold", buying ? `-${res.price}` : `+${res.price}`)
       .setOrigin(0.5, 1).setDepth(D + 20);
     this.tweens.add({ targets: t, y: t.y - 12, alpha: 0, duration: 700, onComplete: () => t.destroy() });
+    if (res.fame) {
+      // Vendiste lo que aquí ocupan: la gente habla de ti.
+      const f = this.add.bitmapText(s.col.tag, row.y - 2, "font-green", `+${res.fame} fama`).setOrigin(0.5, 1).setDepth(D + 20);
+      this.tweens.add({ targets: f, y: f.y - 16, alpha: 0, delay: 250, duration: 1100, onComplete: () => f.destroy() });
+      const title = fameTitle(reputation(reg));
+      sfx(this, title !== this.lastTitle ? "jingle-fame" : "jingle-mission", { volume: 0.4 });
+      if (this.lastTitle && title !== this.lastTitle) this.toast(`Ahora eres ${title}`, "font-gold");
+    }
+    this.lastTitle = fameTitle(reputation(reg));
     if (buying) {
       const gem = this.add.image(row.icon.x + 4, row.icon.y, `gem-${row.good}`).setDepth(D + 20);
       this.tweens.add({ targets: gem, x: 60, y: 20, duration: 380, ease: "Quad.In", onComplete: () => gem.destroy() });
@@ -623,7 +607,7 @@ export class UIScene extends Phaser.Scene {
       const box = this.add.container(0, 0).setDepth(D + 30);
       box.add(this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0x120e17, 0.82).setOrigin(0, 0));
       box.add(this.panel(8, 8, "ui-dark", VIEW_W - 16, VIEW_H - 16).setOrigin(0, 0));
-      const tabs = ["MAPA", "CARGA", "PEDIDOS", "MERCADOS", "CONTROLES"];
+      const tabs = ["MAPA", "CARGA", "FAMA", "MERCADOS", "CONTROLES"];
       const tabTexts = tabs.map((t, i) => {
         const txt = this.add.bitmapText(22 + i * 88, 17, "font-dim", t);
         box.add(txt);
@@ -770,22 +754,19 @@ export class UIScene extends Phaser.Scene {
         txt(344, 66 + i * 22, owned ? "tuyo" : u.reputation ? `fama ${u.reputation} · ${u.cost} oro` : `${u.cost} oro`, "font-dim");
       });
     } else if (p.index === 2) {
-      // --- Pedidos ---
-      txt(24, 42, "PEDIDOS", "font-gold");
-      const list = missions(reg);
-      if (!list.length) txt(24, 58, "Ninguno. Busca el ! sobre los comerciantes: te piden llevar piedras.", "font-dim");
-      list.slice(0, 6).forEach((m, i) => {
-        const y = 58 + i * 28;
-        add(this.add.image(24, y, `gem-${m.good}`).setOrigin(0, 0));
-        txt(38, y, m.title, m.delivered >= m.count ? "font-green" : "font");
-        const left = m.deadline ? ` · vence día ${m.deadline}` : "";
-        txt(38, y + 11, `${m.giver}: ${m.delivered}/${m.count} en ${TOWNS[m.to].name}${left} · ${m.reward} oro + ${m.fame} fama`, "font-dim");
-      });
-      txt(24, 196, "La fama sólo sube con pedidos. Cada título abre mejoras nuevas.", "font-dim");
-      const heard = rumors(reg).slice(0, 2);
+      // --- Fama y rumores ---
+      const fame = reputation(reg);
+      const next = nextFameTitle(fame);
+      txt(24, 42, "FAMA", "font-gold");
+      txt(24, 58, `Eres ${fameTitle(fame)} · ${fame} de fama`);
+      if (next) txt(24, 72, `Siguiente: ${next.name} con ${next.min} de fama`, "font-dim");
+      txt(24, 92, "Cómo sube: vende lo que un pueblo OCUPA (etiqueta verde en el mercado).", "font-dim");
+      txt(24, 104, "Da +1 de fama una vez por pueblo y por día.", "font-dim");
+      txt(24, 124, "Cada título abre mejoras: herrajes, caballo, arquera, fondo falso.", "font-dim");
+      const heard = rumors(reg).slice(0, 4);
       if (heard.length) {
-        txt(24, 210, "LO QUE SE DICE", "font-gold");
-        heard.forEach((r, i) => txt(24, 221 + i * 11, `Día ${r.day}: ${r.text}`.slice(0, 74), "font-dim"));
+        txt(24, 150, "LO QUE SE DICE", "font-gold");
+        heard.forEach((r, i) => txt(24, 162 + i * 12, `Día ${r.day}: ${r.text}`.slice(0, 74), "font-dim"));
       }
     } else if (p.index === 3) {
       // --- Mercados: lo que pagaban la última vez que los viste ---

@@ -25,7 +25,7 @@ pedido de Leo). Las teclas viejas (E, ESPACIO, SHIFT, Q, ENTER) siguen funcionan
 | Rodar (tocar) · correr (mantener) · salir de menús | K / X | B | B |
 | Agacharse · esconderse en el pasto alto | L / C | X | C |
 | Beber tónico (2 corazones) | I / V | Y · LB | T |
-| Pausa (mapa, carga, pedidos, mercados, controles) | ESC / P | Start | II |
+| Pausa (mapa, carga, fama, mercados, controles) | ESC / P | Start | II |
 | Bajar un escalón | caminar hacia abajo contra el borde | — | — |
 | Depuración | F1, luego 1-8 (arriba o teclado numérico) | — | — |
 
@@ -74,10 +74,9 @@ pasa a pantalla completa al primer toque (iPhone no lo permite desde el navegado
   "Aquí" dice **OCUPAN** (verde: te la pagan bien, con ▲ junto al precio) o **SOBRA** (dorado:
   cómprala barata y llévala). Ocupan = falta o paga ≥ 110 % del valor; sobra = sobra o cuesta ≤ 85 %.
 - **Se ve sin abrir la ventana** (23-sep, Leo: "no está claro qué puedes vender"):
-  - Al llegar a un pueblo sale el cartel **HOY EN …**: tu pedido de aquí, lo tuyo que aquí pagan
-    bien, lo que ocupan y lo que sobra, con sus gemas. Una vez por pueblo y por día.
-  - Sobre el comerciante flota una burbuja: **!** si tiene un pedido para ti; si no, la gema que
-    ahí ocupan.
+  - Al llegar a un pueblo sale el cartel **HOY EN …**: lo tuyo que aquí pagan bien, lo que ocupan
+    (con "+fama" si todavía da) y lo que sobra, con sus gemas. Una vez por pueblo y por día.
+  - Sobre el comerciante flota una burbuja con la gema que ahí ocupan.
 - **Lo que sabes de otros pueblos envejece**: la pausa muestra lo que pagaban "hace N días".
 - Simulación: `node studio/sim/mercado.mjs`. Ir en el sentido del círculo gana más; el contrario
   también deja. El caballo da ~35 % más con más calor.
@@ -88,16 +87,16 @@ pasa a pantalla completa al primer toque (iPhone no lo permite desde el navegado
   a un pueblo: pagas la cuota (40), todo, o "no tengo" (la deuda sube 25 y vuelve en 5 días).
 - Al pagarla toda: "Eres libre". Es la primera meta, no el final.
 
-## Fama y misiones
+## Fama
 
-- La fama **sólo sube con pedidos**. Títulos (las "medallas"): Desconocido 0 · Mensajero 2 ·
-  Contrabandista 6 · Mercader de sombra 10 · Leyenda del golfo 16. Abren mejoras.
-- **Sin misiones de historia** (quitadas el 23-sep: no se entendía cuándo te las piden ni cuándo
-  se pierden). Tomasa sólo da consejos de controles.
-- **Pedidos**: los comerciantes piden llevar 2-3 piedras a donde faltan hoy (10 días, +1 fama).
-  Se nota: burbuja **!** sobre el comerciante, cartel "PEDIDO ACEPTADO", línea en el HUD, y si
-  se vence te lo dicen al llegar al siguiente pueblo (sólo pierdes el pago).
-- Se cumplen vendiendo en el pueblo pedido; se cobran al cerrar la tienda o al llegar.
+- **Sin misiones ni pedidos** (23-sep, Leo: "nomás llegues, vendas y compres y ya"). Tomasa sólo
+  da consejos de controles.
+- La fama sube **vendiendo lo que un pueblo ocupa** (etiqueta verde OCUPAN): +1, una vez por pueblo
+  y por día (`FAME_PER_SALE` y `isWanted` en `src/state.js`). El cartel "HOY EN …" y el mercado
+  avisan "+fama" mientras todavía da.
+- Títulos (las "medallas"): Desconocido 0 · Mensajero 2 · Contrabandista 6 · Mercader de sombra 10
+  · Leyenda del golfo 16. Abren mejoras (herrajes 2, caballo 3, arquera 6, fondo falso 10) y la
+  compra de algunos refugios.
 
 ## Sucesos y rumores (`src/director.js`)
 
@@ -188,16 +187,15 @@ Entrar a un pueblo **guarda la partida** y cura.
 - Si un guardia te persigue suena la música de persecución; 3 s después de perderlo vuelve la del lugar.
 - Pasos según el suelo (pasto, piedra, madera, arena, nieve). Arco y flecha de Sahra, gruñidos al
   embestir, escorpión al salir de la arena, armadura del guardia al alarmarse, puertas, cofre,
-  palanca, gema al comprar y monedas al vender, fanfarrias de encargo, de nuevo título de fama y de
+  palanca, gema al comprar y monedas al vender, fanfarrias de fama, de nuevo título de fama y de
   deuda pagada.
 
 ## Interfaz
 
 - **HUD**: corazones · oro · casillas de carga (la perla ocupa dos; las del fondo falso, rayadas)
-  · tónicos · ojo de alerta · fama · **día** · tus **pedidos** (piedra, entregadas/pedidas, a dónde
-  y hasta qué día; "¡Listo! cóbralo en …" al completarlo).
+  · tónicos · ojo de alerta · fama · **día**.
 - **Pausa**: MAPA (pueblos, barca) · CARGA (vida, oro, fama con título, tónicos, deuda, carga con
-  frío de la escarcha, refugios, mejoras) · PEDIDOS (los tuyos y lo que se dice) · MERCADOS (lo que
+  frío de la escarcha, refugios, mejoras) · FAMA (título, cómo sube y lo que se dice) · MERCADOS (lo que
   pagaban y hace cuántos días) · CONTROLES.
 - **Mercado**, **estante** y **mesa** con ventanas propias; diálogos y elecciones con nota.
 

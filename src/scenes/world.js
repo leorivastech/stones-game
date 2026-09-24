@@ -24,11 +24,10 @@ import {
   flag, gold, hasUpgrade, heal, heatLevel, hp, hurt, localHeat, loseStones, maxHp, pay, purchaseUpgrade, reputation,
   saveGame, setFlag, stones, visibleStones, contrabandVisible, confiscateVisible, capacity, fits, stashCount, emptyStash,
   STASH_RAID_HEAT, buyTonic, drinkTonic, tonics, TONIC, BOAT_FARE, passDays, recordSeen, maybeBreakRune, day, debt,
-  debtDue, payDebt, missDebt, claimMissions, fameTitle, load, missions, acceptMission, hearRumor, econ, chill,
+  debtDue, payDebt, missDebt, fameTitle, load, hearRumor, econ, chill,
   REFUGES, REFUGE_UPGRADES, CREW, LODGING, crewAt, setCrewAt, partyHas, partySize, lodgingFee, ownsRefuge, refugeHas,
   stashCapacity, crewIn, townTips,
 } from "../state.js";
-import { orderFor } from "../missions.js";
 
 const INTRO = [
   "Las piedras de hechizo calientan casas, guardan el agua y salvan la cosecha.",
@@ -387,10 +386,8 @@ export class WorldScene extends Phaser.Scene {
     try {
       switch (npc.spec.role) {
         case "market":
-          await this.offerFrom(npc);
           await this.ui.shop(this.def.town, name, npc.spec.talk);
           recordSeen(reg, this.def.town);
-          await this.claimHere();
           if (this.def.town === "frostholm" && !hasUpgrade(reg, "icebox")) await this.iceboxOffer(npc);
           break;
         case "smith":
@@ -446,7 +443,7 @@ export class WorldScene extends Phaser.Scene {
       return;
     }
     if (reputation(reg) < item.reputation) {
-      await this.ui.say([...lockedLines, `(Necesitas fama ${item.reputation}. Tienes ${reputation(reg)}.)`], { name });
+      await this.ui.say([...lockedLines, `(Necesitas fama ${item.reputation}. Tienes ${reputation(reg)}. Sube vendiendo lo que un pueblo ocupa.)`], { name });
       return;
     }
     await this.ui.say([pitch], { name });
@@ -888,7 +885,7 @@ export class WorldScene extends Phaser.Scene {
     const kit = UPGRADES.stashKit;
     const hide = UPGRADES.hideout;
     if (reputation(reg) < kit.reputation) {
-      await this.ui.say(["No trabajo para desconocidos.", `(Necesitas fama ${kit.reputation}. Tienes ${reputation(reg)}.)`], { name });
+      await this.ui.say(["No trabajo para desconocidos.", `(Necesitas fama ${kit.reputation}. Tienes ${reputation(reg)}. Sube vendiendo lo que un pueblo ocupa.)`], { name });
       return;
     }
     const options = [];
@@ -980,9 +977,9 @@ export class WorldScene extends Phaser.Scene {
     saveGame(reg);
   }
 
-  // ---------------------------------------------------------------- llegada, deuda y encargos
+  // ---------------------------------------------------------------- llegada y deuda
 
-  /** Al llegar a un pueblo: días que pasaron, escarcha, encargos cumplidos y el cobrador. */
+  /** Al llegar a un pueblo: días que pasaron, escarcha y el cobrador. */
   onArrival() {
     const reg = this.registry;
     const a = this.arrival;
@@ -990,11 +987,6 @@ export class WorldScene extends Phaser.Scene {
     this.ui.toast(`Pasaron ${a.days} ${a.days === 1 ? "día" : "días"} · día ${day(reg)}`, "font-gold");
     if (a.melted) this.time.delayedCall(500, () => this.ui.toast(`Se te derritió la escarcha (${a.melted})`, "font-red"));
     this.runModal(async () => {
-      for (const m of a.expired ?? []) {
-        tone(this, "deny");
-        await this.ui.say([`Se venció tu pedido: ${m.title}.`, "No llegaste antes del día " + m.deadline + ". No pasa nada más: sólo te quedas sin el pago."], { name: m.giver });
-      }
-      await this.claimHere();
       if (debtDue(reg)) await this.debtCollector();
       this.refreshSigns();
       this.showNeeds();
@@ -1010,77 +1002,20 @@ export class WorldScene extends Phaser.Scene {
     this.ui.townNeeds(this.def.town);
   }
 
-  /** El pedido que el comerciante de aquí te ofrecería ahora (o null). */
-  pendingOrder() {
-    const reg = this.registry;
-    const town = this.def.town;
-    const declined = (reg.get("ordersDeclined") ?? {})[town];
-    if (missions(reg).some((a) => a.from === town) || declined === day(reg)) return null;
-    return orderFor(econ(reg), town, { day: day(reg), seed: day(reg) });
-  }
-
-  /**
-   * Burbuja sobre cada comerciante, para ver de lejos qué pasa: "!" si tiene un pedido para ti;
-   * si no, la gema que aquí ocupan (te la pagan bien).
-   */
+  /** Burbuja sobre cada comerciante, para ver de lejos lo que aquí ocupan (te lo pagan bien). */
   refreshSigns() {
     for (const s of this.signs ?? []) s.destroy();
     this.signs = [];
     if (this.def.kind !== "town") return;
-    const order = this.pendingOrder();
     const want = townTips(this.registry, this.def.town).wanted[0];
     for (const npc of this.npcs) {
-      if (npc.spec.role !== "market" || (!order && !want)) continue;
+      if (npc.spec.role !== "market" || !want) continue;
       const box = this.add.container(Math.round(npc.x), Math.round(npc.y - 27)).setDepth(DEPTH.fx);
-      box.add(this.add.image(0, 0, this.ui.panelKey("ui-tag", 16, order ? 22 : 16)).setOrigin(0.5, 1));
-      // El "!" al doble (escala entera: sigue nítido) para verlo desde lejos.
-      if (order) box.add(this.add.bitmapText(-2, -21, "font-gold", "!").setScale(2));
-      else box.add(this.add.image(0, -3, `gem-${want.good}`).setOrigin(0.5, 1));
+      box.add(this.add.image(0, 0, this.ui.panelKey("ui-tag", 16, 16)).setOrigin(0.5, 1));
+      box.add(this.add.image(0, -3, `gem-${want.good}`).setOrigin(0.5, 1));
       this.tweens.add({ targets: box, y: box.y - 2, duration: 520, yoyo: true, repeat: -1, ease: "Sine.InOut" });
       this.signs.push(box);
     }
-  }
-
-  /** Si el comerciante tiene un pedido para ti, te lo ofrece. */
-  async offerFrom(npc) {
-    const reg = this.registry;
-    const town = this.def.town;
-    const name = npc.spec.name;
-    if (npc.spec.role !== "market") return;
-    const m = this.pendingOrder();
-    if (!m) return;
-    const deadline = m.deadline;
-    await this.ui.say(m.lines, { name });
-    const pick = await this.ui.choose(`Pedido: ${m.title}`, [
-      { label: "Aceptar", note: `${m.reward} oro + ${m.fame} fama${deadline ? ` · antes del día ${deadline}` : ""}` },
-      { label: "Ahora no" },
-    ], { name });
-    if (pick === 0) {
-      acceptMission(reg, { ...m, giver: m.giver ?? name, deadline });
-      tone(this, "confirm");
-      this.ui.banner("PEDIDO ACEPTADO", `Vende ${m.count} ${GOODS[m.good].short.toLowerCase()} en ${TOWNS[m.to].name} antes del día ${deadline}`);
-      saveGame(reg);
-    } else {
-      reg.set("ordersDeclined", { ...(reg.get("ordersDeclined") ?? {}), [town]: day(reg) });
-    }
-  }
-
-  /** Cobra los encargos cumplidos en este pueblo. */
-  async claimHere() {
-    const reg = this.registry;
-    if (this.def.kind !== "town") return;
-    const titleBefore = fameTitle(reputation(reg));
-    const done = claimMissions(reg, this.def.town);
-    if (done.length) {
-      duckTheme(this, 0.06);
-      sfx(this, fameTitle(reputation(reg)) !== titleBefore ? "jingle-fame" : "jingle-mission", { volume: 0.5 });
-      this.time.delayedCall(2200, () => restoreTheme());
-    }
-    for (const m of done) {
-      sfx(this, "coins");
-      await this.ui.say([`¡Pedido cumplido! ${m.title}.`, `+${m.reward} oro · +${m.fame} fama. Ahora eres ${fameTitle(reputation(reg))}.`], { name: m.giver });
-    }
-    if (done.length) saveGame(reg);
   }
 
   async debtCollector() {
@@ -1339,7 +1274,7 @@ export class WorldScene extends Phaser.Scene {
     }
     await this.ui.say(npc.spec.talk, { name });
     if (reputation(reg) < info.fame) {
-      await this.ui.say(["Pero no se lo vendo a cualquiera.", `(Necesitas fama ${info.fame}. Tienes ${reputation(reg)}.)`], { name });
+      await this.ui.say(["Pero no se lo vendo a cualquiera.", `(Necesitas fama ${info.fame}. Tienes ${reputation(reg)}. Sube vendiendo lo que un pueblo ocupa.)`], { name });
       return;
     }
     const pick = await this.ui.choose(`${info.name} · ${info.price} oro`, [

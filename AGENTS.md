@@ -26,7 +26,6 @@ Abre http://127.0.0.1:5181/
 | Números que se ajustan jugando | `src/config.js` |
 | Economía: mercado vivo, días, piedras (lógica pura) | `src/economy.js` — simulación: `node studio/sim/mercado.mjs` |
 | Sucesos y rumores (lógica pura) | `src/director.js` |
-| Pedidos de los comerciantes (fama) | `src/missions.js` |
 | Estado de la partida (guardar, deuda, fama, refugios, tu gente) | `src/state.js` + `src/world.js` |
 | Refugios (mapas chicos) | `src/maps/refugios.js` |
 | Qué está decidido / construido / pendiente | `studio/panorama.md` |
