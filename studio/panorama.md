@@ -22,6 +22,7 @@ Lo interesante es **prepararse**: qué llevas, a quién llevas, dónde dejas qu�
 | Deuda | 500 con el Gremio, cobrador cada 10 días. |
 | Fama = medallas | Vendiendo lo que un pueblo ocupa (+1 por pueblo y día); 5 títulos que abren mejoras. |
 | Comercio simple | Llegas, compras y vendes según oferta y demanda. Sin misiones ni pedidos (quitados 23-sep). |
+| Buhonero de camino | A veces (35 %) anda uno por la ruta: compra caro y vende barato, pocas piezas. |
 | Refugios secretos | Cueva del Paso Alto, tierra escondida de Aurelio (con corral), cueva del lago (fría). Estante, mesa de mejoras, catre, cerrojo; redadas. |
 | Gente física | Yegua y Sahra te siguen; se dejan en refugio, posada o establo y se recogen ahí. Yegua sin hielo ni cuevas sin corral. Más gente = te ven de más lejos. |
 
@@ -43,7 +44,6 @@ Lo interesante es **prepararse**: qué llevas, a quién llevas, dónde dejas qu�
 | **Tono del lore** | Serio, aventura ligera o con humor. Hoy hay lo mínimo: la deuda del padre, la Corona y el Gremio. |
 | **Metas largas** | Tu propio puesto en un pueblo que vende mientras no estás; el acero del herrero. |
 | **Feria de la Corona** | Evento grande que se repite cada tantos días (como los festivales de Stardew). |
-| **Compradores y vendedores de camino** | Idea de Leo (23-sep): de vez en cuando aparece en las rutas alguien que compra o vende. Opciones por decidir en `decisions.md`. |
 | **Más gente** | Cargador (más carga), explorador (ve patrullas), negociador (sobornos baratos). |
 
 ## 4. Descartado

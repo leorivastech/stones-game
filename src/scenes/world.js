@@ -26,7 +26,7 @@ import {
   STASH_RAID_HEAT, buyTonic, drinkTonic, tonics, TONIC, BOAT_FARE, passDays, recordSeen, maybeBreakRune, day, debt,
   debtDue, payDebt, missDebt, fameTitle, load, hearRumor, econ, chill,
   REFUGES, REFUGE_UPGRADES, CREW, LODGING, crewAt, setCrewAt, partyHas, partySize, lodgingFee, ownsRefuge, refugeHas,
-  stashCapacity, crewIn, townTips,
+  stashCapacity, crewIn, townTips, peddlerFor, sellToPeddler, buyFromPeddler,
 } from "../state.js";
 
 const INTRO = [
@@ -133,6 +133,7 @@ export class WorldScene extends Phaser.Scene {
     startAmbience(this, def.ambience);
     this.ui.enterMap(def);
     this.refreshSigns();
+    if (def.kind === "route") this.spawnPeddler();
     if (this.arrival) this.time.delayedCall(700, () => this.onArrival());
     else if (def.kind === "town") this.time.delayedCall(2900, () => this.showNeeds());
 
@@ -392,6 +393,9 @@ export class WorldScene extends Phaser.Scene {
           break;
         case "smith":
           await this.smithTalk(npc);
+          break;
+        case "peddler":
+          await this.peddlerTalk(npc);
           break;
         case "healer":
           await this.healerTalk(npc);
@@ -1000,6 +1004,97 @@ export class WorldScene extends Phaser.Scene {
     if (this.ui.needsShown === key) return;
     this.ui.needsShown = key;
     this.ui.townNeeds(this.def.town);
+  }
+
+  // ---------------------------------------------------------------- buhonero de camino
+
+  /**
+   * A veces anda un buhonero por la ruta (una tirada por ruta y por día). Se para sobre el camino,
+   * lejos de la entrada, de los enemigos, del retén y de las salidas.
+   */
+  spawnPeddler() {
+    const reg = this.registry;
+    const p = peddlerFor(reg, this.mapId);
+    if (!p) return;
+    let spot = p.spot;
+    if (!spot) {
+      const w = this.world;
+      const far = (x, y, list, d) => list.every((o) => Math.hypot(o.x - x, o.y - y) > d * TILE);
+      const enemies = this.enemies.map((e) => ({ x: e.x ?? e.sprite.x, y: e.y ?? e.sprite.y }));
+      const posts = this.def.objects.filter((o) => ["barrier", "gate", "lever", "stash", "refuge"].includes(o.type)).map((o) => ({ x: o.x * TILE, y: o.y * TILE }));
+      const exits = (this.def.exits ?? []).map((e) => ({ x: (e.x + e.w / 2) * TILE, y: (e.y + e.h / 2) * TILE }));
+      const open = (c, r) => [":", "=", "s"].includes(w.at(c, r)) && !w.solidAt(c * TILE + 8, r * TILE + 8);
+      const spots = [];
+      for (let r = 4; r < w.rows - 4; r += 1) {
+        for (let c = 3; c < w.cols - 3; c += 1) {
+          if (!open(c, r) || !open(c - 1, r) || !open(c + 1, r) || !open(c, r - 1) || !open(c, r + 1)) continue;
+          const x = c * TILE + 8;
+          const y = r * TILE + 12;
+          if (!far(x, y, [this.player], 12) || !far(x, y, enemies, 7) || !far(x, y, posts, 6) || !far(x, y, exits, 8)) continue;
+          spots.push({ x: (c * TILE + 8) / TILE, y: (r * TILE + 12) / TILE });
+        }
+      }
+      if (!spots.length) return;
+      spot = spots[(p.day * 7 + p.name.length * 13) % spots.length];
+      reg.set("peddler", { ...p, spot });
+    }
+    const npc = new Npc(this, { type: "npc", cast: "peddler", name: p.name, x: spot.x, y: spot.y, dir: "down", role: "peddler", talk: [] });
+    this.npcs.push(npc);
+    this.npcGroup.add(npc.sprite);
+    npc.sprite.body.setImmovable(true);
+    this.interactables.push({ get x() { return npc.x; }, get y() { return npc.y; }, r: 18, label: "Comerciar", act: () => this.talkTo(npc) });
+    // Burbuja con una moneda: se ve de lejos que ahí se compra y se vende.
+    const box = this.add.container(Math.round(npc.x), Math.round(npc.y - 27)).setDepth(DEPTH.fx);
+    box.add(this.add.image(0, 0, this.ui.panelKey("ui-tag", 16, 16)).setOrigin(0.5, 1));
+    box.add(this.add.sprite(0, -3, "coin", 0).setOrigin(0.5, 1));
+    this.tweens.add({ targets: box, y: box.y - 2, duration: 520, yoyo: true, repeat: -1, ease: "Sine.InOut" });
+    this.peddlerSign = box;
+    this.time.delayedCall(1500, () => this.ui.toast(`Por aquí anda un buhonero: ${p.name}`, "font-gold"));
+  }
+
+  async peddlerTalk(npc) {
+    const reg = this.registry;
+    const name = npc.spec.name;
+    const short = (g) => GOODS[g].short.toLowerCase();
+    await this.ui.say([`¡Buenas! Soy ${name}, ando de camino en camino.`, "Te compro caro y te vendo barato. Poquito, eso sí."], { name });
+    let last = null;
+    for (;;) {
+      const p = reg.get("peddler");
+      const have = cargoOf(reg, p.buys.good);
+      const broke = gold(reg) < p.sells.price;
+      const full = !fits(reg, p.sells.good);
+      const pick = await this.ui.choose(`${name}, buhonero`, [
+        {
+          label: `Venderle ${short(p.buys.good)} · ${p.buys.price} oro`,
+          disabled: !have || p.buys.left <= 0,
+          note: p.buys.left <= 0 ? "Ya no quiere más." : have ? `Llevas ${have}. Te compra hasta ${p.buys.left}.` : `No llevas ${short(p.buys.good)}.`,
+        },
+        {
+          label: `Comprarle ${short(p.sells.good)} · ${p.sells.price} oro`,
+          disabled: p.sells.left <= 0 || broke || full,
+          note: p.sells.left <= 0 ? "Ya no le quedan." : `Le quedan ${p.sells.left}.${broke ? " No te alcanza." : full ? " No te cabe." : ""}`,
+        },
+        { label: "Adiós" },
+      ], { start: last });
+      last = pick;
+      if (pick === 0) {
+        const r = sellToPeddler(reg);
+        if (r) {
+          sfx(this, "coins-sell", { volume: 0.5 });
+          this.ui.toast(`+${r.price} oro`, "font-gold");
+        }
+      } else if (pick === 1) {
+        const r = buyFromPeddler(reg);
+        if (r) {
+          sfx(this, "gem", { volume: 0.5 });
+          this.ui.toast(`-${r.price} oro · ${r.good.short}`, "font-o");
+        }
+      } else {
+        break;
+      }
+      saveGame(reg);
+    }
+    await this.ui.say(["¡Buen camino! Otro día quizá me topas en otra ruta."], { name });
   }
 
   /** Burbuja sobre cada comerciante, para ver de lejos lo que aquí ocupan (te lo pagan bien). */

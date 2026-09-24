@@ -428,6 +428,71 @@ export function buy(registry, townId, good) {
   return { good: GOODS[good], price: q.buy };
 }
 
+// ---------- Buhonero de camino ----------
+
+/**
+ * A veces, al entrar a una ruta, anda por ahí un buhonero: te compra una piedra más cara que en los
+ * pueblos y te vende otra barata, pocas piezas. Una tirada por ruta y por día (si vuelves el mismo
+ * día sigue ahí, con lo que le quedó).
+ */
+export const PEDDLER = {
+  chance: 0.35,
+  buyRate: [1.25, 1.45], // te paga entre 125 % y 145 % del valor (un pueblo paga 144 % como mucho)
+  sellRate: [0.55, 0.7], // te vende entre 55 % y 70 % del valor
+  names: ["Ruperto", "Casilda", "Anselmo", "Brígida", "Tadeo", "Remedios"],
+};
+
+/** El buhonero de esta ruta hoy (o null). La primera vez del día se tira el dado. */
+export function peddlerFor(registry, routeId, rand = Math.random) {
+  const today = day(registry);
+  const cur = registry.get("peddler");
+  if (cur && cur.route === routeId && cur.day === today) return cur.none ? null : cur;
+  if (rand() >= PEDDLER.chance) {
+    registry.set("peddler", { route: routeId, day: today, none: true });
+    return null;
+  }
+  const lerp = ([a, b]) => a + (b - a) * rand();
+  const carried = GOOD_IDS.filter((g) => cargoOf(registry, g) > 0);
+  // Casi siempre compra algo que llevas: así el encuentro sirve.
+  const buyGood = carried.length && rand() < 0.7 ? carried[Math.floor(rand() * carried.length)] : GOOD_IDS[Math.floor(rand() * GOOD_IDS.length)];
+  const sellable = GOOD_IDS.filter((g) => g !== buyGood && g !== "frost");
+  const sellGood = sellable[Math.floor(rand() * sellable.length)];
+  const p = {
+    route: routeId,
+    day: today,
+    name: PEDDLER.names[Math.floor(rand() * PEDDLER.names.length)],
+    buys: { good: buyGood, price: Math.round(STONE[buyGood].value * lerp(PEDDLER.buyRate)), left: 3 },
+    sells: { good: sellGood, price: Math.max(1, Math.round(STONE[sellGood].value * lerp(PEDDLER.sellRate))), left: 2 + (rand() < 0.5 ? 1 : 0) },
+  };
+  registry.set("peddler", p);
+  return p;
+}
+
+/** Venderle una piedra al buhonero. La escarcha se paga según el frío que le quede. */
+export function sellToPeddler(registry) {
+  const p = registry.get("peddler");
+  if (!p || p.none || p.buys.left <= 0 || cargoOf(registry, p.buys.good) <= 0) return null;
+  const good = p.buys.good;
+  const price = good === "frost" ? Math.max(1, Math.round(p.buys.price * chill(registry) / 100)) : p.buys.price;
+  registry.inc("gold", price);
+  setRecordValue(registry, "cargo", good, cargoOf(registry, good) - 1, cargoRecord());
+  if (good === "frost" && !cargoOf(registry, "frost")) registry.set("chill", 100);
+  registry.set("peddler", { ...p, buys: { ...p.buys, left: p.buys.left - 1 } });
+  return { good: GOODS[good], price };
+}
+
+/** Comprarle una piedra al buhonero. */
+export function buyFromPeddler(registry) {
+  const p = registry.get("peddler");
+  if (!p || p.none) return null;
+  const { good, price, left } = p.sells;
+  if (left <= 0 || gold(registry) < price || !fits(registry, good)) return null;
+  registry.inc("gold", -price);
+  setRecordValue(registry, "cargo", good, cargoOf(registry, good) + 1, cargoRecord());
+  registry.set("peddler", { ...p, sells: { ...p.sells, left: left - 1 } });
+  return { good: GOODS[good], price };
+}
+
 /** Aquí la ocupan: falta, o la pagan al menos 10 % arriba de su valor. */
 export function isWanted(q) {
   return q.mood === "falta" || q.sell / STONE[q.good].value >= 1.1;
@@ -632,7 +697,7 @@ export function confiscateVisible(registry) {
 const SAVE_KEY = "stones-save-v4";
 const SAVED = [
   "gold", "cargo", "chill", "baseCapacity", "reputation", "trips", "currentTown", "lastRoute", "day", "market", "mods",
-  "heat", "seen", "rumors", "debt", "fameSold", "upgrades", "hp", "maxHp", "tonics",
+  "heat", "seen", "rumors", "debt", "fameSold", "peddler", "upgrades", "hp", "maxHp", "tonics",
   "stashes", "flags", "mapId", "crew",
 ];
 

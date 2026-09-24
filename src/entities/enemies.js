@@ -723,6 +723,8 @@ export class Guard extends Humanoid {
 
   /** Empujón al huir de una revisión: el guardia se queda aturdido un momento. */
   shove() {
+    // Si el mapa cambió a media revisión, este guardia ya no existe.
+    if (!this.body) return;
     this.setState("stunned");
     this.hostile = true;
     const p = this.player();

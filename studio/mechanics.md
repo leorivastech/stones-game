@@ -81,6 +81,16 @@ pasa a pantalla completa al primer toque (iPhone no lo permite desde el navegado
 - Simulación: `node studio/sim/mercado.mjs`. Ir en el sentido del círculo gana más; el contrario
   también deja. El caballo da ~35 % más con más calor.
 
+## Buhonero de camino
+
+- Idea de Leo (23-sep): encuentro al azar, pero que se vea una personita. Al entrar a una ruta, 35 %
+  de que ande un buhonero (una tirada por ruta y por día; si vuelves ese día, sigue ahí con lo que
+  le quedó). Se para sobre el camino, lejos de la entrada, de los enemigos, del retén y de las
+  salidas, con una moneda encima. Al entrar avisa: "Por aquí anda un buhonero".
+- Te **compra** una piedra (casi siempre una que llevas) entre 125 % y 145 % de su valor, hasta 3.
+  Te **vende** otra (nunca escarcha) entre 55 % y 70 % de su valor, 2 o 3 piezas. Sin calor ni fama.
+- Números en `PEDDLER` (`src/state.js`); personaje `peddler` en `src/art/actors.js`.
+
 ## Deuda con el Gremio
 
 - Empiezas debiendo **500** (la deuda de tu padre). Cada **10 días** un cobrador te para al llegar

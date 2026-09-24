@@ -311,7 +311,7 @@ export class UIScene extends Phaser.Scene {
   // ------------------------------------------------------------------ elección
 
   /** options: [{label, disabled?, note?}] → índice elegido, o -1 si cancela. */
-  choose(title, options, { note } = {}) {
+  choose(title, options, { note, start } = {}) {
     return new Promise((resolve) => {
       this.closeAll();
       this.mode = "choice";
@@ -333,7 +333,7 @@ export class UIScene extends Phaser.Scene {
       if (note) box.add(this.add.bitmapText(x + 10, y + h + 4, "font-o", note));
       box.setScale(0.96).setAlpha(0);
       this.tweens.add({ targets: box, alpha: 1, scale: 1, duration: 120 });
-      let index = options.findIndex((o) => !o.disabled);
+      let index = start != null && options[start] && !options[start].disabled ? start : options.findIndex((o) => !o.disabled);
       if (index < 0) index = options.length - 1;
       this.choice = { box, rows, cursor, noteText, options, index, resolve, x, y };
       this.moveChoice(0);

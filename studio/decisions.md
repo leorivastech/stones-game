@@ -166,4 +166,4 @@ Regla: una línea por decisión, con fecha. No borrar: si se revierte, se agrega
 
 - **Sí / Leo, reemplaza los pedidos** — Se quitan los pedidos de los comerciantes ("si lo llevas al hielo te pago 60 más" no se entendía). Llegas, compras y vendes según la oferta y la demanda.
 - **Sí / por defecto, a confirmar con Leo** — La fama sale de vender lo que un pueblo OCUPA: +1 por pueblo y por día. Sin esto, herrajes, caballo, arquera, fondo falso y refugios quedaban cerrados para siempre.
-- **Propuesto / Leo** — Compradores y vendedores que aparecen de vez en cuando en los caminos. Falta elegir cómo (ver panorama §3).
+- **Sí / Leo** — Compradores y vendedores de camino: encuentro al azar con una personita (el buhonero). Construido el mismo día.

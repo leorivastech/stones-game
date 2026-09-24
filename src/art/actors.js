@@ -451,6 +451,15 @@ export const CASTS = {
       P: "o2", p: "o1", F: "o1", f: "o0", M: "l1", m: "l0",
     },
   },
+  // Buhonero de camino: sombrero violeta con cinta de oro, bufanda dorada, capa café de viaje.
+  peddler: {
+    head: "hat", body: "cloak",
+    map: {
+      o: "ink", H: "v2", h: "v1", J: "v3", A: "y3", S: "k3", s: "k2", e: "ink",
+      Y: "y3", y: "y2", C: "o3", c: "o2", L: "o4", W: "c3", w: "c2", B: "o1", b: "o4",
+      P: "o2", p: "o1", F: "o1", f: "o0", M: "l1", m: "l0",
+    },
+  },
   // Gente del desierto (turbante claro) y de la nieve (capucha de piel).
   desertfolk: {
     head: "hood", body: "tunic",
