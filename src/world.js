@@ -39,7 +39,17 @@ export const TOWNS = {
     produce: "sun",
     ground: "sand", path: "dirt", plaza: "cobble", biome: "desert", music: "road",
     houseTint: 0xe8c98a, treeTint: 0xc5a86a,
-    exits: { west: "verdelume", south: "frostholm" }, service: "escort",
+    exits: { west: "verdelume", south: "mossgrove" }, service: "escort",
+  },
+  // Pueblo del bosque entre el desierto y la nieve (23-sep, Leo). No tiene piedra propia:
+  // aquí se compra y se vende de todo, y lo que busca cambia como en todos lados.
+  mossgrove: {
+    id: "mossgrove", name: "Mossgrove", region: "BOSQUE DE MUSGO",
+    blurb: "Cabañas de leñadores bajo pinos viejos. Nadie saca piedra; todos comercian.",
+    produce: null,
+    ground: "grass", path: "dirt", plaza: "cobble", biome: "temperate", music: "verdelume",
+    houseTint: 0xd9cfb4, treeTint: 0x6f9a62,
+    exits: { north: "duneshade", south: "frostholm" },
   },
   frostholm: {
     id: "frostholm", name: "Frostholm", region: "PASO NEVADO",
@@ -47,7 +57,7 @@ export const TOWNS = {
     produce: "frost",
     ground: "snow", path: "packed", plaza: "cobble", biome: "snow", music: "valkeep",
     houseTint: 0xd9e7ee, treeTint: 0xb8cad0,
-    exits: { north: "duneshade" }, boat: "ashfen", service: "ferry",
+    exits: { north: "mossgrove" }, boat: "ashfen", service: "ferry",
   },
 };
 

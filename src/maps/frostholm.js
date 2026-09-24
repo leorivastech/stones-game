@@ -1,4 +1,4 @@
-/** Frostholm: pueblo de nieve en la costa este del golfo. Norte → Ruta 4 (Duneshade). Sur: muelle y barca a Ashfen. */
+/** Frostholm: pueblo de nieve en la costa este del golfo. Norte → Ruta 4 (Mossgrove). Sur: muelle y barca a Ashfen. */
 
 import { Grid } from "./grid.js";
 
@@ -59,7 +59,7 @@ export default {
     { type: "prop", art: "boat", x: 20.9, y: 25.2 },
     { type: "prop", art: "rubble", x: 0.2, y: 11.2, solid: [0, 10, 56, 24] },
     { type: "bridge-rails", x0: 19, x1: 20, y0: 24, y1: 27 },
-    { type: "sign", x: 22, y: 5.6, text: ["FROSTHOLM", "↑ Ruta 4 · Duneshade   ↓ Muelle · barca a Ashfen"] },
+    { type: "sign", x: 22, y: 5.6, text: ["FROSTHOLM", "↑ Ruta 4 · Mossgrove   ↓ Muelle · barca a Ashfen"] },
     { type: "sign", x: 6.6, y: 13, text: ["TÚNEL VIEJO", "Cerrado. Del otro lado dicen que está Verdelume."] },
     {
       type: "npc", cast: "merchant", name: "Hilde", x: 21.3, y: 11.4, dir: "down", role: "market",

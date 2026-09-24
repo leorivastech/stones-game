@@ -1,6 +1,6 @@
 # Diseño del mundo completo — Stones
 
-Estado: **diseño cerrado para la muestra completa** (5 pueblos, 4 rutas, barca). 2026-09-23.
+Estado: **diseño cerrado para la muestra completa** (5 pueblos, 4 rutas, barca; el 23-sep se agregó Mossgrove y la Ruta 5 — ver mechanics.md). 2026-09-23.
 Pedido de Leo: hacer todas las ciudades, meter lo que le dé valor (herrero que te arma un sistema
 para guardar, escondites en los caminos tipo base secreta de Pokémon, caballo, arquero) y dejar
 analizado cómo funciona todo — economía y piedras incluidas — para que tenga sentido.

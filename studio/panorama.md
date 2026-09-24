@@ -13,7 +13,7 @@ Lo interesante es **prepararse**: qué llevas, a quién llevas, dónde dejas qu�
 
 | Tema | Qué hay |
 |---|---|
-| Mundo | 5 pueblos, 4 rutas, barca, 3 refugios. |
+| Mundo | 6 pueblos, 5 rutas, barca, 3 refugios. Mossgrove (bosque) entre el desierto y la nieve. |
 | Animación | Paso con rebote y brazos, respirar; yegua con vistas de lado, frente y espalda; Sahra con arco, carcaj y pose de disparo. |
 | Días | Ruta 2 días, barca 3, volver 1, catre 1. El mundo cambia mientras caminas. |
 | Mercado tipo bolsa | Todos los pueblos con las 5 piedras; precio por oferta y demanda; tope de la Corona a la vista; precios "vistos hace N días". |
@@ -74,6 +74,8 @@ Lo interesante es **prepararse**: qué llevas, a quién llevas, dónde dejas qu�
 - Atajo de montaña Ashfen ↔ Verdelume.
 
 ## 6. Falta decidir
+
+0. **Sesión para dejar claras las reglas del mercado** (Leo, 23-sep): el vaivén de precios, la fama por vender y el buhonero son provisionales, "para ver cómo se ve".
 
 1. Tono del lore y el resto de la historia (por qué cada pueblo tiene su piedra, quién manda en los caminos).
 2. Las propuestas de la sección 3.

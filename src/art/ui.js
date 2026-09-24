@@ -101,9 +101,10 @@ export const WORLD_PINS = {
   valkeep: [64, 38],
   verdelume: [116, 26],
   duneshade: [168, 42],
+  mossgrove: [198, 64],
   frostholm: [186, 90],
 };
-export const WORLD_ROADS = [["ashfen", "valkeep"], ["valkeep", "verdelume"], ["verdelume", "duneshade"], ["duneshade", "frostholm"]];
+export const WORLD_ROADS = [["ashfen", "valkeep"], ["valkeep", "verdelume"], ["verdelume", "duneshade"], ["duneshade", "mossgrove"], ["mossgrove", "frostholm"]];
 
 export function worldMap() {
   const { w, h } = WORLD_MAP;
@@ -121,7 +122,7 @@ export function worldMap() {
       else if (gulf(x, y + 2) || gulf(x + 2, y) || gulf(x - 2, y)) col = "c1";
       // Regiones tintadas
       const region = [
-        [70, 34, "f5"], [115, 22, "g5"], [170, 40, "d5"], [190, 92, "n3"], [36, 86, "g6"],
+        [70, 34, "f5"], [115, 22, "g5"], [170, 40, "d5"], [190, 92, "n3"], [36, 86, "g6"], [200, 64, "f4"],
       ];
       for (const [rx, ry, rc] of region) {
         const d = Math.hypot(x - rx, y - ry);
@@ -138,6 +139,8 @@ export function worldMap() {
   [[20, 40], [30, 30], [44, 44], [52, 20], [80, 14], [90, 30]].forEach(([x, y]) => peak(x, y));
   const tree = (px, py) => { b.set(px, py, "f3"); b.hline(px - 1, py + 1, 3, "f3"); b.set(px, py + 2, "o2"); };
   for (let i = 0; i < 22; i += 1) tree(100 + Math.floor(hash(i, 1, 4) * 36), 10 + Math.floor(hash(i, 2, 4) * 30));
+  // Bosque de Mossgrove, entre el desierto y la nieve.
+  for (let i = 0; i < 12; i += 1) tree(188 + Math.floor(hash(i, 7, 4) * 24), 54 + Math.floor(hash(i, 8, 4) * 18));
   // Dunas
   for (let i = 0; i < 8; i += 1) {
     const x = 150 + Math.floor(hash(i, 3, 5) * 40);

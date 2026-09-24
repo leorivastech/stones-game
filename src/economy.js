@@ -101,7 +101,7 @@ export function baseProfile(townId) {
   const t = TOWNS[townId];
   const prof = {};
   for (const g of GOOD_IDS) prof[g] = { prod: 0.6, cons: 0.8, target: 6 };
-  prof[t.produce] = { prod: 1.8, cons: 0.5, target: 6 };
+  if (t.produce) prof[t.produce] = { prod: 1.8, cons: 0.5, target: 6 };
   return prof;
 }
 

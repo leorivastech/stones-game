@@ -172,4 +172,5 @@ Regla: una línea por decisión, con fecha. No borrar: si se revierte, se agrega
 
 - **Sí / Leo, reemplaza "cada pueblo necesita la piedra del vecino"** — Sin orden fijo: las ganas de comprar y lo que llega de cada piedra se mueven al azar en todos los pueblos, día con día. Cada pueblo sigue sacando su piedra.
 - **Sí / Leo** — La barca: animación corta del mapa con la barquita cruzando el golfo (unos 4 s), en vez de pantallas de texto.
-- **Falta decidir / Leo** — "El desierto y el hielo no deberían ir juntos; antes del hielo, una ciudad muy boscosa." Opciones en la plática del 23-sep.
+- **Sí / Leo** — Pueblo nuevo de bosque entre el desierto y la nieve: **Mossgrove**, sin piedra propia ("ya no importa si no creas una nueva"). Ruta 5 (Duneshade ↔ Mossgrove) nueva; la Ruta 4 ahora va de Mossgrove a Frostholm y empieza en bosque.
+- **Anotado / Leo** — El vaivén, la fama por vender y el buhonero son reglas provisionales: falta una sesión para analizarlas y dejarlas claras.

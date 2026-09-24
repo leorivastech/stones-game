@@ -1,4 +1,4 @@
-/** Duneshade: pueblo de adobe junto a un oasis. Oeste → Ruta 3 (Verdelume). Sur → Ruta 4 (Frostholm). */
+/** Duneshade: pueblo de adobe junto a un oasis. Oeste → Ruta 3 (Verdelume). Sur → Ruta 5 (Mossgrove). */
 
 import { Grid } from "./grid.js";
 
@@ -67,8 +67,8 @@ export default {
     { type: "prop", art: "target", x: 4, y: 22.2, solid: [4, 18, 10, 6] },
     { type: "prop", art: "target", x: 7, y: 21.6, solid: [4, 18, 10, 6] },
     { type: "prop", art: "hay", x: 10, y: 22.5, solid: [0, 4, 18, 8] },
-    { type: "sign", x: 3.6, y: 13.4, text: ["DUNESHADE", "← Ruta 3 · Verdelume   ↓ Ruta 4 · Frostholm"] },
-    { type: "sign", x: 22.6, y: 27.4, text: ["↓ RUTA 4 · PASO DEL HIELO", "Del desierto a la nieve en un día de camino."] },
+    { type: "sign", x: 3.6, y: 13.4, text: ["DUNESHADE", "← Ruta 3 · Verdelume   ↓ Ruta 5 · Mossgrove"] },
+    { type: "sign", x: 22.6, y: 27.4, text: ["↓ RUTA 5 · CAÑÓN DEL MUSGO", "Del desierto al bosque de Mossgrove."] },
     {
       type: "npc", cast: "merchant", name: "Kader", x: 21.3, y: 10.4, dir: "down", role: "market",
       talk: ["Piedra solar: guarda el calor del mediodía.", "Unos días la queman como leña, otros ni la miran."],
@@ -84,7 +84,7 @@ export default {
   ],
   exits: [
     { x: 0, y: 12, w: 1, h: 7, to: "ruta3", entry: "east" },
-    { x: 17, y: 29, w: 6, h: 1, to: "ruta4", entry: "north" },
+    { x: 17, y: 29, w: 6, h: 1, to: "ruta5", entry: "north" },
   ],
   entries: {
     west: { x: 1.4, y: 15.6, dir: "right" },

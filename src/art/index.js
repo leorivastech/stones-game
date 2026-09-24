@@ -80,6 +80,9 @@ export function buildArt() {
     // Nieve: techo cargado de nieve.
     "house-snow": { roof: "slate", wall: "timber", seed: 12, w: 64, h: 64, snowRoof: true },
     "house-snow-b": { roof: "red", wall: "stone", seed: 13, w: 56, h: 60, snowRoof: true, windows: 1 },
+    // Bosque: cabañas de madera con techo de musgo.
+    "house-moss": { roof: "moss", wall: "timber", seed: 14, w: 60, h: 60 },
+    "house-moss-b": { roof: "moss", wall: "timber", seed: 15, w: 52, h: 56, windows: 1 },
   };
   for (const [key, spec] of Object.entries(houses)) {
     const h = props.house(spec);

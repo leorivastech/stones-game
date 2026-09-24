@@ -114,12 +114,14 @@ function setRecordValue(registry, key, id, value, fallback = {}) {
 
 /** Copia del estado económico para trabajar con economy.js. */
 export function econ(registry) {
-  // El vaivén de precios se crea una vez por partida (las partidas viejas lo reciben aquí) y se guarda.
-  if (!registry.get("drift")) registry.set("drift", freshDrift());
+  // El vaivén de precios se crea una vez por partida y se guarda. Las partidas viejas lo reciben
+  // aquí, igual que los pueblos que se agregaron después (Mossgrove).
+  const saved = registry.get("drift");
+  if (!saved || TOWN_IDS.some((t) => !saved[t])) registry.set("drift", { ...freshDrift(), ...(saved ?? {}) });
   const fresh = freshEconomy();
   return {
     day: registry.get("day") ?? 1,
-    market: structuredClone(registry.get("market") ?? fresh.market),
+    market: { ...fresh.market, ...structuredClone(registry.get("market") ?? {}) },
     drift: structuredClone(registry.get("drift")),
     mods: structuredClone(registry.get("mods") ?? []),
     heat: { ...fresh.heat, ...(registry.get("heat") ?? {}) },

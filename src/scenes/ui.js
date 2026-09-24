@@ -775,16 +775,16 @@ export class UIScene extends Phaser.Scene {
       txt(side, 42, p.def.name, "font-gold");
       txt(side, 54, p.def.subtitle, "font-dim");
       txt(side, 74, "Recorrido", "font-gold");
-      // Cada pueblo compra lo que produce el anterior: el círculo paga completo.
+      // El camino por tierra y la barca; lo que conviene cambia cada día en todos lados.
       const lines = [
-        "Cada pueblo hace una piedra",
-        "y le falta la del anterior:",
         "Ashfen → Valkeep →",
         "Verdelume → Duneshade →",
-        "Frostholm → Ashfen.",
-        "Todos compran de todo:",
-        "mira los precios.",
-        flag(reg, "met-ferry") ? "La barca cruza el golfo." : "Dicen que en Frostholm",
+        "Mossgrove → Frostholm.",
+        "Todos compran de todo, y",
+        "lo que buscan cambia cada",
+        "día: mira los precios y",
+        "oye los rumores.",
+        flag(reg, "met-ferry") ? "La barca cruza el golfo:" : "Dicen que en Frostholm",
         flag(reg, "met-ferry") ? "Frostholm y Ashfen." : "hay un barquero.",
       ];
       lines.forEach((l, i) => txt(side, 86 + i * 12, l, "font-dim"));
@@ -806,7 +806,7 @@ export class UIScene extends Phaser.Scene {
       txt(24, 121, next ? `${next.min - fame} más: ${next.name}` : "Lo más alto.", "font-dim");
       txt(24, 137, "TÓNICOS", "font-gold");
       add(this.add.image(24, 149, "tonic").setOrigin(0, 0));
-      txt(36, 150, `${tonics(reg)}/${TONIC.max}  (Q)`);
+      txt(36, 150, `${tonics(reg)}/${TONIC.max}  (${keyName("tonic")})`);
       const d = debt(reg);
       txt(24, 166, "DEUDA CON EL GREMIO", "font-gold");
       if (d.owed > 0) {
@@ -873,7 +873,7 @@ export class UIScene extends Phaser.Scene {
       GOOD_IDS.forEach((g, i) => add(this.add.image(128 + i * 52, 57, `gem-${g}`).setOrigin(0, 0)));
       txt(396, 58, "Visto", "font-dim");
       Object.values(TOWNS).forEach((t, i) => {
-        const y = 74 + i * 20;
+        const y = 72 + i * 18;
         const seen = seenOf(reg, t.id);
         txt(24, y, seen ? t.name : "???", seen ? "font" : "font-dim");
         if (!seen) return;

@@ -1,7 +1,8 @@
 # Mecánicas — Stones
 
-Estado: **mundo completo y vivo** — 5 pueblos, 4 rutas, barca, 3 refugios, mercado de oferta y
-demanda, días, deuda, misiones y sucesos. 2026-09-23. El rumbo y lo pendiente están en
+Estado: **mundo completo y vivo** — 6 pueblos, 5 rutas, barca, 3 refugios, mercado de oferta y
+demanda, días, deuda y sucesos. **Las reglas del mercado son provisionales** (Leo, 23-sep: hay que
+sentarse a analizarlas y dejarlas claras). 2026-09-23. El rumbo y lo pendiente están en
 `panorama.md`; los números del mundo, en `diseno-mundo.md`.
 
 ## Fantasía jugable
@@ -183,8 +184,12 @@ Cuartitos privados, como las bases secretas de Pokémon. Se entra caminando.
   vereda del este tapada; lobos; río.
 - **Ruta 3 · Selva del Tránsito** (Verdelume ↔ Duneshade): selva cerrada con campamento y la
   tierra escondida de Aurelio; luego desierto abierto con escorpiones y oasis.
-- **Ruta 4 · Paso del Hielo** (Duneshade ↔ Frostholm): cañón, Puerta de la Escarcha (retén), lago
-  helado para patinar (solución: ↓ → ↓ ← ↓ → ↓) y la cueva del lago; bosque nevado con lobos.
+- **Ruta 5 · Cañón del Musgo** (Duneshade ↔ Mossgrove): cañón del desierto con escorpiones y
+  emboscada; la arena se vuelve grava y musgo; bosque cerrado con jabalíes, un lobo, pasto alto y un
+  cofre escondido tras arbustos.
+- **Ruta 4 · Paso del Hielo** (Mossgrove ↔ Frostholm): bosque con jabalíes que se vuelve nieve,
+  Puerta de la Escarcha (retén), lago helado para patinar (solución: ↓ → ↓ ← ↓ → ↓) y la cueva del
+  lago; bosque nevado con lobos. (Hasta el 23-sep empezaba en el desierto.)
 - Con más calor hay más patrullas y ven más lejos. Las salidas funcionan en los 4 bordes.
 
 ## Pueblos
@@ -195,6 +200,7 @@ Cuartitos privados, como las bases secretas de Pokémon. Se entra caminando.
 | Valkeep | Maese Ivo | Nella: yegua y establo | Odo |
 | Verdelume | Oruba | Ama: tónicos | Iyá |
 | Duneshade | Kader | Sahra: arquera | Nasr |
+| Mossgrove | Ilse (sin piedra propia: compra y vende de todo) | — | Rowan |
 | Frostholm | Hilde (y la hielera, 25) | Ceno: barca a Ashfen | Sigrid |
 
 Entrar a un pueblo **guarda la partida** y cura.

@@ -947,7 +947,7 @@ export class WorldScene extends Phaser.Scene {
     const to = this.def.town === "frostholm" ? "ashfen" : "frostholm";
     if (!flag(reg, "met-ferry")) {
       setFlag(reg, "met-ferry");
-      await this.ui.say(["¿Vienes a pie desde Duneshade? Qué valiente.", `Mi barca cruza el golfo hasta ${TOWNS[to].name} en una tarde. Desde hoy también paro en tu muelle.`], { name });
+      await this.ui.say(["¿Vienes a pie por el Paso del Hielo? Qué valiente.", `Mi barca cruza el golfo hasta ${TOWNS[to].name} en una tarde. Desde hoy también paro en tu muelle.`], { name });
     }
     // Con caballo, la barca cobra el doble: ocupa lo que dos pasajeros.
     const fare = BOAT_FARE * (partyHas(reg, "horse") ? 2 : 1);
@@ -1577,7 +1577,7 @@ export class WorldScene extends Phaser.Scene {
     switch (Number(m[1])) {
       case 1: reg.inc("gold", 50); say("+50 oro"); break;
       case 2: {
-        const good = TOWNS[reg.get("currentTown") ?? "ashfen"].produce;
+        const good = TOWNS[reg.get("currentTown") ?? "ashfen"]?.produce ?? "amber";
         const room = Math.floor((capacity(reg) - load(reg)) / STONE[good].slots);
         reg.set("cargo", { ...cargo(reg), [good]: (cargo(reg)[good] ?? 0) + Math.max(0, room) });
         say(`Carga llena de ${GOODS[good].short}`);
