@@ -34,6 +34,15 @@ const TYPES = {
 const http = createServer(async (req, res) => {
   try {
     const url = new URL(req.url, "http://x");
+    // Estado para revisar desde afuera: quién está, dónde, y cómo va su micrófono.
+    if (url.pathname === "/estado") {
+      const list = [...clients.values()].filter((c) => c.name).map((c) => ({
+        name: c.name, map: c.map, audioSent: c.audioBytes ?? 0, voz: c.vstat ?? null,
+      }));
+      res.writeHead(200, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+      res.end(JSON.stringify({ day: world.s.econ.day, players: list }, null, 1));
+      return;
+    }
     let file = normalize(join(DIST, decodeURIComponent(url.pathname)));
     if (!file.startsWith(DIST)) { res.writeHead(403).end(); return; }
     const info = await stat(file).catch(() => null);
@@ -232,6 +241,9 @@ const HANDLERS = {
   talk(c, m) {
     all({ t: "talk", id: c.id, on: Boolean(m.on) }, c);
   },
+  vstat(c, m) {
+    c.vstat = { mic: m.mic, err: m.err, ctx: m.ctx, sent: m.sent, heard: m.heard, device: m.device, nivelUltimaVez: m.lastPeak, at: new Date().toISOString() };
+  },
   rtc(c, m) {
     send(clients.get(m.to), { t: "rtc", from: c.id, data: m.data });
   },
@@ -247,6 +259,7 @@ wss.on("connection", (ws) => {
     // Voz: pedacitos de audio del que habla; se reparten a los demás con su número adelante.
     if (isBinary) {
       if (!c.name || raw.length > 32000) return;
+      c.audioBytes = (c.audioBytes ?? 0) + raw.length;
       const out = Buffer.allocUnsafe(raw.length + 2);
       out.writeUInt16BE(c.id, 0);
       raw.copy(out, 2);

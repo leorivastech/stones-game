@@ -25,7 +25,35 @@ export const voice = {
   me: { map: null, x: 0, y: 0 },
   /** Por quién habla: bytes que llegaron (para revisar que sí llega). */
   heard: {},
+  /** Bytes que mandé, y el error del micrófono si hubo (para revisar desde el servidor). */
+  sent: 0,
+  err: null,
+  /** Qué tan fuerte llega mi voz ahora (0-1) y lo más fuerte de la última vez que hablé. */
+  level: 0,
+  peak: 0,
+  lastPeak: null,
 };
+
+const micListeners = new Set();
+/** Avisa cuando cambia el micrófono (pidiendo, listo, sin permiso…). */
+export function onMicChange(fn) {
+  micListeners.add(fn);
+}
+
+function setMic(state, err = null) {
+  voice.mic = state;
+  voice.err = err;
+  for (const fn of micListeners) fn(state, err);
+  report();
+}
+
+/** Cuenta al servidor cómo va la voz de este aparato (se ve en /estado). */
+function report() {
+  if (!online.connected) return;
+  const ua = navigator.userAgent;
+  const device = /iPhone|iPad/.test(ua) ? "iPhone/iPad" : /Android/.test(ua) ? "Android" : /Mac/.test(ua) ? "Mac" : /Windows/.test(ua) ? "Windows" : /Linux/.test(ua) ? "Linux" : "otro";
+  send({ t: "vstat", mic: voice.mic || "sin pedir", err: voice.err, ctx: ctx?.state ?? "sin crear", sent: voice.sent, heard: voice.heard, device, lastPeak: voice.lastPeak });
+}
 
 let ctx = null;
 let stream = null;
@@ -64,10 +92,10 @@ async function ensureMic() {
   if (stream) return stream;
   if (asking) return asking;
   if (!navigator.mediaDevices?.getUserMedia) {
-    voice.mic = "sin micrófono";
+    setMic("sin micrófono", "este navegador no deja usar el micrófono");
     return null;
   }
-  voice.mic = "pidiendo";
+  setMic("pidiendo");
   asking = navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } })
     .then((s) => {
       const c = audioCtx();
@@ -77,18 +105,29 @@ async function ensureMic() {
       const node = c.createScriptProcessor(2048, 1, 1);
       node.onaudioprocess = (e) => {
         if (!voice.talking) return;
-        sendAudio(encode(e.inputBuffer.getChannelData(0), c.sampleRate).buffer);
+        const input = e.inputBuffer.getChannelData(0);
+        // Nivel (para el medidor y para saber si el micrófono capta algo).
+        let sum = 0;
+        for (let i = 0; i < input.length; i += 1) sum += input[i] * input[i];
+        voice.level = Math.min(1, Math.sqrt(sum / input.length) * 6);
+        voice.peak = Math.max(voice.peak, voice.level);
+        const buf = encode(input, c.sampleRate).buffer;
+        voice.sent += buf.byteLength;
+        sendAudio(buf);
       };
       src.connect(node);
       // Para que el navegador lo haga correr tiene que ir a la salida (sale en silencio).
       const mute = c.createGain();
       mute.gain.value = 0;
       node.connect(mute).connect(c.destination);
-      voice.mic = "listo";
+      setMic("listo");
       return s;
     })
     .catch((err) => {
-      voice.mic = err?.name === "NotAllowedError" ? "sin permiso" : "sin micrófono";
+      const name = err?.name ?? "";
+      if (name === "NotAllowedError" || name === "SecurityError") setMic("sin permiso", name);
+      else if (name === "NotReadableError" || name === "AbortError") setMic("ocupado", name);
+      else setMic("sin micrófono", name || String(err));
       return null;
     })
     .finally(() => { asking = null; });
@@ -102,13 +141,22 @@ export async function startTalking() {
   const s = await ensureMic();
   if (!s) { voice.talking = false; return; }
   if (!voice.talking) return;
+  voice.peak = 0;
+  voice.talkStart = performance.now();
   send({ t: "talk", on: true });
 }
 
 export function stopTalking() {
   if (!voice.talking) return;
   voice.talking = false;
+  voice.level = 0;
   send({ t: "talk", on: false });
+  // Si hablaste más de un segundo y no se captó nada, el micrófono no está oyendo.
+  if (stream && performance.now() - (voice.talkStart ?? 0) > 1000) {
+    voice.lastPeak = Math.round(voice.peak * 1000) / 1000;
+    for (const fn of micListeners) fn(voice.peak < 0.02 ? "silencio" : "se oye", null);
+    report();
+  }
 }
 
 /** El navegador no deja sonar nada hasta que tocas algo: en cada toque se despierta el audio. */
@@ -161,5 +209,7 @@ export function setupVoice() {
   onNet("audio", play);
   onNet("leave", (m) => { speakers.get(m.id)?.gain.disconnect(); speakers.delete(m.id); });
   setInterval(updateVolumes, 200);
+  setInterval(report, 5000);
+  onNet("welcome", () => setTimeout(report, 500));
   for (const ev of ["pointerdown", "keydown"]) window.addEventListener(ev, resumeAudio, { passive: true });
 }

@@ -7,7 +7,7 @@
  */
 
 import { online, onNet, send, dayProgress } from "./online.js";
-import { startTalking, stopTalking, voice } from "./voice.js";
+import { startTalking, stopTalking, voice, onMicChange } from "./voice.js";
 import { touch } from "../engine/touch.js";
 import { P } from "../art/palette.js";
 
@@ -131,8 +131,12 @@ function renderBar() {
 function micState() {
   if (voice.mic === "pidiendo") return `<span class="talk">🎤 acepta el permiso del micrófono</span>`;
   if (voice.mic === "sin permiso") return `<span class="warn">🎤 sin permiso: dale permiso en el candado junto a la dirección</span>`;
-  if (voice.mic === "sin micrófono") return `<span class="warn">🎤 no se encontró micrófono</span>`;
-  if (voice.talking) return `<span class="talk">🎤 hablando…</span>`;
+  if (voice.mic === "sin micrófono") return `<span class="warn">🎤 este aparato no tiene micrófono</span>`;
+  if (voice.mic === "ocupado") return `<span class="warn">🎤 el micrófono lo está usando otra app</span>`;
+  if (voice.talking) {
+    const bars = Math.round(voice.level * 5);
+    return `<span class="talk">🎤 hablando ${"▮".repeat(bars)}${"▯".repeat(5 - bars)}</span>`;
+  }
   return "";
 }
 
@@ -187,6 +191,22 @@ export function setupHud() {
     if (e.code === "KeyT") { e.stopImmediatePropagation(); micBtn?.classList.remove("down"); stopTalking(); }
   }, true);
 
+  // Si el micrófono no se puede usar, se dice claro (una vez por cada problema).
+  const told = new Set();
+  onMicChange((state) => {
+    if (told.has(state)) return;
+    const say = {
+      "sin micrófono": "🎤 <b>Este aparato no tiene micrófono</b> (o el navegador no lo encuentra). Conecta uno, o habla desde el celular.",
+      "sin permiso": "🎤 <b>El navegador no dio permiso al micrófono.</b> Toca el candado junto a la dirección → Micrófono → Permitir, y recarga.",
+      ocupado: "🎤 <b>El micrófono lo está usando otra app</b> (llamada, grabadora). Ciérrala y vuelve a intentar.",
+      listo: "🎤 Micrófono listo. Mantén apretado para hablar: las barritas ▮▮▮ se mueven si te oye.",
+      silencio: "🎤 <b>No se oyó nada.</b> El navegador está usando una entrada que no capta sonido (o el micrófono está silenciado). Revisa el micrófono en la configuración del sistema o del navegador.",
+    }[state];
+    if (!say) return;
+    // El aviso de silencio se repite si vuelve a pasar; los demás, una vez.
+    if (state !== "silencio") told.add(state);
+    addLine(say);
+  });
   onNet("chat", (m) => addLine(`<b>${esc(m.name)}:</b> ${esc(m.text)}`, m.id === online.id ? "me" : ""));
   onNet("join", (m) => addLine(`<b>${esc(m.name)}</b> entró al golfo.`));
   onNet("leave", (m) => { if (m.name) addLine(`<b>${esc(m.name)}</b> se fue.`); });
