@@ -83,5 +83,40 @@
   "dur": 1.06,
   "text": "Stones.",
   "sig": "es-MX-JorgeNeural|-6%|-8Hz|tight"
+ },
+ "w1": {
+  "dur": 1.7,
+  "text": "Cae la noche en el golfo.",
+  "sig": "es-MX-JorgeNeural|-6%|-8Hz|tight"
+ },
+ "w2": {
+  "dur": 2.04,
+  "text": "La Corona vigila cada camino.",
+  "sig": "es-MX-JorgeNeural|-6%|-8Hz|tight"
+ },
+ "w3": {
+  "dur": 2.52,
+  "text": "Toma contratos. Vende caro.",
+  "sig": "es-MX-JorgeNeural|-6%|-8Hz|tight"
+ },
+ "w4": {
+  "dur": 1.92,
+  "text": "Busca refugios escondidos.",
+  "sig": "es-MX-JorgeNeural|-6%|-8Hz|tight"
+ },
+ "w5": {
+  "dur": 2.42,
+  "text": "Y ahora, juega con tus amigos.",
+  "sig": "es-MX-JorgeNeural|-6%|-8Hz|tight"
+ },
+ "w6": {
+  "dur": 1.01,
+  "text": "¿Te atreves?",
+  "sig": "es-MX-JorgeNeural|-6%|-8Hz|tight"
+ },
+ "w7": {
+  "dur": 1.06,
+  "text": "Stones.",
+  "sig": "es-MX-JorgeNeural|-6%|-8Hz|tight"
  }
 }
