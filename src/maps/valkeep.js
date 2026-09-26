@@ -45,6 +45,7 @@ export default {
   kind: "town",
   town: "valkeep",
   biome: "mountain",
+  plaza: "mountain", // adoquín propio (terrain.js, PLAZAS)
   music: "valkeep",
   grid: build(),
   objects: [

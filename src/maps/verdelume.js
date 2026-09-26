@@ -42,6 +42,7 @@ export default {
   kind: "town",
   town: "verdelume",
   biome: "tropical",
+  plaza: "planks", // adoquín propio (terrain.js, PLAZAS)
   music: "verdelume",
   ambience: "jungle",
   grid: build(),

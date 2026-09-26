@@ -4,7 +4,7 @@
 
 import { Buf, hash, rng, strip } from "./pixel.js";
 import { rgba } from "./palette.js";
-import { sphere, shadow, withOutline } from "./props.js";
+import { sphere, shadow, contact, withOutline } from "./props.js";
 
 /** Trazo grueso por una curva: t ∈ [0,1] → punto; ancho y color por tramo. */
 function stroke(b, pointAt, widthAt, colorAt, steps = 60) {
@@ -24,9 +24,10 @@ function stroke(b, pointAt, widthAt, colorAt, steps = 60) {
 
 // ---------- Selva ----------
 
-export function palm(variant = 0) {
+/** Palmera. `sway` (0/1): las puntas de las pencas se corren 1 px (segundo cuadro del vaivén). */
+export function palm(variant = 0, sway = 0) {
   const b = new Buf(40, 48);
-  shadow(b, 21, 45, 11, 3);
+  contact(b, 20, 45, 4, 1.5);
   const lean = variant % 2 ? -4 : 5;
   // Tronco curvo en anillos.
   stroke(b, (t) => [20 + lean * t * t, 46 - t * 30], () => 4.2, (t, dx) => {
@@ -42,7 +43,7 @@ export function palm(variant = 0) {
     const a = (deg * Math.PI) / 180;
     const len = 13 + r() * 5;
     const droop = 7 + r() * 4;
-    const px = (t) => cx + Math.cos(a) * len * t;
+    const px = (t) => cx + Math.cos(a) * len * t + sway * t * t * 1.4;
     const py = (t) => cy + Math.sin(a) * len * t * 0.8 + droop * t * t;
     stroke(b, (t) => [px(t), py(t)], (t) => 1 + 3.2 * Math.sin(Math.PI * Math.min(1, t * 1.1)), (t, dx, dy) => {
       if (Math.abs(dy) < 0.5 && t < 0.8) return "f2";
@@ -54,9 +55,10 @@ export function palm(variant = 0) {
   return withOutline(b, "f0");
 }
 
-export function jungleTree(variant = 0) {
+/** Árbol de selva. `sway` (0/1): los racimos de arriba corridos 1 px (vaivén). */
+export function jungleTree(variant = 0, sway = 0) {
   const b = new Buf(44, 50);
-  shadow(b, 22, 46, 16, 3.5);
+  contact(b, 22, 46, 7, 2);
   // Tronco con raíces de contrafuerte.
   b.rect(18, 28, 8, 17, "o2");
   b.vline(18, 28, 17, "o3");
@@ -67,7 +69,7 @@ export function jungleTree(variant = 0) {
   const ramp = ["f0", "f1", "f2", "f3", "f4", "g4"];
   const rr = rng(31 + variant * 5);
   const clumps = [[22, 14, 14, 10], [11, 20, 9, 7], [33, 20, 9, 7], [22, 25, 12, 6], [15, 10, 8, 6], [29, 10, 8, 6], [22, 6, 9, 6]]
-    .map(([x, y, rx, ry]) => [x + Math.round((rr() - 0.5) * 3), y + Math.round((rr() - 0.5) * 2), rx, ry]);
+    .map(([x, y, rx, ry]) => [x + Math.round((rr() - 0.5) * 3) + (y < 15 ? sway : 0), y + Math.round((rr() - 0.5) * 2), rx, ry]);
   clumps.sort((a, c) => a[1] - c[1]).forEach(([x, y, rx, ry], i) => sphere(b, x, y, rx, ry, ramp, { seed: variant * 11 + i, grain: 0.26 }));
   // Lianas que cuelgan.
   for (let k = 0; k < 5; k += 1) {
@@ -103,7 +105,7 @@ export function fern() {
 
 export function cactus(variant = 0) {
   const b = new Buf(22, 30);
-  shadow(b, 11, 27, 7, 2);
+  contact(b, 11, 27, 4, 1.5);
   const ramp = ["f1", "f2", "f3", "f4", "f5"];
   const col = (x, y0, y1, w) => {
     for (let y = y0; y <= y1; y += 1) {
@@ -148,7 +150,8 @@ export function sandRock(big = false) {
   const w = big ? 30 : 18;
   const h = big ? 22 : 14;
   const b = new Buf(w, h);
-  shadow(b, w / 2, h - 2.5, w / 2 - 1, 2.5);
+  if (big) contact(b, w / 2, h - 2.5, w / 2 - 4, 2);
+  else shadow(b, w / 2, h - 2.5, w / 2 - 1, 2.5);
   const ramp = ["d1", "d2", "d3", "d4", "d5"];
   if (big) {
     sphere(b, 11, 12, 10, 8, ramp, { seed: 3, grain: 0.12 });
@@ -165,7 +168,7 @@ export function sandRock(big = false) {
 
 export function bareTree(snow = true) {
   const b = new Buf(30, 40);
-  shadow(b, 15, 37, 8, 2);
+  contact(b, 15, 37, 4, 1.5);
   const branch = (x, y, a, len, w, depth) => {
     const x2 = x + Math.cos(a) * len;
     const y2 = y + Math.sin(a) * len;
@@ -188,7 +191,8 @@ export function snowRock(big = false) {
   const w = big ? 28 : 16;
   const h = big ? 22 : 14;
   const b = new Buf(w, h);
-  shadow(b, w / 2, h - 2.5, w / 2 - 1, 2.5);
+  if (big) contact(b, w / 2, h - 2.5, w / 2 - 4, 2);
+  else shadow(b, w / 2, h - 2.5, w / 2 - 1, 2.5);
   const ramp = ["s1", "s2", "s3", "s4", "s5"];
   if (big) {
     sphere(b, 11, 11, 10, 8.5, ramp, { seed: 8, grain: 0.1 });

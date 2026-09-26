@@ -54,6 +54,7 @@ export default {
   kind: "town",
   town: "ashfen",
   biome: "temperate",
+  plaza: "warm", // adoquín propio (terrain.js, PLAZAS)
   music: "ashfen",
   ambience: "sea",
   grid: build(),

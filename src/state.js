@@ -100,6 +100,8 @@ export function freshRun() {
     stashes: {},
     flags: {},
     mapId: online.on && online.start ? online.start : "ashfen",
+    // Hora del día (0-24): la mueve src/engine/daylight.js.
+    hour: 8,
   };
 }
 
@@ -775,7 +777,7 @@ const saveKey = () => (online.on && online.name ? `${BASE_KEY}-online-${online.n
 const SAVED = [
   "gold", "cargo", "chill", "baseCapacity", "reputation", "trips", "currentTown", "lastRoute", "day", "market", "drift", "mods",
   "heat", "seen", "rumors", "debt", "fameSold", "peddler", "upgrades", "hp", "maxHp", "tonics",
-  "stashes", "flags", "mapId", "crew",
+  "stashes", "flags", "mapId", "crew", "hour",
 ];
 
 export function saveGame(registry) {

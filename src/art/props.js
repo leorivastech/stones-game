@@ -35,6 +35,14 @@ function shadow(buf, cx, cy, rx, ry) {
   buf.ellipse(cx, cy, rx, ry, rgba("ink", 80));
 }
 
+/**
+ * Sombra de contacto chiquita para lo que ya lleva sombra proyectada (mapbuild.js):
+ * sólo oscurece el pie para que no flote; la silueta larga la pone el mapa.
+ */
+function contact(buf, cx, cy, rx, ry) {
+  buf.ellipse(cx, cy, rx, ry, rgba("ink", 60));
+}
+
 function withOutline(buf, color = "ink") {
   // El contorno no debe tapar la sombra del piso (semi transparente).
   const copy = buf.clone();
@@ -48,9 +56,13 @@ function withOutline(buf, color = "ink") {
 
 // ---------- Vegetación ----------
 
-export function tree(variant = 0, { autumn = false } = {}) {
+/**
+ * Árbol de copa redonda. `sway` (0/1) corre 1 px los racimos de arriba: segundo cuadro del vaivén;
+ * el tronco y los racimos bajos no se mueven.
+ */
+export function tree(variant = 0, { autumn = false, sway = 0 } = {}) {
   const b = new Buf(32, 38);
-  shadow(b, 16, 34, 12, 3.5);
+  contact(b, 16, 34, 5, 1.5);
   // Tronco
   b.rect(13, 23, 6, 11, "o2");
   b.vline(13, 23, 11, "o3");
@@ -60,27 +72,29 @@ export function tree(variant = 0, { autumn = false } = {}) {
   const r = rng(11 + variant * 7);
   const clumps = [
     [16, 12, 10, 8], [9, 17, 7, 6], [23, 17, 7, 6], [16, 20, 9, 5], [11, 9, 6, 5], [21, 9, 6, 5], [16, 6, 7, 5],
-  ].map(([x, y, rx, ry]) => [x + Math.round((r() - 0.5) * 2), y + Math.round((r() - 0.5) * 2), rx, ry]);
+  ].map(([x, y, rx, ry]) => [x + Math.round((r() - 0.5) * 2) + (y < 14 ? sway : 0), y + Math.round((r() - 0.5) * 2), rx, ry]);
   // De atrás (arriba) hacia adelante (abajo): cada racimo tapa al anterior.
   clumps.sort((a, b2) => a[1] - b2[1]).forEach(([x, y, rx, ry], i) => sphere(b, x, y, rx, ry, ramp, { seed: variant * 13 + i }));
   // Sombra del follaje sobre el tronco.
   b.hline(14, 26, 4, "o1");
   // Hojitas sueltas de luz.
   for (let i = 0; i < 6; i += 1) {
-    const x = 7 + Math.floor(r() * 16);
+    const x0 = 7 + Math.floor(r() * 16);
     const y = 3 + Math.floor(r() * 12);
+    const x = x0 + (y < 11 ? sway : 0);
     if (b.alpha(x, y) === 255) b.set(x, y, ramp[5]);
   }
   return withOutline(b, autumn ? "r0" : "f0");
 }
 
-export function pine(snow = false) {
+/** Pino. `sway` (0/1) corre 1 px los dos pisos de arriba (segundo cuadro del vaivén). */
+export function pine(snow = false, sway = 0) {
   const b = new Buf(24, 40);
-  shadow(b, 12, 37, 9, 2.5);
+  contact(b, 12, 37, 4, 1.5);
   b.rect(10, 30, 4, 7, "o2");
   b.vline(10, 30, 7, "o3");
   b.vline(13, 30, 7, "o1");
-  const tiers = [[12, 2, 5, 9], [12, 8, 7, 12], [12, 14, 9, 14], [12, 20, 11, 12]];
+  const tiers = [[12 + sway, 2, 5, 9], [12 + sway, 8, 7, 12], [12, 14, 9, 14], [12, 20, 11, 12]];
   for (const [cx, top, half, h] of tiers) {
     for (let y = 0; y < h; y += 1) {
       const w = Math.round(((y + 1) / h) * half);
@@ -155,7 +169,9 @@ export function rock(big = false) {
   const w = big ? 28 : 16;
   const h = big ? 22 : 14;
   const b = new Buf(w, h);
-  shadow(b, w / 2, h - 2.5, w / 2 - 1, 2.5);
+  // El peñasco lleva sombra proyectada (mapbuild.js); la roca chica, su mancha de siempre.
+  if (big) contact(b, w / 2, h - 2.5, w / 2 - 4, 2);
+  else shadow(b, w / 2, h - 2.5, w / 2 - 1, 2.5);
   const ramp = ["s1", "s2", "s3", "s4", "s5"];
   if (big) {
     sphere(b, 11, 11, 10, 8.5, ramp, { seed: 8, grain: 0.1 });
@@ -206,7 +222,7 @@ export function fence(vertical = false) {
 
 export function sign() {
   const b = new Buf(16, 18);
-  shadow(b, 8, 16, 4, 1.5);
+  contact(b, 8, 16, 2.5, 1);
   b.rect(7, 9, 2, 8, "o2");
   b.rect(1, 2, 14, 8, "o4");
   b.hline(1, 2, 14, "o5");
@@ -260,7 +276,7 @@ export function hay() {
 
 export function lamp() {
   const b = new Buf(10, 28);
-  shadow(b, 5, 26, 4, 1.5);
+  contact(b, 5, 26, 3, 1);
   b.rect(4, 8, 2, 18, "s1");
   b.vline(4, 8, 18, "s3");
   b.rect(2, 24, 6, 2, "s1");
@@ -275,7 +291,7 @@ export function lamp() {
 
 export function well() {
   const b = new Buf(28, 30);
-  shadow(b, 14, 27, 13, 3);
+  contact(b, 14, 27, 11, 2);
   // Aro de piedra
   for (let y = 14; y < 26; y += 1) for (let x = 2; x < 26; x += 1) {
     const brick = Math.floor((x + (Math.floor(y / 3) % 2) * 2) / 4);
@@ -296,9 +312,10 @@ export function well() {
   return withOutline(b, "ink");
 }
 
-export function stall(awning = ["e2", "c4"], goods = ["y3", "e3", "g4"]) {
+/** Puesto de mercado. `sway` (0/1): el fleco del toldo corrido 1 px (segundo cuadro del vaivén). */
+export function stall(awning = ["e2", "c4"], goods = ["y3", "e3", "g4"], sway = 0) {
   const b = new Buf(48, 44);
-  shadow(b, 24, 41, 22, 3);
+  contact(b, 24, 41, 21, 2);
   // Postes
   b.rect(3, 12, 3, 28, "o2");
   b.rect(42, 12, 3, 28, "o1");
@@ -326,7 +343,8 @@ export function stall(awning = ["e2", "c4"], goods = ["y3", "e3", "g4"]) {
     }
   }
   for (let x = 0; x < 48; x += 1) {
-    const scallop = Math.floor((x % 6) / 3);
+    // El fleco se mece: en el segundo cuadro las puntas se corren un píxel.
+    const scallop = Math.floor((((x - sway) % 6) + 6) % 6 / 3);
     b.set(x, 16, scallop ? null : awning[Math.floor(x / 6) % 2]);
     b.set(x, 17, rgba("ink", 90));
   }
@@ -529,15 +547,21 @@ export function forge() {
   return strip(frames);
 }
 
-export function banner() {
+/** Estandarte de la Corona. `sway` (0/1): la punta de la tela se corre 1 px (vaivén). */
+export function banner(sway = 0) {
   const b = new Buf(12, 32);
-  shadow(b, 6, 30, 4, 1.5);
+  contact(b, 2, 30, 2, 1);
   b.rect(1, 0, 2, 30, "o2");
   b.set(1, 0, "y4");
-  b.rect(3, 2, 8, 14, "b2");
-  b.vline(3, 2, 14, "b3");
-  b.vline(10, 2, 14, "b1");
-  b.set(3, 16, "b2"); b.set(4, 17, "b2"); b.set(9, 16, "b1"); b.set(10, 17, "b1");
+  // Tela: la parte de arriba va cosida al asta; de la mitad para abajo se mece.
+  for (let y = 2; y < 16; y += 1) {
+    const dx = sway && y >= 10 ? 1 : 0;
+    b.hline(3 + dx, y, 8, "b2");
+    b.set(3 + dx, y, "b3");
+    b.set(10 + dx, y, "b1");
+  }
+  const dx = sway;
+  b.set(3 + dx, 16, "b2"); b.set(4 + dx, 17, "b2"); b.set(9 + dx, 16, "b1"); b.set(10 + dx, 17, "b1");
   b.rect(6, 6, 2, 4, "y3");
   b.hline(5, 7, 4, "y3");
   return withOutline(b, "ink");
@@ -611,7 +635,8 @@ export function house({ w = 64, h = 64, roof = "thatch", wall = "plaster", chimn
   const roofH = Math.round(h * 0.56);
   const wallTop = roofH - 2;
   const base = h - 3;
-  shadow(b, w / 2, h - 2, w / 2 - 1, 2.5);
+  // Sin mancha horneada: la sombra de la casa la pone el mapa (mapbuild.js), corta a la derecha y abajo.
+  contact(b, w / 2, h - 2, w / 2 - 3, 1.5);
 
   // Muros
   for (let y = wallTop; y < base; y += 1) {
@@ -729,4 +754,4 @@ export function smoke() {
   return strip(frames);
 }
 
-export { sphere, shadow, withOutline };
+export { sphere, shadow, contact, withOutline };

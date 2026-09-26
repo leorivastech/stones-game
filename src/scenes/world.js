@@ -16,6 +16,8 @@ import { DEPTH, TILE, VIEW_W, VIEW_H } from "../config.js";
 import { startMusic, startAmbience } from "../music.js";
 import { online, request, send, ownerOf, playersIn } from "../net/online.js";
 import { NetWorld } from "../net/worldnet.js";
+import { Daylight, setHour, ARRIVAL_HOUR, WAKE_HOUR } from "../engine/daylight.js"; // luz del día
+import { Ambient } from "../engine/ambient.js"; // ambiente
 
 // Sonido de los pasos según la letra de la celda (si no está, según el bioma).
 const STEP_BY_CELL = { "=": "stone", B: "wood", _: "sand", s: "snow", i: "snow", "#": "stone", g: "stone" };
@@ -87,6 +89,7 @@ export class WorldScene extends Phaser.Scene {
         const report = online.on ? { ended: [], started: [], melted: 0 } : passDays(reg, days, { cold });
         if (prev !== def.town) reg.inc("trips", 1);
         this.arrival = { days: online.on ? 0 : days, from: prev !== def.town ? prev : null, ...report };
+        setHour(reg, ARRIVAL_HOUR); // luz del día: se llega al pueblo en la mañana
       }
       reg.set("lastRoute", null);
       reg.set("currentTown", def.town);
@@ -120,8 +123,8 @@ export class WorldScene extends Phaser.Scene {
     this.setupCrew();
     if (def.kind === "route") this.time.delayedCall(1200, () => this.checkRaids());
     this.speedBonus = def.kind === "route" && partyHas(reg, "horse") ? 1.1 : 1;
-    // Cuevas: más oscuras que afuera.
-    if (def.dark) this.add.rectangle(0, 0, this.world.W, this.world.H, 0x0a0712, 0.3).setOrigin(0, 0).setDepth(DEPTH.fx - 1);
+    // luz del día: velo por hora y luces en faroles, fogatas, fraguas y ventanas (las cuevas, noche suave).
+    this.daylight = new Daylight(this, def);
 
     const cam = this.cameras.main;
     // Un mapa más chico que la pantalla (refugios) se centra, con fondo del color del lugar.
@@ -132,6 +135,7 @@ export class WorldScene extends Phaser.Scene {
     cam.startFollow(this.player.sprite, true, 0.16, 0.16, 0, 12);
     cam.setRoundPixels(true);
     cam.fadeIn(260, 18, 14, 23);
+    this.ambient = new Ambient(this); // ambiente: partículas por bioma y sombras de nube
 
     startMusic(this, def.music);
     startAmbience(this, def.ambience);
@@ -388,6 +392,8 @@ export class WorldScene extends Phaser.Scene {
 
   update(time, delta) {
     const dt = Math.min(delta, 50);
+    this.daylight.update(delta); // luz del día: el reloj corre también con diálogos abiertos
+    this.ambient?.update(dt); // ambiente
     this.controls.update();
     if (this.controls.pressed("debug")) this.toggleDebug();
 
@@ -1668,6 +1674,7 @@ export class WorldScene extends Phaser.Scene {
     await new Promise((r) => this.time.delayedCall(450, r));
     // En línea el día no se salta: el reloj es de todos.
     const report = online.on ? { melted: 0 } : passDays(reg, 1, { cold: this.def.cold ? 1 : 0 });
+    setHour(reg, WAKE_HOUR); // luz del día: despiertas en la mañana
     heal(reg);
     this.cameras.main.fadeIn(500, 0, 0, 0);
     this.ui.toast(`Dormiste. Día ${day(reg)}`, "font-gold");

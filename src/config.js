@@ -34,3 +34,12 @@ export const DEPTH = {
   fx: 9000,
   ui: 10000,
 };
+
+// Ambiente (nieve, arena, hojas, luciérnagas, polvo, sombras de nube). `enabled: false` lo apaga todo.
+export const AMBIENT = {
+  enabled: true,
+  maxParticles: 120,
+  clouds: true,
+  cloudAlpha: [0.18, 0.25],
+  cloudSpeed: [10, 14],
+};

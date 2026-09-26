@@ -9,7 +9,9 @@ import * as refuge from "./refuge.js";
 import * as fx from "./fx.js";
 import * as ui from "./ui.js";
 import { fontPreview } from "./font.js";
-import { Buf } from "./pixel.js";
+import { Buf, strip } from "./pixel.js";
+import { lightArt } from "./lights.js";
+import { ambientArt } from "./ambient.js";
 
 export function buildArt() {
   const out = [];
@@ -22,11 +24,13 @@ export function buildArt() {
   }
   add("roll", rollSheet());
 
-  // Vegetación y objetos
-  [0, 1, 2].forEach((v) => add(`tree-${v}`, { buf: props.tree(v) }));
-  add("tree-autumn", { buf: props.tree(3, { autumn: true }) });
-  add("pine", { buf: props.pine() });
-  add("pine-snow", { buf: props.pine(true) });
+  // Vegetación y objetos. Lo que se mece (vaivén) es una tira de 2 cuadros: 0 quieto, 1 con la copa
+  // corrida 1 px. mapbuild.js la pone como sprite animado con su propio ritmo.
+  const sway = (make) => strip([make(0), make(1)]);
+  [0, 1, 2].forEach((v) => add(`tree-${v}`, sway((s) => props.tree(v, { sway: s }))));
+  add("tree-autumn", sway((s) => props.tree(3, { autumn: true, sway: s })));
+  add("pine", sway((s) => props.pine(false, s)));
+  add("pine-snow", sway((s) => props.pine(true, s)));
   add("bush", { buf: props.bush() });
   add("bush-berries", { buf: props.bush(true) });
   [0, 1, 2].forEach((v) => add(`tallgrass-${v}`, props.tallGrass(v)));
@@ -43,12 +47,12 @@ export function buildArt() {
   add("hay", { buf: props.hay() });
   add("lamp", { buf: props.lamp() });
   add("well", { buf: props.well() });
-  add("stall-amber", { buf: props.stall(["e2", "c4"], ["y3", "r4", "y4"]) });
-  add("stall-rune", { buf: props.stall(["v2", "c4"], ["v4", "v3", "b4"]) });
-  add("stall-green", { buf: props.stall(["g3", "c3"], ["e3", "y4", "g5"]) });
-  add("stall-rain", { buf: props.stall(["w2", "c4"], ["w4", "w5", "w3"]) });
-  add("stall-sun", { buf: props.stall(["r3", "y4"], ["y3", "y4", "r4"]) });
-  add("stall-frost", { buf: props.stall(["b2", "n4"], ["n3", "w5", "n4"]) });
+  add("stall-amber", sway((s) => props.stall(["e2", "c4"], ["y3", "r4", "y4"], s)));
+  add("stall-rune", sway((s) => props.stall(["v2", "c4"], ["v4", "v3", "b4"], s)));
+  add("stall-green", sway((s) => props.stall(["g3", "c3"], ["e3", "y4", "g5"], s)));
+  add("stall-rain", sway((s) => props.stall(["w2", "c4"], ["w4", "w5", "w3"], s)));
+  add("stall-sun", sway((s) => props.stall(["r3", "y4"], ["y3", "y4", "r4"], s)));
+  add("stall-frost", sway((s) => props.stall(["b2", "n4"], ["n3", "w5", "n4"], s)));
   add("chest", props.chest());
   add("gate", props.gate());
   add("lever", props.lever());
@@ -58,7 +62,7 @@ export function buildArt() {
   add("rubble", { buf: props.rubble() });
   add("anvil", { buf: props.anvil() });
   add("forge", props.forge());
-  add("banner", { buf: props.banner() });
+  add("banner", sway((s) => props.banner(s)));
   add("bridge-rail", { buf: props.bridgeRail() });
   add("ledge", { buf: props.ledge() });
   add("blank16", { buf: new Buf(16, 16) });
@@ -95,8 +99,8 @@ export function buildArt() {
   add("scorpion", creatures.scorpionSheet());
 
   // Selva, desierto y nieve
-  [0, 1].forEach((v) => add(`palm-${v}`, { buf: biomes.palm(v) }));
-  [0, 1].forEach((v) => add(`jungle-tree-${v}`, { buf: biomes.jungleTree(v) }));
+  [0, 1].forEach((v) => add(`palm-${v}`, sway((s) => biomes.palm(v, s))));
+  [0, 1].forEach((v) => add(`jungle-tree-${v}`, sway((s) => biomes.jungleTree(v, s))));
   add("fern", { buf: biomes.fern() });
   [0, 1, 2].forEach((v) => add(`cactus-${v}`, { buf: biomes.cactus(v) }));
   add("dry-bush", { buf: biomes.dryBush() });
@@ -163,6 +167,8 @@ export function buildArt() {
   add("ui-key-wide", { buf: ui.keycap(true) });
   add("worldmap", { buf: ui.worldMap() });
   add("logo", { buf: ui.logo() });
+  for (const l of lightArt(out)) add(l.key, l); // luz del día: manchas de luz y sol/luna del HUD
+  for (const a of ambientArt()) add(a.key, a); // ambiente: partículas por bioma y sombras de nube
   return out;
 }
 
@@ -188,6 +194,16 @@ const DEMO = [
 ];
 const DEMO_KEY = { G: T.GRASS, C: T.CLIFF, F: T.FIELD, D: T.DIRT, E: T.FOREST, K: T.GRAVEL, O: T.COBBLE, S: T.SAND, W: T.WATER, B: T.BRIDGE, N: T.SNOW, I: T.ICE };
 
+const PLAZA_DEMO = [
+  "..........",
+  ".OOOOOOOO.",
+  ".OOOOOOOO.",
+  ".OOOOOOOO.",
+  ".OOOOOOOO.",
+  "SSSSSSSSSS",
+  "WWWWWWWWWW",
+];
+
 // Tres franjas: selva (izq.), desierto (centro) y nieve (der.).
 const DEMO2 = [
   "EEEEGGGGGGSSSSSSSSSSNNNNNNNNN",
@@ -208,6 +224,9 @@ export function buildLabExtras() {
   return [
     { key: "terrain-demo", buf: paintGround(grid).buf },
     { key: "terrain-biomes", buf: paintGround(grid2, { biomeAt: (cx) => zone(cx) }).buf },
+    // Plazas de cada pueblo (terrain.js, PLAZAS) y orilla helada de Frostholm.
+    ...[["warm", "temperate"], ["mountain", "mountain"], ["planks", "tropical"], ["mud", "desert"], ["frost", "snow"], ["moss", "temperate"]]
+      .map(([plaza, biome]) => ({ key: `plaza-${plaza}`, buf: paintGround(PLAZA_DEMO.map((row) => [...row].map((ch) => DEMO_KEY[ch] ?? (biome === "desert" ? T.SAND : biome === "snow" ? T.SNOW : T.GRASS))), { biome, plaza }).buf })),
     { key: "font-o", buf: fontPreview("font-o") },
     { key: "font-shadow", buf: fontPreview("font") },
   ];

@@ -39,6 +39,7 @@ export default {
   kind: "town",
   town: "frostholm",
   biome: "snow",
+  plaza: "frost", // adoquín propio (terrain.js, PLAZAS)
   music: "frostholm",
   ambience: "snow",
   grid: build(),

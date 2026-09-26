@@ -48,6 +48,7 @@ export default {
   kind: "town",
   town: "duneshade",
   biome: "desert",
+  plaza: "mud", // adoquín propio (terrain.js, PLAZAS)
   music: "duneshade",
   ambience: "desert",
   grid: build(),

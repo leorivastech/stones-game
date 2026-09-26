@@ -11,6 +11,7 @@ import { WORLD_MAP, WORLD_PINS, WORLD_ROADS, panelDark, panelPaper, panelTag } f
 import { ninePatch } from "../art/pixel.js";
 import { touch } from "../engine/touch.js";
 import { online, send } from "../net/online.js";
+import { isNight } from "../engine/daylight.js"; // luz del día: sol / luna junto al día
 import { MAPS } from "../maps/index.js";
 import { tone, sfx } from "../sfx.js";
 import {
@@ -56,9 +57,10 @@ export class UIScene extends Phaser.Scene {
     this.star = this.add.image(VIEW_W - 63, 18, "ui-star").setOrigin(0, 0);
     this.fameText = this.add.bitmapText(VIEW_W - 51, 17, "font-o", "0");
     this.dayText = this.add.bitmapText(VIEW_W - 6, 29, "font-o", "").setOrigin(1, 0);
+    this.skyIcon = this.add.sprite(0, 30, "ui-sky", 0).setOrigin(0, 0); // luz del día
     this.tonicIcon = this.add.image(7, 28, "tonic").setOrigin(0, 0);
     this.tonicText = this.add.bitmapText(18, 29, "font-o", "");
-    this.hud.add([this.coinIcon, this.goldText, this.eye, ...this.pips, this.star, this.fameText, this.dayText, this.tonicIcon, this.tonicText]);
+    this.hud.add([this.coinIcon, this.goldText, this.eye, ...this.pips, this.star, this.fameText, this.dayText, this.skyIcon, this.tonicIcon, this.tonicText]);
   }
 
   refresh() {
@@ -126,6 +128,7 @@ export class UIScene extends Phaser.Scene {
     this.pips.forEach((p, i) => p.setTexture(i < on ? "ui-pip-on" : "ui-pip-off"));
     this.fameText.setText(String(reputation(reg)));
     this.dayText.setText(`Día ${day(reg)}`);
+    this.skyIcon.setFrame(isNight(reg) ? 1 : 0).setX(VIEW_W - 6 - this.dayText.width - 10); // luz del día
   }
 
   /** Cierra cualquier ventana abierta (por si el mapa cambió con una abierta). */

@@ -44,6 +44,7 @@ export default {
   kind: "town",
   town: "mossgrove",
   biome: "temperate",
+  plaza: "moss", // adoquín propio (terrain.js, PLAZAS)
   music: "verdelume",
   ambience: "jungle",
   grid: build(),

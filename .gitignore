@@ -12,3 +12,4 @@ studio/musica/herramientas/zips/
 studio/musica/herramientas/sfx_out/
 studio/musica/herramientas/amb_out/
 server/data/
+.cache/

@@ -1,0 +1,1022 @@
+{
+ "music-ia/ashfen-calma-1.ogg": {
+  "etiqueta": "warm acoustic village theme",
+  "sim_propio": 0.278,
+  "puesto": 23,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.493,
+  "prob_voz": 0.237,
+  "duracion": 61.7
+ },
+ "music-ia/ashfen-calma-2.ogg": {
+  "etiqueta": "warm acoustic village theme",
+  "sim_propio": 0.177,
+  "puesto": 25,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.515,
+  "prob_voz": 0.636,
+  "duracion": 65.1
+ },
+ "music-ia/ashfen-tension-1.ogg": {
+  "etiqueta": "village theme with nylon guitar and wooden flute melody with driving percussion",
+  "sim_propio": 0.468,
+  "puesto": 1,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.468,
+  "prob_voz": 0.464,
+  "duracion": 69.9
+ },
+ "music-ia/ashfen-tension-2.ogg": {
+  "etiqueta": "village theme with nylon guitar and wooden flute melody with driving percussion",
+  "sim_propio": 0.39,
+  "puesto": 1,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.39,
+  "prob_voz": 0.9,
+  "duracion": 69.8
+ },
+ "music-ia/duneshade-calma-1.ogg": {
+  "etiqueta": "desert adobe town theme",
+  "sim_propio": 0.304,
+  "puesto": 18,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.559,
+  "prob_voz": 0.996,
+  "duracion": 67.4
+ },
+ "music-ia/duneshade-calma-2.ogg": {
+  "etiqueta": "desert adobe town theme",
+  "sim_propio": 0.204,
+  "puesto": 22,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.486,
+  "prob_voz": 0.989,
+  "duracion": 67.0
+ },
+ "music-ia/duneshade-tension-1.ogg": {
+  "etiqueta": "desert town theme with oud in phrygian mode with driving percussion",
+  "sim_propio": 0.345,
+  "puesto": 6,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.442,
+  "prob_voz": 0.999,
+  "duracion": 65.7
+ },
+ "music-ia/duneshade-tension-2.ogg": {
+  "etiqueta": "desert town theme with oud in phrygian mode with driving percussion",
+  "sim_propio": 0.316,
+  "puesto": 11,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.424,
+  "prob_voz": 0.98,
+  "duracion": 67.6
+ },
+ "music-ia/frostholm-calma-1.ogg": {
+  "etiqueta": "frozen harbor town theme",
+  "sim_propio": 0.306,
+  "puesto": 8,
+  "top1": "title/calma",
+  "sim_top1": 0.403,
+  "prob_voz": 0.905,
+  "duracion": 60.9
+ },
+ "music-ia/frostholm-calma-2.ogg": {
+  "etiqueta": "frozen harbor town theme",
+  "sim_propio": 0.363,
+  "puesto": 9,
+  "top1": "refugio-cueva/tension",
+  "sim_top1": 0.498,
+  "prob_voz": 0.22,
+  "duracion": 64.0
+ },
+ "music-ia/frostholm-tension-1.ogg": {
+  "etiqueta": "frozen harbor town theme with bells with driving percussion",
+  "sim_propio": 0.375,
+  "puesto": 6,
+  "top1": "verdelume/calma",
+  "sim_top1": 0.408,
+  "prob_voz": 0.865,
+  "duracion": 68.5
+ },
+ "music-ia/frostholm-tension-2.ogg": {
+  "etiqueta": "frozen harbor town theme with bells with driving percussion",
+  "sim_propio": 0.294,
+  "puesto": 4,
+  "top1": "title/calma",
+  "sim_top1": 0.396,
+  "prob_voz": 1.0,
+  "duracion": 66.6
+ },
+ "music-ia/mossgrove-calma-1.ogg": {
+  "etiqueta": "damp forest village theme",
+  "sim_propio": 0.278,
+  "puesto": 19,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.484,
+  "prob_voz": 0.363,
+  "duracion": 69.0
+ },
+ "music-ia/mossgrove-calma-2.ogg": {
+  "etiqueta": "damp forest village theme",
+  "sim_propio": 0.254,
+  "puesto": 22,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.502,
+  "prob_voz": 0.607,
+  "duracion": 66.1
+ },
+ "music-ia/mossgrove-tension-1.ogg": {
+  "etiqueta": "forest village theme with celtic harp arpeggios and clarinet melody with driving percussion",
+  "sim_propio": 0.324,
+  "puesto": 14,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.518,
+  "prob_voz": 0.866,
+  "duracion": 67.7
+ },
+ "music-ia/mossgrove-tension-2.ogg": {
+  "etiqueta": "forest village theme with celtic harp arpeggios and clarinet melody with driving percussion",
+  "sim_propio": 0.347,
+  "puesto": 9,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.508,
+  "prob_voz": 0.808,
+  "duracion": 63.7
+ },
+ "music-ia/refugio-cueva-calma-1.ogg": {
+  "etiqueta": "hidden cave refuge theme",
+  "sim_propio": 0.129,
+  "puesto": 29,
+  "top1": "frostholm/tension",
+  "sim_top1": 0.426,
+  "prob_voz": 0.008,
+  "duracion": 67.1
+ },
+ "music-ia/refugio-cueva-calma-2.ogg": {
+  "etiqueta": "hidden cave refuge theme",
+  "sim_propio": 0.109,
+  "puesto": 32,
+  "top1": "refugio-cueva/tension",
+  "sim_top1": 0.56,
+  "prob_voz": 0.022,
+  "duracion": 67.4
+ },
+ "music-ia/refugio-cueva-tension-1.ogg": {
+  "etiqueta": "cave refuge theme with soft kalimba and low ambient pad with driving percussion",
+  "sim_propio": 0.558,
+  "puesto": 1,
+  "top1": "refugio-cueva/tension",
+  "sim_top1": 0.558,
+  "prob_voz": 0.047,
+  "duracion": 67.0
+ },
+ "music-ia/refugio-cueva-tension-2.ogg": {
+  "etiqueta": "cave refuge theme with soft kalimba and low ambient pad with driving percussion",
+  "sim_propio": 0.519,
+  "puesto": 2,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.529,
+  "prob_voz": 0.611,
+  "duracion": 66.9
+ },
+ "music-ia/refugio-tierra-calma-1.ogg": {
+  "etiqueta": "hidden cabin refuge theme",
+  "sim_propio": 0.169,
+  "puesto": 28,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.512,
+  "prob_voz": 0.108,
+  "duracion": 67.7
+ },
+ "music-ia/refugio-tierra-calma-2.ogg": {
+  "etiqueta": "hidden cabin refuge theme",
+  "sim_propio": 0.191,
+  "puesto": 28,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.456,
+  "prob_voz": 0.33,
+  "duracion": 60.5
+ },
+ "music-ia/refugio-tierra-tension-1.ogg": {
+  "etiqueta": "cabin refuge theme with acoustic guitar with driving percussion",
+  "sim_propio": 0.317,
+  "puesto": 10,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.465,
+  "prob_voz": 0.989,
+  "duracion": 63.3
+ },
+ "music-ia/refugio-tierra-tension-2.ogg": {
+  "etiqueta": "cabin refuge theme with acoustic guitar with driving percussion",
+  "sim_propio": 0.361,
+  "puesto": 8,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.518,
+  "prob_voz": 0.537,
+  "duracion": 65.1
+ },
+ "music-ia/ruta-desierto-calma-1.ogg": {
+  "etiqueta": "walking travel theme across a desert",
+  "sim_propio": 0.278,
+  "puesto": 19,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.524,
+  "prob_voz": 0.911,
+  "duracion": 66.3
+ },
+ "music-ia/ruta-desierto-calma-2.ogg": {
+  "etiqueta": "walking travel theme across a desert",
+  "sim_propio": 0.207,
+  "puesto": 24,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.446,
+  "prob_voz": 0.999,
+  "duracion": 63.6
+ },
+ "music-ia/ruta-desierto-tension-1.ogg": {
+  "etiqueta": "desert caravan travel theme with oud with driving percussion",
+  "sim_propio": 0.385,
+  "puesto": 8,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.551,
+  "prob_voz": 0.987,
+  "duracion": 62.3
+ },
+ "music-ia/ruta-desierto-tension-2.ogg": {
+  "etiqueta": "desert caravan travel theme with oud with driving percussion",
+  "sim_propio": 0.394,
+  "puesto": 10,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.543,
+  "prob_voz": 0.809,
+  "duracion": 67.3
+ },
+ "music-ia/ruta-montana-calma-1.ogg": {
+  "etiqueta": "walking travel theme on a mountain pass",
+  "sim_propio": 0.268,
+  "puesto": 22,
+  "top1": "ruta-pradera/tension",
+  "sim_top1": 0.524,
+  "prob_voz": 0.384,
+  "duracion": 64.4
+ },
+ "music-ia/ruta-montana-calma-2.ogg": {
+  "etiqueta": "walking travel theme on a mountain pass",
+  "sim_propio": 0.293,
+  "puesto": 19,
+  "top1": "ruta-pradera/tension",
+  "sim_top1": 0.493,
+  "prob_voz": 0.233,
+  "duracion": 64.6
+ },
+ "music-ia/ruta-montana-tension-1.ogg": {
+  "etiqueta": "mountain pass travel theme with cellos with driving percussion",
+  "sim_propio": 0.401,
+  "puesto": 4,
+  "top1": "ruta-pradera/tension",
+  "sim_top1": 0.518,
+  "prob_voz": 0.891,
+  "duracion": 68.5
+ },
+ "music-ia/ruta-montana-tension-2.ogg": {
+  "etiqueta": "mountain pass travel theme with cellos with driving percussion",
+  "sim_propio": 0.479,
+  "puesto": 3,
+  "top1": "ruta-pradera/tension",
+  "sim_top1": 0.527,
+  "prob_voz": 0.933,
+  "duracion": 65.1
+ },
+ "music-ia/ruta-nieve-calma-1.ogg": {
+  "etiqueta": "walking travel theme across a snowy pass",
+  "sim_propio": 0.185,
+  "puesto": 24,
+  "top1": "verdelume/tension",
+  "sim_top1": 0.458,
+  "prob_voz": 0.832,
+  "duracion": 67.3
+ },
+ "music-ia/ruta-nieve-calma-2.ogg": {
+  "etiqueta": "walking travel theme across a snowy pass",
+  "sim_propio": 0.206,
+  "puesto": 21,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.443,
+  "prob_voz": 0.832,
+  "duracion": 67.6
+ },
+ "music-ia/ruta-nieve-tension-1.ogg": {
+  "etiqueta": "snowy pass travel theme with low strings with driving percussion",
+  "sim_propio": 0.359,
+  "puesto": 9,
+  "top1": "verdelume/tension",
+  "sim_top1": 0.462,
+  "prob_voz": 0.936,
+  "duracion": 67.1
+ },
+ "music-ia/ruta-nieve-tension-2.ogg": {
+  "etiqueta": "snowy pass travel theme with low strings with driving percussion",
+  "sim_propio": 0.309,
+  "puesto": 11,
+  "top1": "verdelume/tension",
+  "sim_top1": 0.433,
+  "prob_voz": 0.974,
+  "duracion": 67.5
+ },
+ "music-ia/ruta-pradera-calma-1.ogg": {
+  "etiqueta": "walking travel theme along a meadow road",
+  "sim_propio": 0.179,
+  "puesto": 23,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.456,
+  "prob_voz": 0.861,
+  "duracion": 66.7
+ },
+ "music-ia/ruta-pradera-calma-2.ogg": {
+  "etiqueta": "walking travel theme along a meadow road",
+  "sim_propio": 0.182,
+  "puesto": 28,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.525,
+  "prob_voz": 0.926,
+  "duracion": 59.2
+ },
+ "music-ia/ruta-pradera-tension-1.ogg": {
+  "etiqueta": "meadow road travel theme with tin whistle melody and bodhran with driving percussion",
+  "sim_propio": 0.539,
+  "puesto": 2,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.546,
+  "prob_voz": 0.674,
+  "duracion": 66.6
+ },
+ "music-ia/ruta-pradera-tension-2.ogg": {
+  "etiqueta": "meadow road travel theme with tin whistle melody and bodhran with driving percussion",
+  "sim_propio": 0.44,
+  "puesto": 2,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.47,
+  "prob_voz": 0.912,
+  "duracion": 61.6
+ },
+ "music-ia/ruta-selva-calma-1.ogg": {
+  "etiqueta": "walking travel theme through a jungle",
+  "sim_propio": 0.323,
+  "puesto": 8,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.467,
+  "prob_voz": 0.967,
+  "duracion": 69.3
+ },
+ "music-ia/ruta-selva-calma-2.ogg": {
+  "etiqueta": "walking travel theme through a jungle",
+  "sim_propio": 0.434,
+  "puesto": 9,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.503,
+  "prob_voz": 0.726,
+  "duracion": 69.6
+ },
+ "music-ia/ruta-selva-tension-1.ogg": {
+  "etiqueta": "jungle travel theme with wooden percussion with driving percussion",
+  "sim_propio": 0.406,
+  "puesto": 7,
+  "top1": "verdelume/tension",
+  "sim_top1": 0.5,
+  "prob_voz": 0.943,
+  "duracion": 68.6
+ },
+ "music-ia/ruta-selva-tension-2.ogg": {
+  "etiqueta": "jungle travel theme with wooden percussion with driving percussion",
+  "sim_propio": 0.374,
+  "puesto": 4,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.45,
+  "prob_voz": 0.997,
+  "duracion": 68.5
+ },
+ "music-ia/stinger-amanecer-1.ogg": {
+  "etiqueta": "short sunrise sting",
+  "sim_propio": 0.144,
+  "puesto": 19,
+  "top1": "frostholm/calma",
+  "sim_top1": 0.317,
+  "prob_voz": 0.821,
+  "duracion": 6.0
+ },
+ "music-ia/stinger-amanecer-2.ogg": {
+  "etiqueta": "short sunrise sting",
+  "sim_propio": 0.168,
+  "puesto": 19,
+  "top1": "frostholm/calma",
+  "sim_top1": 0.36,
+  "prob_voz": 0.601,
+  "duracion": 4.6
+ },
+ "music-ia/stinger-amanecer-3.ogg": {
+  "etiqueta": "short sunrise sting",
+  "sim_propio": 0.212,
+  "puesto": 13,
+  "top1": "valkeep/calma",
+  "sim_top1": 0.406,
+  "prob_voz": 0.96,
+  "duracion": 6.1
+ },
+ "music-ia/stinger-anochecer-1.ogg": {
+  "etiqueta": "short nightfall sting",
+  "sim_propio": 0.033,
+  "puesto": 27,
+  "top1": "frostholm/calma",
+  "sim_top1": 0.323,
+  "prob_voz": 0.995,
+  "duracion": 6.1
+ },
+ "music-ia/stinger-anochecer-2.ogg": {
+  "etiqueta": "short nightfall sting",
+  "sim_propio": -0.025,
+  "puesto": 34,
+  "top1": "title/calma",
+  "sim_top1": 0.338,
+  "prob_voz": 0.995,
+  "duracion": 6.1
+ },
+ "music-ia/stinger-anochecer-3.ogg": {
+  "etiqueta": "short nightfall sting",
+  "sim_propio": -0.075,
+  "puesto": 32,
+  "top1": "title/calma",
+  "sim_top1": 0.26,
+  "prob_voz": 0.993,
+  "duracion": 5.3
+ },
+ "music-ia/stinger-cobrador-1.ogg": {
+  "etiqueta": "short menacing sting",
+  "sim_propio": 0.173,
+  "puesto": 12,
+  "top1": "title/calma",
+  "sim_top1": 0.37,
+  "prob_voz": 1.0,
+  "duracion": 6.1
+ },
+ "music-ia/stinger-cobrador-2.ogg": {
+  "etiqueta": "short menacing sting",
+  "sim_propio": 0.275,
+  "puesto": 4,
+  "top1": "title/calma",
+  "sim_top1": 0.444,
+  "prob_voz": 1.0,
+  "duracion": 5.8
+ },
+ "music-ia/stinger-cobrador-3.ogg": {
+  "etiqueta": "short menacing sting",
+  "sim_propio": 0.305,
+  "puesto": 4,
+  "top1": "title/calma",
+  "sim_top1": 0.46,
+  "prob_voz": 1.0,
+  "duracion": 5.6
+ },
+ "music-ia/stinger-fama-1.ogg": {
+  "etiqueta": "short achievement jingle",
+  "sim_propio": 0.183,
+  "puesto": 8,
+  "top1": "title/calma",
+  "sim_top1": 0.352,
+  "prob_voz": 1.0,
+  "duracion": 6.1
+ },
+ "music-ia/stinger-fama-2.ogg": {
+  "etiqueta": "short achievement jingle",
+  "sim_propio": 0.136,
+  "puesto": 14,
+  "top1": "ruta-selva/tension",
+  "sim_top1": 0.308,
+  "prob_voz": 0.987,
+  "duracion": 6.1
+ },
+ "music-ia/stinger-fama-3.ogg": {
+  "etiqueta": "short achievement jingle",
+  "sim_propio": 0.296,
+  "puesto": 4,
+  "top1": "verdelume/calma",
+  "sim_top1": 0.352,
+  "prob_voz": 0.952,
+  "duracion": 5.9
+ },
+ "music-ia/stinger-ko-1.ogg": {
+  "etiqueta": "short soft defeat sting",
+  "sim_propio": 0.128,
+  "puesto": 21,
+  "top1": "verdelume/calma",
+  "sim_top1": 0.369,
+  "prob_voz": 1.0,
+  "duracion": 6.1
+ },
+ "music-ia/stinger-ko-2.ogg": {
+  "etiqueta": "short soft defeat sting",
+  "sim_propio": 0.103,
+  "puesto": 30,
+  "top1": "verdelume/calma",
+  "sim_top1": 0.444,
+  "prob_voz": 0.851,
+  "duracion": 6.1
+ },
+ "music-ia/stinger-ko-3.ogg": {
+  "etiqueta": "short soft defeat sting",
+  "sim_propio": 0.138,
+  "puesto": 15,
+  "top1": "title/calma",
+  "sim_top1": 0.394,
+  "prob_voz": 0.997,
+  "duracion": 6.1
+ },
+ "music-ia/stinger-llegada-1.ogg": {
+  "etiqueta": "short warm arrival fanfare",
+  "sim_propio": -0.019,
+  "puesto": 17,
+  "top1": "title/calma",
+  "sim_top1": 0.242,
+  "prob_voz": 0.992,
+  "duracion": 6.1
+ },
+ "music-ia/stinger-llegada-2.ogg": {
+  "etiqueta": "short warm arrival fanfare",
+  "sim_propio": 0.157,
+  "puesto": 9,
+  "top1": "verdelume/calma",
+  "sim_top1": 0.346,
+  "prob_voz": 0.954,
+  "duracion": 6.1
+ },
+ "music-ia/stinger-llegada-3.ogg": {
+  "etiqueta": "short warm arrival fanfare",
+  "sim_propio": 0.145,
+  "puesto": 12,
+  "top1": "title/calma",
+  "sim_top1": 0.376,
+  "prob_voz": 1.0,
+  "duracion": 6.1
+ },
+ "music-ia/stinger-redada-1.ogg": {
+  "etiqueta": "short alarm sting",
+  "sim_propio": 0.275,
+  "puesto": 1,
+  "top1": "stinger/redada",
+  "sim_top1": 0.275,
+  "prob_voz": 0.994,
+  "duracion": 6.1
+ },
+ "music-ia/stinger-redada-2.ogg": {
+  "etiqueta": "short alarm sting",
+  "sim_propio": 0.3,
+  "puesto": 2,
+  "top1": "title/calma",
+  "sim_top1": 0.423,
+  "prob_voz": 1.0,
+  "duracion": 6.1
+ },
+ "music-ia/stinger-redada-3.ogg": {
+  "etiqueta": "short alarm sting",
+  "sim_propio": 0.279,
+  "puesto": 2,
+  "top1": "title/calma",
+  "sim_top1": 0.399,
+  "prob_voz": 1.0,
+  "duracion": 6.1
+ },
+ "music-ia/title-calma-1.ogg": {
+  "etiqueta": "main title theme",
+  "sim_propio": 0.301,
+  "puesto": 17,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.534,
+  "prob_voz": 0.714,
+  "duracion": 66.4
+ },
+ "music-ia/title-calma-2.ogg": {
+  "etiqueta": "main title theme",
+  "sim_propio": 0.28,
+  "puesto": 21,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.568,
+  "prob_voz": 0.238,
+  "duracion": 65.8
+ },
+ "music-ia/title-calma-3.ogg": {
+  "etiqueta": "main title theme",
+  "sim_propio": 0.371,
+  "puesto": 14,
+  "top1": "frostholm/tension",
+  "sim_top1": 0.521,
+  "prob_voz": 0.199,
+  "duracion": 68.3
+ },
+ "music-ia/valkeep-calma-1.ogg": {
+  "etiqueta": "stone mountain town theme",
+  "sim_propio": 0.212,
+  "puesto": 21,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.459,
+  "prob_voz": 0.812,
+  "duracion": 65.1
+ },
+ "music-ia/valkeep-calma-2.ogg": {
+  "etiqueta": "stone mountain town theme",
+  "sim_propio": 0.212,
+  "puesto": 20,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.396,
+  "prob_voz": 0.253,
+  "duracion": 66.9
+ },
+ "music-ia/valkeep-tension-1.ogg": {
+  "etiqueta": "mountain town theme with cellos and dulzaina shawm melody with driving percussion",
+  "sim_propio": 0.251,
+  "puesto": 14,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.441,
+  "prob_voz": 1.0,
+  "duracion": 68.3
+ },
+ "music-ia/valkeep-tension-2.ogg": {
+  "etiqueta": "mountain town theme with cellos and dulzaina shawm melody with driving percussion",
+  "sim_propio": 0.299,
+  "puesto": 17,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.516,
+  "prob_voz": 0.361,
+  "duracion": 63.2
+ },
+ "music-ia/verdelume-calma-1.ogg": {
+  "etiqueta": "jungle canal town theme",
+  "sim_propio": 0.411,
+  "puesto": 3,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.465,
+  "prob_voz": 0.989,
+  "duracion": 69.4
+ },
+ "music-ia/verdelume-calma-2.ogg": {
+  "etiqueta": "jungle canal town theme",
+  "sim_propio": 0.448,
+  "puesto": 5,
+  "top1": "verdelume/tension",
+  "sim_top1": 0.514,
+  "prob_voz": 0.927,
+  "duracion": 69.6
+ },
+ "music-ia/verdelume-tension-1.ogg": {
+  "etiqueta": "jungle town theme with marimba with driving percussion",
+  "sim_propio": 0.437,
+  "puesto": 3,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.518,
+  "prob_voz": 0.881,
+  "duracion": 68.6
+ },
+ "music-ia/verdelume-tension-2.ogg": {
+  "etiqueta": "jungle town theme with marimba with driving percussion",
+  "sim_propio": 0.438,
+  "puesto": 3,
+  "top1": "ashfen/tension",
+  "sim_top1": 0.498,
+  "prob_voz": 0.947,
+  "duracion": 64.5
+ },
+ "sfx-ia/agua-orilla-1.ogg": {
+  "etiqueta": "Gentle water lapping at a shore",
+  "sim_propio": 0.198,
+  "puesto": 1,
+  "top1": "agua-orilla",
+  "sim_top1": 0.198,
+  "duracion": 5.0
+ },
+ "sfx-ia/agua-orilla-2.ogg": {
+  "etiqueta": "Gentle water lapping at a shore",
+  "sim_propio": 0.183,
+  "puesto": 2,
+  "top1": "cuerno-guardia",
+  "sim_top1": 0.219,
+  "duracion": 5.0
+ },
+ "sfx-ia/arena-viento-1.ogg": {
+  "etiqueta": "Dry desert wind blowing steadily with fine sand hissing",
+  "sim_propio": 0.322,
+  "puesto": 1,
+  "top1": "arena-viento",
+  "sim_top1": 0.322,
+  "duracion": 5.0
+ },
+ "sfx-ia/arena-viento-2.ogg": {
+  "etiqueta": "Dry desert wind blowing steadily with fine sand hissing",
+  "sim_propio": 0.158,
+  "puesto": 6,
+  "top1": "paso-arena",
+  "sim_top1": 0.329,
+  "duracion": 5.0
+ },
+ "sfx-ia/aves-bosque-1.ogg": {
+  "etiqueta": "Small birds chirping and singing in a forest",
+  "sim_propio": 0.431,
+  "puesto": 1,
+  "top1": "aves-bosque",
+  "sim_top1": 0.431,
+  "duracion": 2.97
+ },
+ "sfx-ia/aves-bosque-2.ogg": {
+  "etiqueta": "Small birds chirping and singing in a forest",
+  "sim_propio": 0.274,
+  "puesto": 1,
+  "top1": "aves-bosque",
+  "sim_top1": 0.274,
+  "duracion": 3.0
+ },
+ "sfx-ia/campana-pueblo-1.ogg": {
+  "etiqueta": "A single church tower bell ringing once",
+  "sim_propio": 0.39,
+  "puesto": 1,
+  "top1": "campana-pueblo",
+  "sim_top1": 0.39,
+  "duracion": 3.0
+ },
+ "sfx-ia/campana-pueblo-2.ogg": {
+  "etiqueta": "A single church tower bell ringing once",
+  "sim_propio": 0.286,
+  "puesto": 1,
+  "top1": "campana-pueblo",
+  "sim_top1": 0.286,
+  "duracion": 3.0
+ },
+ "sfx-ia/cofre-abrir-1.ogg": {
+  "etiqueta": "A wooden treasure chest lid creaking open with a metal latch click",
+  "sim_propio": 0.232,
+  "puesto": 4,
+  "top1": "cuerno-guardia",
+  "sim_top1": 0.3,
+  "duracion": 1.14
+ },
+ "sfx-ia/cofre-abrir-2.ogg": {
+  "etiqueta": "A wooden treasure chest lid creaking open with a metal latch click",
+  "sim_propio": 0.28,
+  "puesto": 2,
+  "top1": "grillos-noche",
+  "sim_top1": 0.321,
+  "duracion": 1.42
+ },
+ "sfx-ia/cuerno-guardia-1.ogg": {
+  "etiqueta": "A single medieval guard horn blast",
+  "sim_propio": 0.404,
+  "puesto": 1,
+  "top1": "cuerno-guardia",
+  "sim_top1": 0.404,
+  "duracion": 1.16
+ },
+ "sfx-ia/cuerno-guardia-2.ogg": {
+  "etiqueta": "A single medieval guard horn blast",
+  "sim_propio": 0.314,
+  "puesto": 1,
+  "top1": "cuerno-guardia",
+  "sim_top1": 0.314,
+  "duracion": 0.62
+ },
+ "sfx-ia/escorpion-1.ogg": {
+  "etiqueta": "A scorpion skittering and clicking on sand",
+  "sim_propio": 0.204,
+  "puesto": 2,
+  "top1": "fogata",
+  "sim_top1": 0.205,
+  "duracion": 1.5
+ },
+ "sfx-ia/escorpion-2.ogg": {
+  "etiqueta": "A scorpion skittering and clicking on sand",
+  "sim_propio": 0.236,
+  "puesto": 3,
+  "top1": "moneda-vender",
+  "sim_top1": 0.328,
+  "duracion": 0.93
+ },
+ "sfx-ia/fogata-1.ogg": {
+  "etiqueta": "A campfire crackling and popping steadily",
+  "sim_propio": 0.394,
+  "puesto": 1,
+  "top1": "fogata",
+  "sim_top1": 0.394,
+  "duracion": 5.0
+ },
+ "sfx-ia/fogata-2.ogg": {
+  "etiqueta": "A campfire crackling and popping steadily",
+  "sim_propio": 0.344,
+  "puesto": 1,
+  "top1": "fogata",
+  "sim_top1": 0.344,
+  "duracion": 5.0
+ },
+ "sfx-ia/grillos-noche-1.ogg": {
+  "etiqueta": "Crickets chirping steadily on a calm night in a meadow",
+  "sim_propio": 0.218,
+  "puesto": 2,
+  "top1": "escorpion",
+  "sim_top1": 0.272,
+  "duracion": 5.0
+ },
+ "sfx-ia/grillos-noche-2.ogg": {
+  "etiqueta": "Crickets chirping steadily on a calm night in a meadow",
+  "sim_propio": 0.247,
+  "puesto": 1,
+  "top1": "grillos-noche",
+  "sim_top1": 0.247,
+  "duracion": 5.0
+ },
+ "sfx-ia/impacto-2.ogg": {
+  "etiqueta": "A single dull punch impact on leather and flesh",
+  "sim_propio": 0.339,
+  "puesto": 2,
+  "top1": "sello",
+  "sim_top1": 0.426,
+  "duracion": 0.72
+ },
+ "sfx-ia/jabali-grunido-1.ogg": {
+  "etiqueta": "A wild boar snorting and grunting aggressively",
+  "sim_propio": 0.206,
+  "puesto": 2,
+  "top1": "lobo-grunido",
+  "sim_top1": 0.22,
+  "duracion": 1.34
+ },
+ "sfx-ia/jabali-grunido-2.ogg": {
+  "etiqueta": "A wild boar snorting and grunting aggressively",
+  "sim_propio": 0.195,
+  "puesto": 2,
+  "top1": "moneda-pagar",
+  "sim_top1": 0.208,
+  "duracion": 1.11
+ },
+ "sfx-ia/lobo-grunido-1.ogg": {
+  "etiqueta": "A wolf growling and snarling",
+  "sim_propio": 0.272,
+  "puesto": 1,
+  "top1": "lobo-grunido",
+  "sim_top1": 0.272,
+  "duracion": 1.49
+ },
+ "sfx-ia/lobo-grunido-2.ogg": {
+  "etiqueta": "A wolf growling and snarling",
+  "sim_propio": 0.287,
+  "puesto": 1,
+  "top1": "lobo-grunido",
+  "sim_top1": 0.287,
+  "duracion": 1.74
+ },
+ "sfx-ia/moneda-comprar-1.ogg": {
+  "etiqueta": "A few gold coins clinking together once",
+  "sim_propio": 0.406,
+  "puesto": 2,
+  "top1": "moneda-vender",
+  "sim_top1": 0.527,
+  "duracion": 1.0
+ },
+ "sfx-ia/moneda-comprar-2.ogg": {
+  "etiqueta": "A few gold coins clinking together once",
+  "sim_propio": 0.389,
+  "puesto": 2,
+  "top1": "moneda-vender",
+  "sim_top1": 0.542,
+  "duracion": 1.38
+ },
+ "sfx-ia/moneda-pagar-1.ogg": {
+  "etiqueta": "A leather bag full of coins being shaken and set down",
+  "sim_propio": 0.237,
+  "puesto": 3,
+  "top1": "moneda-vender",
+  "sim_top1": 0.294,
+  "duracion": 1.97
+ },
+ "sfx-ia/moneda-pagar-2.ogg": {
+  "etiqueta": "A leather bag full of coins being shaken and set down",
+  "sim_propio": 0.461,
+  "puesto": 1,
+  "top1": "moneda-pagar",
+  "sim_top1": 0.461,
+  "duracion": 2.0
+ },
+ "sfx-ia/moneda-vender-1.ogg": {
+  "etiqueta": "A handful of gold coins dropped on a wooden counter",
+  "sim_propio": 0.607,
+  "puesto": 1,
+  "top1": "moneda-vender",
+  "sim_top1": 0.607,
+  "duracion": 1.5
+ },
+ "sfx-ia/moneda-vender-2.ogg": {
+  "etiqueta": "A handful of gold coins dropped on a wooden counter",
+  "sim_propio": 0.584,
+  "puesto": 1,
+  "top1": "moneda-vender",
+  "sim_top1": 0.584,
+  "duracion": 1.29
+ },
+ "sfx-ia/nieve-viento-1.ogg": {
+  "etiqueta": "Cold wind blowing steadily over a snowy field",
+  "sim_propio": 0.319,
+  "puesto": 3,
+  "top1": "viento-rafaga",
+  "sim_top1": 0.393,
+  "duracion": 5.0
+ },
+ "sfx-ia/nieve-viento-2.ogg": {
+  "etiqueta": "Cold wind blowing steadily over a snowy field",
+  "sim_propio": 0.231,
+  "puesto": 4,
+  "top1": "paso-pasto",
+  "sim_top1": 0.282,
+  "duracion": 5.0
+ },
+ "sfx-ia/pergamino-1.ogg": {
+  "etiqueta": "A parchment scroll being unrolled",
+  "sim_propio": 0.338,
+  "puesto": 1,
+  "top1": "pergamino",
+  "sim_top1": 0.338,
+  "duracion": 0.58
+ },
+ "sfx-ia/pergamino-2.ogg": {
+  "etiqueta": "A parchment scroll being unrolled",
+  "sim_propio": 0.262,
+  "puesto": 1,
+  "top1": "pergamino",
+  "sim_top1": 0.262,
+  "duracion": 0.87
+ },
+ "sfx-ia/puerta-madera-1.ogg": {
+  "etiqueta": "A heavy wooden door opening with a creak and a latch click",
+  "sim_propio": 0.009,
+  "puesto": 5,
+  "top1": "impacto",
+  "sim_top1": 0.145,
+  "duracion": 1.43
+ },
+ "sfx-ia/puerta-madera-2.ogg": {
+  "etiqueta": "A heavy wooden door opening with a creak and a latch click",
+  "sim_propio": 0.248,
+  "puesto": 1,
+  "top1": "puerta-madera",
+  "sim_top1": 0.248,
+  "duracion": 1.28
+ },
+ "sfx-ia/relincho-1.ogg": {
+  "etiqueta": "A single horse neigh",
+  "sim_propio": 0.276,
+  "puesto": 2,
+  "top1": "jabali-grunido",
+  "sim_top1": 0.322,
+  "duracion": 1.36
+ },
+ "sfx-ia/relincho-2.ogg": {
+  "etiqueta": "A single horse neigh",
+  "sim_propio": 0.085,
+  "puesto": 14,
+  "top1": "viento-rafaga",
+  "sim_top1": 0.26,
+  "duracion": 1.96
+ },
+ "sfx-ia/sello-2.ogg": {
+  "etiqueta": "A wax seal stamp pressed firmly on paper with a thump",
+  "sim_propio": 0.167,
+  "puesto": 2,
+  "top1": "impacto",
+  "sim_top1": 0.286,
+  "duracion": 0.52
+ },
+ "sfx-ia/tienda-abrir-1.ogg": {
+  "etiqueta": "A small shop bell dinging once as a door opens",
+  "sim_propio": 0.316,
+  "puesto": 1,
+  "top1": "tienda-abrir",
+  "sim_top1": 0.316,
+  "duracion": 1.44
+ },
+ "sfx-ia/tienda-abrir-2.ogg": {
+  "etiqueta": "A small shop bell dinging once as a door opens",
+  "sim_propio": 0.274,
+  "puesto": 2,
+  "top1": "moneda-vender",
+  "sim_top1": 0.276,
+  "duracion": 1.5
+ },
+ "sfx-ia/viento-rafaga-1.ogg": {
+  "etiqueta": "A single strong gust of wind whooshing past",
+  "sim_propio": 0.377,
+  "puesto": 1,
+  "top1": "viento-rafaga",
+  "sim_top1": 0.377,
+  "duracion": 2.5
+ },
+ "sfx-ia/viento-rafaga-2.ogg": {
+  "etiqueta": "A single strong gust of wind whooshing past",
+  "sim_propio": 0.267,
+  "puesto": 1,
+  "top1": "viento-rafaga",
+  "sim_top1": 0.267,
+  "duracion": 1.15
+ }
+}

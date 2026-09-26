@@ -127,6 +127,7 @@ export class Player {
         this.updateMove(dt, controls, world);
     }
 
+    this.scene.ambient?.feet(this, dt); // ambiente: polvo o nieve detrás de los pies al correr o rodar
     this.hidden = this.crouching && this.inGrass && this.state === "move";
     s.setAlpha(this.hidden ? 0.75 : 1);
     if (this.state !== "jump") this.shadow.setPosition(s.x, s.y);
