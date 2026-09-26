@@ -9,7 +9,7 @@
  * Corona: por eso te compran a ti.
  *
  *   estado = { day, market: { pueblo: { piedra: existencias } }, drift: { pueblo: { piedra: {d, s} } },
- *              mods: [sucesos activos], heat: { pueblo: n } }
+ *              mods: [sucesos activos], heat: { pueblo: n }, caravans: [viajes recientes de los mercaderes] }
  */
 
 import { GOODS, TOWNS, TOWN_IDS } from "./world.js";
@@ -105,11 +105,22 @@ export function stepDrift(state, rng = Math.random) {
  * Qué produce y consume cada pueblo por día y cuánto quiere tener guardado. Cada pueblo saca su
  * piedra (la produce mucho); de las demás, poco y parejo. El vaivén hace el resto.
  */
+/**
+ * 26-sep: ×3 lo de antes (1.8/0.5 y 0.6/0.8). Con el reloj que corre, un tramo dura ~0.4 días en vez
+ * de 2 y el mercado casi no se reponía entre visitas; así la simulación vuelve a dar ~21-28 oro por
+ * tramo (antes 24-30), ya con los mercaderes. Lo que un pueblo quiere tener (equilibrio) no cambia.
+ */
+export const PROFILE = {
+  own: { prod: 5.4, cons: 1.5 }, // su piedra: la saca mucho
+  other: { prod: 1.8, cons: 2.4 }, // las demás: poco y parejo
+  target: 6,
+};
+
 export function baseProfile(townId) {
   const t = TOWNS[townId];
   const prof = {};
-  for (const g of GOOD_IDS) prof[g] = { prod: 0.6, cons: 0.8, target: 6 };
-  if (t.produce) prof[t.produce] = { prod: 1.8, cons: 0.5, target: 6 };
+  for (const g of GOOD_IDS) prof[g] = { ...PROFILE.other, target: PROFILE.target };
+  if (t.produce) prof[t.produce] = { ...PROFILE.own, target: PROFILE.target };
   return prof;
 }
 
@@ -143,7 +154,7 @@ export function initialMarket() {
 }
 
 export function freshEconomy(rng = Math.random) {
-  return { day: 1, market: initialMarket(), mods: [], drift: freshDrift(rng), heat: Object.fromEntries(TOWN_IDS.map((id) => [id, 0])) };
+  return { day: 1, market: initialMarket(), mods: [], drift: freshDrift(rng), heat: Object.fromEntries(TOWN_IDS.map((id) => [id, 0])), caravans: [] };
 }
 
 /** Precio de una piedra en un pueblo. `chill` (0-100) sólo cuenta para vender escarcha. */
@@ -181,6 +192,52 @@ export function giveToMarket(state, townId, good) {
   state.market[townId][good] = Math.min(MARKET.cap, state.market[townId][good] + 1);
 }
 
+/**
+ * Mercaderes de a pie (M10, 26-sep): cada día 1 o 2 arrieros compran en un pueblo y venden en uno
+ * vecino lo que allá paga mejor. Mueven existencias de verdad (vacían donde compran, llenan donde
+ * venden) y la gente lo cuenta: "Ayer un mercader vendió 4 perlas en Valkeep". Así el mercado cambia
+ * por algo más que el azar y conviene escuchar.
+ */
+export const MERCHANTS = {
+  extra: 0.5, // probabilidad de un segundo mercader en el día
+  lot: [2, 4], // cuántas piedras mueve
+  margin: 1.35, // sólo sale si allá le pagan al menos 35 % más de lo que le cuesta aquí
+  keep: 6, // cuántos viajes recientes se recuerdan (para los rumores)
+};
+
+/** Vecinos por tierra de cada pueblo (y la barca). */
+function neighbors(townId) {
+  const t = TOWNS[townId];
+  return [...Object.values(t.exits ?? {}), ...(t.boat ? [t.boat] : [])].filter((id) => TOWNS[id]);
+}
+
+/** Los mercaderes del día. Devuelve los viajes que hicieron: [{ day, from, to, good, n }]. */
+export function merchantsDay(state, rng = Math.random) {
+  const trips = [];
+  const count = 1 + (rng() < MERCHANTS.extra ? 1 : 0);
+  for (let k = 0; k < count; k += 1) {
+    const from = TOWN_IDS[Math.floor(rng() * TOWN_IDS.length)];
+    const near = neighbors(from);
+    if (!near.length) continue;
+    const to = near[Math.floor(rng() * near.length)];
+    let best = null;
+    for (const g of GOOD_IDS) {
+      if (state.market[from][g] < 3) continue;
+      const ratio = quote(state, to, g).sell / quote(state, from, g).buy;
+      if (ratio >= MERCHANTS.margin && (!best || ratio > best.ratio)) best = { g, ratio };
+    }
+    if (!best) continue;
+    const [lo, hi] = MERCHANTS.lot;
+    const n = Math.min(lo + Math.floor(rng() * (hi - lo + 1)), Math.floor(state.market[from][best.g] - 1));
+    if (n < 2) continue;
+    state.market[from][best.g] = Math.max(0, state.market[from][best.g] - n);
+    state.market[to][best.g] = Math.min(MARKET.cap, state.market[to][best.g] + n);
+    trips.push({ day: state.day, from, to, good: best.g, n });
+  }
+  state.caravans = [...trips, ...(state.caravans ?? [])].slice(0, MERCHANTS.keep);
+  return trips;
+}
+
 /** Un día: se mueve el vaivén, cada pueblo produce y consume (el consumo crece con lo que hay), baja el calor, caducan sucesos. */
 export function stepDay(state, rng = Math.random) {
   state.day += 1;
@@ -195,6 +252,7 @@ export function stepDay(state, rng = Math.random) {
     }
     if (state.heat) state.heat[id] = Math.max(0, (state.heat[id] ?? 0) - MARKET.heatDecay);
   }
+  merchantsDay(state, rng);
   const ended = [];
   state.mods = (state.mods ?? []).filter((m) => {
     m.days -= 1;

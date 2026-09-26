@@ -49,6 +49,53 @@ export function slashSheet(palette = ["c4", "y5", "y3", "o3"]) {
   return strip([make(0), make(1), make(2)]);
 }
 
+/**
+ * Barrido cargado hacia la derecha (48×48, giro en (16, 24)): arco amplio de ~220° y más largo que el
+ * normal, con el bastón dorado. Cuatro cuadros: arranque, medio arco, arco completo, estela. Se rota.
+ */
+export function wideSlashSheet() {
+  const core = "white";
+  const glow = "y5";
+  const mid = "y4";
+  const trail = "y3";
+  const make = (f) => {
+    const b = new Buf(48, 48);
+    const cx = 16;
+    const cy = 24;
+    const spans = [[-1.95, -1.0], [-1.95, 0.4], [-1.95, 1.95], [-0.6, 1.95]];
+    const [a0, a1] = spans[f];
+    for (let y = 0; y < 48; y += 1) {
+      for (let x = 0; x < 48; x += 1) {
+        const dx = x + 0.5 - cx;
+        const dy = y + 0.5 - cy;
+        const r = Math.hypot(dx, dy);
+        const a = Math.atan2(dy, dx);
+        if (a < a0 || a > a1) continue;
+        const along = (a - a0) / (a1 - a0);
+        if (r > 16 && r < 23) {
+          if (f === 3 && !(r > 18.5 && r < 21.5)) continue;
+          const lead = f === 3 ? 0 : along;
+          b.set(x, y, lead > 0.8 ? core : r > 21.5 ? trail : r > 19.5 ? mid : glow);
+        } else if (r >= 13 && r <= 16 && f >= 1 && f <= 2 && along > 0.25) {
+          b.set(x, y, rgba(glow, 130));
+        }
+      }
+    }
+    if (f < 3) {
+      const ang = a1;
+      for (let r = 5; r < 22; r += 0.5) {
+        const x = Math.round(cx + Math.cos(ang) * r);
+        const y = Math.round(cy + Math.sin(ang) * r);
+        b.set(x, y, "o4");
+        b.set(x, y + 1, "o1");
+      }
+      b.set(Math.round(cx + Math.cos(ang) * 22), Math.round(cy + Math.sin(ang) * 22), "y5");
+    }
+    return b;
+  };
+  return strip([make(0), make(1), make(2), make(3)]);
+}
+
 /** Rota una tira de cuadros 90° × n. */
 export function rotateSheet(sheet, turns) {
   const frames = [];

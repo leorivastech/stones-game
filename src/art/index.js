@@ -112,10 +112,39 @@ export function buildArt() {
   add("snow-rock", { buf: biomes.snowRock() });
   add("snow-boulder", { buf: biomes.snowRock(true) });
   add("ice-block", { buf: biomes.iceBlock() });
+  // Capa de detalle de las rutas (G6): más árboles por bioma (con vaivén), cosas chicas y calcomanías.
+  add("tree-tall", sway((s) => props.treeKind("tall", s)));
+  add("tree-young", sway((s) => props.treeKind("young", s)));
+  add("tree-wide", sway((s) => props.treeKind("wide", s)));
+  add("tree-acacia", sway((s) => props.treeKind("acacia", s)));
+  add("jungle-tree-2", sway((s) => props.treeKind("jungle", s)));
+  add("pine-tall", sway((s) => props.pine(false, s, { size: "tall" })));
+  add("pine-small", sway((s) => props.pine(false, s, { size: "small" })));
+  add("pine-dark", sway((s) => props.pine(false, s, { dark: true })));
+  add("pine-snow-tall", sway((s) => props.pine(true, s, { size: "tall" })));
+  add("pine-snow-small", sway((s) => props.pine(true, s, { size: "small" })));
+  [0, 1].forEach((v) => add(`palm-small-${v}`, sway((s) => biomes.palm(v + 2, s, true))));
+  [1, 2].forEach((v) => add(`bare-tree-${v}`, { buf: biomes.bareTree(true, v) }));
+  add("stump-moss", { buf: props.stumpMoss() });
+  [0, 1].forEach((v) => add(`mushrooms-${v}`, { buf: props.mushrooms(v) }));
+  [0, 1, 2].forEach((v) => add(`flower-bush-${v}`, { buf: props.flowerBush(v) }));
+  add("log-moss", { buf: props.mossLog() });
+  [0, 1].forEach((v) => add(`ruin-column-${v}`, { buf: props.ruinColumn(v) }));
+  add("ruin-blocks", { buf: props.ruinBlocks() });
+  add("milestone", { buf: props.milestone() });
+  [0, 1].forEach((v) => add(`snow-mound-${v}`, { buf: biomes.snowMound(v) }));
+  add("cactus-small", { buf: biomes.cactusSmall() });
+  // Calcomanías planas: mapbuild.js las hornea en el suelo; aquí sólo para verlas en el laboratorio.
+  for (const tone of ["stone", "sand", "snow"]) [0, 1, 2].forEach((v) => add(`decal-pebbles-${tone}-${v}`, { buf: props.pebbles(v, tone) }));
+  [0, 1].forEach((v) => add(`decal-puddle-${v}`, { buf: props.puddle(v) }));
+  for (const kind of ["boot", "hoof", "cart"]) add(`decal-prints-${kind}`, { buf: props.footprints(kind) });
+  [0, 1].forEach((v) => add(`decal-leaves-${v}`, { buf: props.leafLitter(v, v === 1) }));
+  add("decal-bones", { buf: biomes.bones() });
   for (const kind of ["tree", "rock", "snow"]) add(`stash-${kind}`, biomes.stashSpot(kind));
   add("boat", { buf: biomes.boat() });
   add("target", { buf: biomes.targetDummy() });
   add("horse", creatures.horseSheet());
+  for (const [view, sheet] of Object.entries(creatures.cartSheets())) add(`cart-${view}`, sheet); // yegua con carreta
   // Refugios secretos.
   add("cave-door", refuge.caveDoor());
   add("cave-door-snow", refuge.caveDoor(true));
@@ -129,6 +158,11 @@ export function buildArt() {
   add("slash-down", fx.rotateSheet(slash, 1));
   add("slash-left", fx.rotateSheet(slash, 2));
   add("slash-up", fx.rotateSheet(slash, 3));
+  const wide = fx.wideSlashSheet(); // ataque cargado
+  add("slash-wide-right", wide);
+  add("slash-wide-down", fx.rotateSheet(wide, 1));
+  add("slash-wide-left", fx.rotateSheet(wide, 2));
+  add("slash-wide-up", fx.rotateSheet(wide, 3));
   const clawSlash = fx.slashSheet(["e4", "e3", "e2", "o1"]);
   add("claw-right", clawSlash);
   add("claw-down", fx.rotateSheet(clawSlash, 1));
@@ -171,6 +205,7 @@ export function buildArt() {
   add("ui-guide-arrow", { buf: ui.guideArrow() });
   add("worldmap", { buf: ui.worldMap() });
   add("logo", { buf: ui.logo() });
+  for (const a of ui.contractArt()) add(a.key, a); // contratos: tablón de la posada y pliego
   for (const l of lightArt(out)) add(l.key, l); // luz del día: manchas de luz y sol/luna del HUD
   for (const a of ambientArt()) add(a.key, a); // ambiente: partículas por bioma y sombras de nube
   return out;

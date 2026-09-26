@@ -1,6 +1,6 @@
 /** Piezas de interfaz: marcos 9-slice, íconos del HUD, teclas, mapa del mundo y logo. */
 
-import { Buf, bayer, hash, smoothNoise } from "./pixel.js";
+import { Buf, bayer, hash, smoothNoise, strip } from "./pixel.js";
 import { rgba } from "./palette.js";
 import { FONT_VARIANTS } from "./font.js";
 
@@ -226,3 +226,71 @@ export function logo() {
 }
 
 export { FONT_VARIANTS };
+
+// ---------- Contratos (M4, 26-sep) ----------
+
+/**
+ * Tablón de contratos junto al posadero: dos postes, tejadillo y corcho. Cuadro 0 vacío (hoy ya no
+ * queda nada que tomar), cuadro 1 con pliegos clavados y un sello rojo. 22×26.
+ */
+function contractBoardFrame(papers) {
+  const b = new Buf(22, 26);
+  // Postes
+  b.rect(3, 6, 2, 18, "o2"); b.vline(3, 6, 18, "o3");
+  b.rect(17, 6, 2, 18, "o2"); b.vline(17, 6, 18, "o3");
+  // Tejadillo de tablas
+  b.rect(1, 3, 20, 3, "o3");
+  b.hline(1, 3, 20, "o5");
+  b.hline(1, 5, 20, "o1");
+  b.rect(2, 2, 18, 1, "o4");
+  // Marco y corcho
+  b.rect(2, 7, 18, 12, "o3");
+  b.hline(2, 7, 18, "o4");
+  b.hline(2, 18, 18, "o1");
+  for (let y = 8; y < 18; y += 1) for (let x = 3; x < 19; x += 1) b.set(x, y, bayer(x, y) < 0.3 ? "d2" : "d3");
+  if (papers) {
+    // Pliego grande con renglones y sello de lacre
+    b.rect(4, 9, 6, 8, "c4");
+    b.vline(9, 10, 7, "c2");
+    for (const y of [11, 13, 15]) b.hline(5, y, 4, "c1");
+    b.set(8, 15, "e2"); b.set(8, 16, "e1"); b.set(7, 16, "e2");
+    // Dos pliegos chicos
+    b.rect(11, 9, 3, 5, "c3"); b.hline(11, 11, 3, "c1");
+    b.rect(15, 10, 3, 6, "c4"); b.hline(15, 12, 3, "c1"); b.hline(15, 14, 2, "c1");
+    // Tachuelas
+    b.set(6, 9, "e3"); b.set(12, 9, "y3"); b.set(16, 10, "e3");
+  } else {
+    b.set(7, 10, "y3"); b.set(14, 12, "y3");
+  }
+  b.outline("o0");
+  b.ellipse(11, 24.5, 7, 1.5, rgba("ink", 60));
+  return b;
+}
+
+export function contractBoard() {
+  return strip([contractBoardFrame(false), contractBoardFrame(true)]);
+}
+
+/** Pliego con sello (9×9) para el tablón y la pausa. */
+export function scrollIcon() {
+  const b = new Buf(9, 9);
+  b.stamp([
+    ".######..",
+    "#cccccc#.",
+    "#cddddc#.",
+    "#cccccc#.",
+    "#cddddc#.",
+    "#ccccsS#.",
+    ".#####S#.",
+    "......#..",
+  ], { "#": "o1", c: "c4", d: "c1", s: "e2", S: "e1" }, 0, 0);
+  return b;
+}
+
+/** Todo lo de contratos, para el catálogo (src/art/index.js). */
+export function contractArt() {
+  return [
+    { key: "contract-board", ...contractBoard() },
+    { key: "ui-scroll", buf: scrollIcon() },
+  ];
+}

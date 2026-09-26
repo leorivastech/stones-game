@@ -195,12 +195,30 @@ function poll() {
     nightNow = night;
     refreshAmbience(w);
   }
+  maybeGust(w);
   const phase = daylightPhase(w.registry);
   if (lastPhase && phase !== lastPhase) {
     if (phase === "amanecer" || (lastPhase === "noche" && phase === "dia")) stinger("amanecer", w);
     else if (phase === "noche") stinger("anochecer", w);
   }
   lastPhase = phase;
+}
+
+/**
+ * Ráfagas de viento en las rutas de montaña y nieve (Paso Alto, Paso del Hielo): de vez en cuando,
+ * no más de una cada 12 s. Suena por el bus de efectos (la muestra la carga preloadSfx de sfx.js).
+ */
+const GUST_ZONES = new Set(["ruta-montana", "ruta-nieve"]);
+let gustAt = 0;
+function maybeGust(w) {
+  if (!GUST_ZONES.has(MAP_ZONA[w.def.id]) || w.modal) return;
+  const t = now();
+  if (t < gustAt || Math.random() > 0.08) return;
+  gustAt = t + 12000;
+  const key = `sfx-ia-viento-rafaga-${1 + Math.floor(Math.random() * 2)}`;
+  if (!w.cache.audio.exists(key) || w.sound.locked) return;
+  if (globalThis.__captureSfx) globalThis.__captureSfx.push({ name: "gust", volume: 0.3 });
+  w.sound.play(key, { volume: 0.3 * bus.sfx, detune: (Math.random() - 0.5) * 200 });
 }
 
 // ------------------------------------------------------------------ carga

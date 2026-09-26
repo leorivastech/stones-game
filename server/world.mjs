@@ -11,7 +11,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { dirname } from "node:path";
 import { freshEconomy, stepDay, quote, takeFromMarket, giveToMarket, meltAfter, mixChill, STONE, GOOD_IDS } from "../src/economy.js";
-import { rollDay } from "../src/director.js";
+import { rollDay, caravanNews } from "../src/director.js";
 import { GOODS, TOWNS } from "../src/world.js";
 import { PEDDLER, REFUGES, STASH_CAPACITY } from "../src/state.js";
 
@@ -55,6 +55,7 @@ export class World {
       s.econ.market = { ...fresh.market, ...s.econ.market };
       s.econ.drift = { ...fresh.drift, ...s.econ.drift };
       s.econ.heat = { ...fresh.heat, ...s.econ.heat };
+      s.econ.caravans ??= [];
       return { ...World.fresh(), ...s, dayStartedAt: Date.now() };
     } catch {
       return null;
@@ -102,10 +103,14 @@ export class World {
 
   // ------------------------------------------------------------------ reloj
 
-  /** Un día del mundo: el mercado se mueve, los sucesos tiran dados, reaparece lo del camino. */
+  /**
+   * Un día del mundo: el mercado se mueve (con los mercaderes de a pie: stepDay los hace andar), los
+   * sucesos tiran dados, reaparece lo del camino.
+   */
   nextDay() {
     const e = this.s.econ;
     const ended = stepDay(e);
+    const caravans = (e.caravans ?? []).filter((c) => c.day === e.day);
     const started = rollDay(e);
     this.s.dayStartedAt = Date.now();
     // Enemigos, arbustos, monedas y corazones sueltos vuelven con el día. Las piedras tiradas se quedan.
@@ -121,7 +126,7 @@ export class World {
       const next = meltAfter(st.chill ?? 100, 1);
       if (next <= 0) { st.frost = 0; st.chill = 100; } else st.chill = next;
     }
-    const news = started.map((ev) => this.addNews(ev.news));
+    const news = [...started.map((ev) => this.addNews(ev.news)), ...caravans.map((c) => this.addNews(caravanNews(c)))];
     this.touch();
     return { ended, started: started.map((ev) => ev.id), news };
   }

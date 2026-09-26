@@ -30,7 +30,10 @@ function outlined(b, color = "ink") {
   return b;
 }
 
-/** Jabalí 24×18: 0-1 caminar, 2 embestida (cabeza baja), 3 aturdido. */
+/**
+ * Jabalí 24×18: 0-1 caminar de lado, 2 embestida (cabeza baja), 3 aturdido,
+ * 4-5 caminar de frente (hacia abajo), 6-7 caminar de espalda (hacia arriba).
+ */
 export function boarSheet() {
   const ramp = ["d0", "d1", "d2", "d3"];
   const make = (pose) => {
@@ -61,7 +64,50 @@ export function boarSheet() {
     b.set(1, 6, "d1");
     return outlined(b);
   };
-  return strip([make(0), make(1), make(2), make(3)]);
+  const views = [0, 1].map((f) => boarFront(f, ramp)).concat([0, 1].map((f) => boarBack(f, ramp)));
+  return strip([make(0), make(1), make(2), make(3), ...views]);
+}
+
+/** Cuatro patas vistas de frente o de espalda: las de adelante largas, las de atrás asoman. `f` alterna el paso. */
+function stubLegs(b, xs, top, len, f, color, hoof) {
+  xs.forEach((x, i) => {
+    const l = len - ((i + f) % 2);
+    b.rect(x, top, 2, l, color);
+    b.rect(x, top + l - 1, 2, 1, hoof);
+  });
+}
+
+/** Jabalí de frente: jeta con colmillos, orejas, cerdas del lomo detrás. */
+function boarFront(f, ramp) {
+  const b = new Buf(24, 18);
+  b.ellipse(12, 16, 7, 1.8, rgba("ink", 80));
+  const bob = f;
+  stubLegs(b, [7, 15], 11 + bob, 5 - bob, f + 1, "d0", "ink2");
+  body(b, 12, 8 + bob, 7, 5, ramp, 41);
+  for (let x = 7; x < 18; x += 1) if (hash(x, 2, 9) < 0.7) b.set(x, 3 + bob - (x % 3 === 0 ? 1 : 0), "d0");
+  stubLegs(b, [8, 14], 12 + bob, 4, f, "d1", "ink2");
+  body(b, 12, 10 + bob, 4.5, 3.5, ramp, 42);
+  b.set(8, 6 + bob, "d0"); b.set(7, 5 + bob, "d1"); b.set(16, 6 + bob, "d0"); b.set(17, 5 + bob, "d1");
+  b.rect(10, 11 + bob, 4, 3, "k2");
+  b.hline(10, 11 + bob, 4, "k3");
+  b.set(11, 12 + bob, "k0"); b.set(12, 12 + bob, "k0");
+  b.set(9, 12 + bob, "c4"); b.set(14, 12 + bob, "c4"); b.set(9, 11 + bob, "c4"); b.set(14, 11 + bob, "c4");
+  b.set(10, 9 + bob, "ink"); b.set(13, 9 + bob, "ink");
+  return outlined(b);
+}
+
+/** Jabalí de espalda: grupa redonda, colita, orejas asomando al frente. */
+function boarBack(f, ramp) {
+  const b = new Buf(24, 18);
+  b.ellipse(12, 16, 7, 1.8, rgba("ink", 80));
+  const bob = f;
+  b.set(8, 3 + bob, "d0"); b.set(8, 2 + bob, "d1"); b.set(15, 3 + bob, "d0"); b.set(15, 2 + bob, "d1");
+  body(b, 12, 6 + bob, 4.5, 3, ramp, 43);
+  stubLegs(b, [8, 14], 11 + bob, 5 - bob, f, "d0", "ink2");
+  body(b, 12, 9 + bob, 7, 5, ramp, 44);
+  for (let y = 4; y < 12; y += 1) if (hash(12, y, 5) < 0.6) b.set(12, y + bob, "d0");
+  b.set(12, 12 + bob, "d1"); b.set(13, 13 + bob, "d1"); b.set(12, 14 + bob, "d0");
+  return outlined(b);
 }
 
 /** Una pata de caballo: caña de 2 px, rodilla marcada y casco. `lift` la acorta (pie en el aire). */
@@ -204,7 +250,10 @@ export function horseSheet() {
   return strip(frames);
 }
 
-/** Lobo 26×18: 0-1 caminar, 2 salto (patas estiradas), 3 aturdido. Gris con vientre claro. */
+/**
+ * Lobo 26×18: 0-1 caminar de lado, 2 salto (patas estiradas), 3 aturdido, 4-5 de frente, 6-7 de espalda.
+ * Gris con vientre claro.
+ */
 export function wolfSheet() {
   const ramp = ["s1", "s2", "s3", "s4"];
   const make = (pose) => {
@@ -230,10 +279,45 @@ export function wolfSheet() {
     for (let i = 0; i < 5; i += 1) b.set(4 - i, 7 + Math.floor(i / 2) - (stretch ? 1 : 0), i > 3 ? "n3" : "s2");
     return outlined(b);
   };
-  return strip([make(0), make(1), make(2), make(3)]);
+  const front = (f) => {
+    const b = new Buf(26, 18);
+    b.ellipse(13, 16, 6, 1.8, rgba("ink", 80));
+    const bob = f;
+    stubLegs(b, [9, 15], 11 + bob, 5 - bob, f + 1, "s1", "ink2");
+    body(b, 13, 9 + bob, 5.5, 4, ramp, 51);
+    stubLegs(b, [10, 14], 12 + bob, 4, f, "s2", "ink2");
+    for (let y = 9; y < 14; y += 1) { b.set(12, y + bob, "n3"); b.set(13, y + bob, "n3"); }
+    body(b, 13, 6 + bob, 4, 3.2, ramp, 52);
+    // Orejas en punta, ojos amarillos, hocico claro.
+    b.set(10, 2 + bob, "s2"); b.set(10, 3 + bob, "s3"); b.set(11, 3 + bob, "s2");
+    b.set(16, 2 + bob, "s2"); b.set(16, 3 + bob, "s3"); b.set(15, 3 + bob, "s2");
+    b.set(11, 6 + bob, "y3"); b.set(15, 6 + bob, "y3");
+    b.rect(12, 7 + bob, 3, 2, "s4");
+    b.set(13, 8 + bob, "ink");
+    return outlined(b);
+  };
+  const back = (f) => {
+    const b = new Buf(26, 18);
+    b.ellipse(13, 16, 6, 1.8, rgba("ink", 80));
+    const bob = f;
+    body(b, 13, 5 + bob, 3.5, 2.8, ramp, 53);
+    b.set(11, 2 + bob, "s2"); b.set(11, 1 + bob, "s3"); b.set(15, 2 + bob, "s2"); b.set(15, 1 + bob, "s3");
+    stubLegs(b, [9, 15], 11 + bob, 5 - bob, f, "s1", "ink2");
+    body(b, 13, 9 + bob, 5.5, 4, ramp, 54);
+    for (let y = 6; y < 12; y += 1) b.set(13, y + bob, "s1");
+    // Cola tupida colgando al centro, punta clara; se mece con el paso.
+    const sw = f ? 1 : 0;
+    for (let y = 11; y <= 15; y += 1) { b.set(12 + sw, y + bob, "s2"); b.set(13 + sw, y + bob, "s3"); }
+    b.set(12 + sw, 15 + bob, "n3"); b.set(13 + sw, 15 + bob, "n3");
+    return outlined(b);
+  };
+  return strip([make(0), make(1), make(2), make(3), front(0), front(1), back(0), back(1)]);
 }
 
-/** Escorpión 20×14: 0-1 caminar, 2 aguijón adelante, 3 escondido (sólo la arena removida y los ojos). */
+/**
+ * Escorpión 20×14: 0-1 caminar de lado, 2 aguijón adelante, 3 escondido (sólo la arena removida y los
+ * ojos), 4-5 de frente (pinzas abajo, cola arqueada atrás), 6-7 de espalda (cola hacia ti).
+ */
 export function scorpionSheet() {
   const make = (pose) => {
     const b = new Buf(20, 14);
@@ -259,5 +343,161 @@ export function scorpionSheet() {
     b.set(sx + 1, sy, "y4");
     return outlined(b);
   };
-  return strip([make(0), make(1), make(2), make(3)]);
+  const ramp = ["r0", "r1", "r2", "r3"];
+  const legsV = (b, cy, step) => {
+    for (let k = 0; k < 3; k += 1) {
+      const o = (k + step) % 2;
+      b.set(5 - o, cy - 1 + k * 2, "r0"); b.set(6, cy - 1 + k * 2, "r0");
+      b.set(14 + o, cy - 1 + k * 2, "r0"); b.set(13, cy - 1 + k * 2, "r0");
+    }
+  };
+  const front = (f) => {
+    const b = new Buf(20, 14);
+    b.ellipse(10, 12, 6, 1.5, rgba("ink", 80));
+    // Cola arqueada detrás del cuerpo (arriba), el aguijón apunta hacia ti.
+    [[10, 4], [10, 3], [10, 2], [10, 1]].forEach(([x, y], i) => { b.set(x, y, i % 2 ? "r3" : "r2"); b.set(x + 1, y, "r1"); });
+    b.set(10, 0, "y4"); b.set(11, 1, "r1");
+    legsV(b, 6, f);
+    body(b, 10, 7, 3.2, 3.5, ramp, 61);
+    // Pinzas al frente.
+    b.set(8, 10, "r1"); b.set(12, 10, "r1");
+    b.ellipse(6.5, 11.5, 1.8, 1.4, "r2"); b.ellipse(13.5, 11.5, 1.8, 1.4, "r2");
+    b.set(6, 13 - f, "r1"); b.set(14, 13 - (1 - f), "r1");
+    b.set(9, 8, "ink"); b.set(11, 8, "ink");
+    return outlined(b);
+  };
+  const back = (f) => {
+    const b = new Buf(20, 14);
+    b.ellipse(10, 12, 6, 1.5, rgba("ink", 80));
+    b.ellipse(6.5, 2.5, 1.8, 1.4, "r2"); b.ellipse(13.5, 2.5, 1.8, 1.4, "r2");
+    b.set(8, 4, "r1"); b.set(12, 4, "r1");
+    legsV(b, 6, f);
+    body(b, 10, 6, 3.2, 3.5, ramp, 62);
+    // La cola viene hacia ti y se enrosca arriba del lomo.
+    [[10, 9], [10, 10], [10, 11], [11, 12]].forEach(([x, y], i) => { b.set(x, y, i % 2 ? "r3" : "r2"); b.set(x - 1, y, "r1"); });
+    b.set(12, 11, "y4");
+    return outlined(b);
+  };
+  return strip([make(0), make(1), make(2), make(3), front(0), front(1), back(0), back(1)]);
+}
+
+// ---------------------------------------------------------------------------
+// Carreta enganchada a la yegua (mejora de Nella). Tres tiras, una por vista, porque cada vista tiene
+// su tamaño: de lado 56×30 (carreta atrás, a la izquierda), de frente y de espalda 32×46 (la carreta
+// arriba, detrás de la yegua, o abajo, entre la yegua y tú). `CART_ANCHOR`: dónde pisa la yegua en
+// cada cuadro (el punto del rastro), para el origen del sprite.
+export const CART_ANCHOR = { side: [40, 30], down: [16, 46], up: [16, 28] };
+
+/** Tablones de madera con luz arriba-izquierda: filas alternas y vetas. */
+function planks(b, x, y, w, h, vertical = false) {
+  for (let j = 0; j < h; j += 1) {
+    for (let i = 0; i < w; i += 1) {
+      const seam = vertical ? i % 4 === 3 : j % 3 === 2;
+      const c = seam ? "o1" : j === 0 ? "o5" : i === 0 ? "o4" : hash(x + i, y + j, 77) < 0.15 ? "o2" : "o3";
+      b.set(x + i, y + j, c);
+    }
+  }
+}
+
+/** Rueda de lado: aro oscuro, rayos que giran (+ o ×) y maza clara. */
+function wheelSide(b, cx, cy, r, f) {
+  b.ellipse(cx, cy, r + 0.6, r + 0.6, "ink");
+  b.ellipse(cx, cy, r - 0.4, r - 0.4, "o2");
+  b.ellipse(cx, cy, r - 1.4, r - 1.4, "o0");
+  const diag = f % 2 === 1;
+  for (let k = -(r - 1); k <= r - 1; k += 1) {
+    if (diag) { b.set(cx + k * 0.7, cy + k * 0.7, "o4"); b.set(cx + k * 0.7, cy - k * 0.7, "o4"); }
+    else { b.set(cx + k, cy, "o4"); b.set(cx, cy + k, "o4"); }
+  }
+  b.rect(cx - 1, cy - 1, 2, 2, "o5");
+  b.set(cx - 1, cy - 1, "y3");
+}
+
+/** Rueda de canto (de frente o de espalda): una tira alta con el aro. */
+function wheelEdge(b, x, y, h, f) {
+  b.rect(x, y, 3, h, "ink");
+  b.rect(x + 1, y + 1, 1, h - 2, "o3");
+  for (let j = 1 + (f % 2); j < h - 1; j += 3) b.set(x + 1, y + j, "o2");
+}
+
+/** Carga: dos sacos y una caja. */
+function load(b, x, y) {
+  b.ellipse(x + 3, y + 2, 3.2, 2.4, "c2");
+  b.ellipse(x + 2.4, y + 1.4, 1.6, 1, "c3");
+  b.ellipse(x + 9, y + 1.5, 3, 2.3, "c1");
+  b.ellipse(x + 8.4, y + 1, 1.5, 0.9, "c2");
+  b.rect(x + 13, y - 1, 5, 4, "o4");
+  b.hline(x + 13, y - 1, 5, "o5");
+  b.vline(x + 15, y - 1, 4, "o2");
+}
+
+export function cartSheets() {
+  const horse = horseSheet();
+  const hf = (i) => {
+    const f = new Buf(32, 28);
+    for (let y = 0; y < 28; y += 1) for (let x = 0; x < 32; x += 1) f.data[y * 32 + x] = horse.buf.data[y * horse.buf.w + i * 32 + x];
+    return f;
+  };
+  const side = [];
+  const down = [];
+  const up = [];
+  for (let f = 0; f < 4; f += 1) {
+    const bob = f % 2 ? 0 : 1;
+    // --- De lado (yegua a la derecha, carreta atrás) ---
+    {
+      const b = new Buf(56, 30);
+      b.ellipse(15, 28, 12, 1.8, rgba("ink", 80));
+      // Vara lejana, detrás de todo.
+      for (let x = 26; x <= 46; x += 1) b.set(x, 15 + bob, "o1");
+      const cart = new Buf(56, 30);
+      planks(cart, 3, 11, 24, 7);
+      cart.rect(3, 18, 24, 2, "o1");
+      load(cart, 5, 7);
+      outlined(cart);
+      b.blit(cart);
+      wheelSide(b, 14, 22, 6, f);
+      b.blit(hf(f), 24, 2);
+      // Vara cercana: del frente de la caja al hombro de la yegua, por encima del costado.
+      for (let x = 26; x <= 45; x += 1) { b.set(x, 17 + bob, x === 45 ? "o5" : "o4"); b.set(x, 18 + bob, "o1"); }
+      b.set(46, 17 + bob, "ink");
+      side.push(b);
+    }
+    // --- De frente (viene hacia ti: la carreta detrás, arriba) ---
+    {
+      const b = new Buf(32, 46);
+      b.ellipse(16, 21, 13, 2, rgba("ink", 80));
+      const cart = new Buf(32, 46);
+      load(cart, 7, 3);
+      planks(cart, 4, 7, 24, 10, true);
+      cart.hline(4, 7, 24, "o5");
+      outlined(cart);
+      b.blit(cart);
+      wheelEdge(b, 1, 9 + (f % 2), 12, f);
+      wheelEdge(b, 28, 9 + ((f + 1) % 2), 12, f);
+      // Varas que bajan a los lados de la yegua.
+      for (let y = 17; y <= 32; y += 1) { b.set(9, y, "o4"); b.set(22, y, "o4"); b.set(10, y, "o1"); b.set(23, y, "o1"); }
+      b.blit(hf(4 + f), 0, 18);
+      down.push(b);
+    }
+    // --- De espalda (se aleja: la carreta entre la yegua y tú) ---
+    {
+      const b = new Buf(32, 46);
+      b.blit(hf(8 + f), 0, 0);
+      b.ellipse(16, 43, 14, 2, rgba("ink", 80));
+      const cart = new Buf(32, 46);
+      load(cart, 7, 19);
+      planks(cart, 4, 23, 24, 12, true);
+      cart.hline(4, 23, 24, "o5");
+      cart.rect(4, 35, 24, 2, "o1");
+      // Tabla trasera con dos refuerzos de hierro.
+      cart.vline(9, 24, 11, "s2");
+      cart.vline(22, 24, 11, "s2");
+      outlined(cart);
+      b.blit(cart);
+      wheelEdge(b, 1, 27 + (f % 2), 14, f);
+      wheelEdge(b, 28, 27 + ((f + 1) % 2), 14, f);
+      up.push(b);
+    }
+  }
+  return { side: strip(side), down: strip(down), up: strip(up) };
 }

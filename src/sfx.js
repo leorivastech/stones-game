@@ -25,6 +25,9 @@ for (const n of [
 
 export const SFX = OLD_SFX;
 
+/** Claves sin muestra propia que suenan con otra: el cuchillo del bandido silba como una flecha. */
+const SFX_ALIAS = { knife: "bow" };
+
 /** Tonos que suenan con muestra: [nombres posibles, volumen]. Se elige una al azar. */
 const SAMPLE_TONES = {
   swing: [["swing", "swing2"], 0.35],
@@ -61,6 +64,7 @@ export function sfx(scene, name, extra = {}) {
     if (!globalThis.__captureSfx) stinger(SFX_STINGER[name], scene);
     return;
   }
+  name = SFX_ALIAS[name] ?? name;
   const ia = SFX_IA[name];
   const key = ia ? iaKey(pickOne(ia.files)) : `sfx-${name}`;
   if (!scene.cache.audio.exists(key)) return;

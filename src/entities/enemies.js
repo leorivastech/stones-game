@@ -146,8 +146,9 @@ class Enemy {
   /**
    * `remote`: el golpe viene de otro aparato (lo manda WorldNet a quien corre la IA). Si el enemigo
    * acaba de recibir otro golpe se ignora: dos jugadores pegando a la vez no hacen daño doble.
+   * `push` multiplica el empujón (ataque cargado).
    */
-  hit(damage, fromX, fromY, { remote = false } = {}) {
+  hit(damage, fromX, fromY, { remote = false, push = 1 } = {}) {
     if (this.dead || this.invuln > 0) return false;
     if (remote && this.scene.time.now - (this.lastHitAt ?? -1e9) < 360) return false;
     // Escudo (guardia): de frente no entra. En un títere se decide aquí y el golpe se manda igual.
@@ -177,7 +178,8 @@ class Enemy {
     const len = Math.hypot(dx, dy) || 1;
     // Empujón según el tipo (jabalí y escorpión vuelan, el guardia apenas se mueve) y el daño.
     const kind = this.kind ?? this.spec.kind;
-    const force = (ENEMY[kind]?.knock ?? 190) * (0.75 + 0.25 * damage) * (this.hp <= 0 ? 1.3 : 1);
+    // `push`: el ataque cargado empuja más (config.PLAYER.charge.push).
+    const force = (ENEMY[kind]?.knock ?? 190) * (0.75 + 0.25 * damage) * (this.hp <= 0 ? 1.3 : 1) * push;
     this.body.setVelocity((dx / len) * force, (dy / len) * force);
     this.knockTime = 140;
     this.scene.fx.spark(c.x, c.y);
@@ -255,6 +257,20 @@ class Enemy {
     if (this.scene.game.renderer.type === Phaser.CANVAS) s.setAlpha(on ? 0.4 : 1);
     else if (on) s.setTint(0xffffff).setTintMode(Phaser.TintModes.FILL);
     else s.clearTint();
+  }
+
+  /**
+   * Animales: de lado, de frente o de espalda según hacia dónde van (con un margen para no parpadear
+   * en diagonal). `base` = "boar-walk", "wolf-run"…; devuelve la clave con la vista.
+   */
+  viewKey(base) {
+    const v = this.body.velocity;
+    const ax = Math.abs(v.x);
+    const ay = Math.abs(v.y);
+    if (ay > 4 && ay > ax * 1.3) this.moveView = v.y < 0 ? "up" : "down";
+    else if (ax > 4 && ax > ay * 1.1) this.moveView = "side";
+    const view = this.moveView ?? "side";
+    return view === "side" ? base : `${base}-${view}`;
   }
 
   /** ¿Toca al jugador? Para el daño por contacto. */
@@ -414,8 +430,10 @@ export class Boar extends Enemy {
 
   anim(key, frame = 0) {
     if (key) {
-      if (this.sprite.anims.currentAnim?.key !== key) this.sprite.play(key);
+      const k = this.viewKey(key);
+      if (this.sprite.anims.currentAnim?.key !== k) this.sprite.play(k);
     } else {
+      this.moveView = "side";
       this.sprite.anims.stop();
       this.sprite.setFrame(frame);
     }
@@ -452,6 +470,13 @@ class Humanoid extends Enemy {
   crouchPose() {
     this.sprite.anims.stop();
     this.sprite.setFrame(SHEET_INDEX[viewOf(this.facing)] + POSE.crouch);
+    this.sprite.setFlipX(this.facing === "left");
+  }
+
+  /** Pose de golpe con su arma: "windup" (preparar, el aviso) o "strike" (la estocada). */
+  swingPose(phase) {
+    this.sprite.anims.stop();
+    this.sprite.setFrame(SHEET_INDEX[viewOf(this.facing)] + POSE[phase]);
     this.sprite.setFlipX(this.facing === "left");
   }
 
@@ -649,7 +674,7 @@ export class Bandit extends Humanoid {
         this.body.setVelocity(0, 0);
         this.faceToward(p.x, p.y - 4);
         this.sprite.anims.stop();
-        this.sprite.setFrame(SHEET_INDEX[viewOf(this.facing)] + POSE.act);
+        this.sprite.setFrame(SHEET_INDEX[viewOf(this.facing)] + POSE.windup);
         this.sprite.setFlipX(this.facing === "left");
         this.flash = this.stateTime % 200 < 60 ? 40 : 0;
         this.aimMs ??= jit(cfg.knife.aim);
@@ -688,7 +713,7 @@ export class Bandit extends Humanoid {
       case "windup":
         this.body.setVelocity(0, 0);
         this.faceToward(p.x, p.y - 4);
-        this.crouchPose();
+        this.swingPose("windup");
         this.flash = this.stateTime % 160 < 60 ? 40 : 0;
         this.windupMs ??= jit(cfg.windup);
         if (this.stateTime > this.windupMs) {
@@ -698,7 +723,7 @@ export class Bandit extends Humanoid {
         }
         break;
       case "lunge":
-        this.walkAnim(true, true);
+        this.swingPose("strike");
         this.checkLungeHit();
         if (this.stateTime > 190) {
           this.body.setVelocity(0, 0);
@@ -871,18 +896,21 @@ export class Guard extends Humanoid {
   }
 
   drawCone() {
+    // Cono en píxeles (G11): trama Bayer 4×4 en vez de un polígono con alpha, para que no desentone
+    // con el pixel art. La forma se dibuja en coordenadas del guardia y sólo se repinta cuando cambia
+    // (dirección, alcance, paredes o color); al caminar en campo abierto sólo se mueve.
     const g = this.cone;
-    g.clear();
-    if (this.dead || this.state === "down") return;
+    if (this.dead || this.state === "down") { g.clear(); g.coneKey = null; return; }
     const range = this.baseSight();
     const f = DIRS[this.facing];
     const a0 = Math.atan2(f.y, f.x);
     const alert = this.state === "chase" || this.hostile;
     const color = alert ? 0xe0493d : this.suspicion > 0.05 ? 0xe6b736 : 0xfaf3e1;
-    const alpha = alert ? 0.2 : this.suspicion > 0.05 ? 0.2 : this.scene.visibleCargo() > 0 ? 0.13 : 0.07;
-    const ox = this.x;
-    const oy = this.y - 6;
-    const pts = [{ x: ox, y: oy }];
+    // Densidad de la trama (fracción de píxeles pintados) con un alpha fijo: mismo peso que antes.
+    const dens = alert ? 0.5 : this.suspicion > 0.05 ? 0.5 : this.scene.visibleCargo() > 0 ? 0.3 : 0.15;
+    const ox = Math.round(this.x);
+    const oy = Math.round(this.y - 6);
+    const pts = [[0, 0]];
     const rays = 12;
     for (let i = 0; i <= rays; i += 1) {
       const a = a0 - ENEMY.guard.fov + (i / rays) * ENEMY.guard.fov * 2;
@@ -893,10 +921,41 @@ export class Guard extends Humanoid {
         const y = oy + Math.sin(a) * r;
         if (this.scene.world.solidAt(x, y) && this.scene.world.cellAt(x, y) !== "~") break;
       }
-      pts.push({ x: Math.round(ox + Math.cos(a) * r), y: Math.round(oy + Math.sin(a) * r) });
+      pts.push([Math.round(Math.cos(a) * r), Math.round(Math.sin(a) * r)]);
     }
-    g.fillStyle(color, alpha);
-    g.fillPoints(pts, true);
+    g.setPosition(ox, oy);
+    const key = `${color}|${dens}|${pts.join(";")}`;
+    if (g.coneKey === key) return;
+    g.coneKey = key;
+    g.clear();
+    g.fillStyle(color, 0.45);
+    const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+    let y0 = 0;
+    let y1 = 0;
+    for (const [, y] of pts) { y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+    const n = pts.length;
+    const xs = [];
+    for (let y = y0; y <= y1; y += 1) {
+      // Relleno por renglones (par-impar): cortes del renglón con los lados del polígono.
+      const cy = y + 0.5;
+      xs.length = 0;
+      for (let i = 0; i < n; i += 1) {
+        const [ax, ay] = pts[i];
+        const [bx, by] = pts[(i + 1) % n];
+        if ((ay <= cy) !== (by <= cy)) xs.push(ax + ((cy - ay) / (by - ay)) * (bx - ax));
+      }
+      xs.sort((p, q) => p - q);
+      for (let k = 0; k + 1 < xs.length; k += 2) {
+        const xa = Math.ceil(xs[k] - 0.5);
+        const xb = Math.floor(xs[k + 1] - 0.5);
+        for (let x = xa; x <= xb; x += 1) {
+          // El borde del cono va más cerrado para que se lea la forma.
+          const edge = x === xa || x === xb;
+          const t = (BAYER[(y & 3) * 4 + (x & 3)] + 0.5) / 16;
+          if (t < (edge ? Math.min(1, dens * 2) : dens)) g.fillRect(x, y, 1, 1);
+        }
+      }
+    }
   }
 
   update(dt) {
@@ -995,7 +1054,7 @@ export class Guard extends Humanoid {
       }
       case "windup":
         this.body.setVelocity(0, 0);
-        this.crouchPose();
+        this.swingPose("windup");
         this.flash = this.stateTime % 160 < 60 ? 40 : 0;
         this.windupMs ??= jit(cfg.windup);
         if (this.stateTime > this.windupMs) {
@@ -1030,7 +1089,7 @@ export class Guard extends Humanoid {
         if (this.stateTime > cfg.dash.time) { this.body.setVelocity(0, 0); this.setState("recover"); }
         break;
       case "lunge":
-        this.walkAnim(true, true);
+        this.swingPose("strike");
         this.checkLungeHit();
         if (this.stateTime > 180) { this.body.setVelocity(0, 0); this.setState("recover"); }
         break;
@@ -1206,7 +1265,7 @@ export class Scorpion extends Enemy {
         if (sees) this.moveToward(p.x, p.y, cfg.speed);
         else this.body.setVelocity(this.body.velocity.x * 0.9, this.body.velocity.y * 0.9);
         s.setFlipX(p.x < this.x);
-        if (s.anims.currentAnim?.key !== "scorpion-walk") s.play("scorpion-walk");
+        this.walkView();
         if (d < 22 && sees) this.setState("windup");
         break;
       }
@@ -1241,7 +1300,7 @@ export class Scorpion extends Enemy {
         break;
       case "return": {
         const arrived = this.moveToward(this.home.x, this.home.y, cfg.speed);
-        if (s.anims.currentAnim?.key !== "scorpion-walk") s.play("scorpion-walk");
+        this.walkView();
         if (arrived) {
           this.shadow.setVisible(false);
           this.setState("buried");
@@ -1251,6 +1310,11 @@ export class Scorpion extends Enemy {
       default:
         this.setState("buried");
     }
+  }
+
+  walkView() {
+    const k = this.viewKey("scorpion-walk");
+    if (this.sprite.anims.currentAnim?.key !== k) this.sprite.play(k);
   }
 
   /** Se mete en la arena donde está: queda enterrado otra vez, esperando. */

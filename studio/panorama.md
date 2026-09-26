@@ -1,4 +1,4 @@
-# Panorama — Stones (actualizado 2026-09-26, tanda 4: tensión)
+# Panorama — Stones (actualizado 2026-09-26, tanda 6: contratos, mercaderes, opciones)
 
 La fuente de verdad de **qué se decidió, qué está construido, qué se descartó y qué falta decidir**.
 El historial fechado vive en `decisions.md`; cómo se juega hoy, en `mechanics.md`.
@@ -22,8 +22,12 @@ Lo interesante es **prepararse**: qué llevas, a quién llevas, dónde dejas qu�
 | Mundo vivo | Director chico de 9 sucesos (barajados cada día) con **cuenta atrás** en la pausa, "!" en el mapa y línea en el HUD si le pega a tu pueblo; rumores con fuente (posaderos casi siempre aciertan) marcados con "?" en el mapa; al llegar se comprueban y los falsos se tachan. |
 | Deuda | 500 con el Gremio, cuota 40 cada **7 días**. **Con dientes** (26-sep): 1ª falta aviso, 2ª +10 %, 3ª+ dos **matones del Gremio** en la siguiente ruta (30 % del oro o embargan la yegua, 60 para sacarla). Pagar todo: **Mercader libre** (+2 fama, ceremonia). |
 | K.O. | Pierdes la mitad de la carga y 20 % del oro, **pasan 12 h**, la yegua se espanta y te espera en esa ruta; despiertas en tu refugio con catre de la ruta, si tienes. |
-| Fama = medallas | Vendiendo lo que un pueblo ocupa (+1 por pueblo y día); 5 títulos que abren mejoras. |
-| Comercio simple | Llegas, compras y vendes según oferta y demanda. Sin misiones ni pedidos (quitados 23-sep). |
+| Fama = medallas | Vendiendo lo que un pueblo ocupa (+1 por pueblo y día) y con contratos (+2; vencido −1); 5 títulos que abren mejoras. |
+| Comercio simple | Llegas, compras y vendes según oferta y demanda. Sin misiones. |
+| **Contratos del tablón** (26-sep) | Tablón junto al posadero de cada pueblo: 2-3 al día, "lleva 3 solar a Frostholm hasta el día 9 · paga 1,3× precio + 2 fama · si fallas −1 fama"; piden lo que el destino ocupa; máx. 2; línea en el HUD con lo que llevas y los días; se entregan en el mercado del destino (sello y cartel); pestaña CONTRATOS en la pausa. |
+| **Mercaderes de a pie** (26-sep) | 1-2 al día compran en un pueblo y venden en el vecino lo que allá paga más; mueven existencias de verdad y la gente lo cuenta ("Ayer un mercader vendió 4 perlas en Valkeep"). Solo y en línea. |
+| **Gráfica de precio** (26-sep) | En el mercado, el renglón elegido muestra lo que pagaban los últimos 7 días vistos y una flecha de tendencia. |
+| **Opciones** (26-sep) | Pausa > OPCIONES: volumen de música, ambiente y efectos (10 %), salir al título. Stingers de llegada, cobrador, redada y K.O. conectados; campana al llegar, tienda, pergamino, sello y ráfagas de viento en la montaña. |
 | Buhonero de camino | A veces (35 %) anda uno por la ruta: compra caro y vende barato, pocas piezas. |
 | Refugios secretos | Cueva del Paso Alto, tierra escondida de Aurelio (con corral), cueva del lago (fría). Estante, mesa de mejoras, catre, cerrojo; redadas. |
 | Gente física | Yegua y Sahra te siguen; se dejan en refugio, posada o establo y se recogen ahí. Yegua sin hielo ni cuevas sin corral. Más gente = te ven de más lejos. |
@@ -35,8 +39,10 @@ Lo interesante es **prepararse**: qué llevas, a quién llevas, dónde dejas qu�
 
 ## 2. Decidido con Leo
 
-- Sin final forzoso. Fama **global**, funciona como medallas. Sin misiones ni pedidos: sube al
-  vender lo que un pueblo ocupa (esto último es provisional).
+- Sin final forzoso. Fama **global**, funciona como medallas. Sin misiones: sube al vender lo que un
+  pueblo ocupa (esto último es provisional) y con contratos.
+- **Los pedidos vuelven como contratos claros** (26-sep): un cartel en la posada con piedra,
+  cantidad, destino, plazo, pago y castigo a la vista; opcionales y máx. 2 a la vez.
 - Tiempo por días. Mercado tipo bolsa. Mundo vivo con sucesos por reglas y rumores.
 - Deuda como motivo para empezar (por ahora).
 - Refugios tipo base secreta (cueva forjada, tierra escondida), con mejoras; la Corona los
@@ -64,7 +70,8 @@ Lo interesante es **prepararse**: qué llevas, a quién llevas, dónde dejas qu�
 - Menú de "quién va" al salir del pueblo → la gente se lleva físicamente.
 - Final forzoso (Liga, jefe final) → mundo abierto.
 - Fama por cada piedra vendida → por vender lo que un pueblo ocupa (una vez por pueblo y día).
-- Misiones de historia (23-sep) y pedidos de los comerciantes (23-sep) → no se entendían.
+- Misiones de historia (23-sep) y pedidos de los comerciantes (23-sep) → no se entendían. Los pedidos
+  volvieron el 26-sep como tablón de contratos (ver arriba).
 - "A cada pueblo le falta la piedra del vecino" (el orden en círculo) → precios revueltos.
 - En línea, enemigos y refugios "de cada quien" → todo compartido.
 - Voz directa de aparato a aparato (WebRTC) → no conectaba entre compu y celular; ahora va por el servidor.
@@ -101,6 +108,9 @@ Lo interesante es **prepararse**: qué llevas, a quién llevas, dónde dejas qu�
 2. Las propuestas de la sección 3.
 3. Si los números se sienten bien jugando (día de 4 min fuera de línea y 3 en línea, cuota 40 cada 7
    días, escarcha 20 %/día, fama por vender). Con el tiempo corriendo en la ruta un tramo cuesta
-   ~0,4 días en vez de 2: el mercado se recupera menos entre visitas (la simulación da menos oro
-   por tramo que antes). Si se siente lento, subir producción/consumo en `economy.js`.
-4. Llevar la skill del trailer al molde `~/Development/framework-ia-videojuegos`.
+   ~0,4 días en vez de 2 y el mercado se reponía menos: **hecho 26-sep**, producción y consumo ×3
+   (`PROFILE` en `economy.js`); con los mercaderes la simulación da 21-28 oro por tramo (antes del
+   reloj 24-30). Tabla en `mechanics.md`.
+4. Contratos (26-sep): si la paga (1,3×), el plazo (un día por tramo + 1) y el castigo (−1 fama) se
+   sienten bien; si conviene que también pidan escarcha o que los pongan otros jugadores en línea.
+5. Llevar la skill del trailer al molde `~/Development/framework-ia-videojuegos`.

@@ -4,7 +4,8 @@
  *
  *   node studio/sim/mercado.mjs
  *
- * No cuenta peleas, robos ni revisiones: mide si el mercado solo tiene sentido.
+ * No cuenta peleas, robos ni revisiones ni contratos: mide si el mercado solo tiene sentido. Los
+ * mercaderes de a pie (MERCHANTS) sí van: corren dentro de stepDay.
  *
  * Desde el 26-sep el tiempo corre en la ruta (4 min reales = 1 día): un tramo de pueblo a pueblo
  * (cruzar la ruta ~3 h + comerciar en el pueblo) cuenta como LEG_DAYS; la barca, 3 días. También
@@ -89,7 +90,10 @@ function run({ slots, loops, reverse = false, icebox = false }) {
     const worth = gold + GOOD_IDS.reduce((s, g) => s + cargo[g] * STONE[g].value * 0.5, 0);
     log.push(`${Math.round(worth)}`);
   }
-  return { log: log.join(" → "), sold, heatMax, day: st.day, debt };
+  // Ganancia por tramo: patrimonio final + lo que se le pagó al Gremio − los 40 del arranque.
+  const worthEnd = gold + GOOD_IDS.reduce((s, g) => s + cargo[g] * STONE[g].value * 0.5, 0);
+  const paidDebt = DEBT.start - debt.owed; // lo abonado al Gremio
+  return { log: log.join(" → "), sold, heatMax, day: st.day, debt, perLeg: (worthEnd + paidDebt - 40) / (loops * ring.length) };
 }
 
 const cases = [
@@ -105,6 +109,21 @@ for (const [name, opts] of cases) {
   const d = r.debt;
   const free = d.freeDay ? `libre el día ${d.freeDay}` : `debe ${d.owed}`;
   console.log(`${name.padEnd(30)} patrimonio por vuelta ${r.log}   vendidas ${r.sold}   calor máx ${r.heatMax}   día ${r.day}   cuotas ${d.paid} · faltas ${d.missed} · ${free}`);
+}
+
+// Promedio de muchas corridas: la cifra para comparar con antes (el mercado es al azar).
+// Referencia (ceb3ce7, antes del reloj que corre: 2 días por tramo, sin cobrador): 24-30 oro por tramo.
+const RUNS = 300;
+console.log(`\nGanancia media por tramo (${RUNS} corridas; incluye lo pagado al Gremio):`);
+for (const [name, opts] of cases) {
+  let sum = 0;
+  let free = 0;
+  for (let i = 0; i < RUNS; i += 1) {
+    const r = run(opts);
+    sum += r.perLeg;
+    if (r.debt.freeDay) free += 1;
+  }
+  console.log(`${name.padEnd(30)} ${(sum / RUNS).toFixed(1)} oro/tramo · libres de deuda ${Math.round((free / RUNS) * 100)} %`);
 }
 
 // Precios de arranque, para ver el mapa del mercado.

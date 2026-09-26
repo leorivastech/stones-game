@@ -1,10 +1,15 @@
-/** El caminante. Estados: move, attack, roll, jump, slide, hurt, recoil, ko, frozen. */
+/**
+ * El caminante. Estados: move, attack, charge, roll, jump, slide, hurt, recoil, ko, frozen.
+ * Golpe: al apretar sale el barrido normal (preparar → golpe). Si la acción se mantiene, al terminar
+ * el barrido se queda cargando; a los PLAYER.charge.hold ms brilla y tiembla, y al soltar sale el
+ * barrido cargado (cuesta aguante). Soltar antes = sólo el golpe normal, como siempre.
+ */
 
 import Phaser from "phaser";
 import { SHEET_INDEX, POSE } from "../art/actors.js";
 import { DEPTH, PLAYER, STEALTH, TILE } from "../config.js";
 import { tone } from "../sfx.js";
-import { buzz, frozen, squash } from "../engine/juice.js";
+import { buzz, frozen, hitstop, shake, squash } from "../engine/juice.js";
 
 export const DIRS = {
   down: { x: 0, y: 1 },
@@ -17,6 +22,10 @@ export const DIRS = {
 const SLIDE_SPEED = 150;
 
 const SLASH_ORIGIN = { right: [10 / 32, 16 / 32], down: [16 / 32, 10 / 32], left: [22 / 32, 16 / 32], up: [16 / 32, 22 / 32] };
+// Lo mismo para el barrido cargado (48×48, giro en (16, 24) y sus rotaciones).
+const WIDE_ORIGIN = { right: [16 / 48, 24 / 48], down: [24 / 48, 16 / 48], left: [32 / 48, 24 / 48], up: [24 / 48, 32 / 48] };
+// Cuándo pasa de "preparar" a "golpe" (el cuadro 1 del barrido de fx.js).
+const WINDUP_MS = 50;
 
 function cellIsIce(world, s) {
   return world.cellAt(s.x, s.y - 2) === "i";
@@ -126,12 +135,27 @@ export class Player {
           this.faceIdle();
         }
         break;
-      case "attack":
+      case "attack": {
         this.body.setVelocity(0, 0);
-        if (this.stateTime > PLAYER.attackTime) {
-          this.setState("move");
-          this.faceIdle();
+        // Pose del cuerpo sincronizada con el barrido: preparar y después golpe.
+        this.swingFrame(this.stateTime < WINDUP_MS ? POSE.windup : POSE.strike);
+        if (!controls.held("attack")) this.chargeHeld = false;
+        const long = this.charged ? PLAYER.charge.time : PLAYER.attackTime;
+        if (this.stateTime > long) {
+          if (this.chargeHeld && !this.charged) {
+            this.setState("charge");
+            this.chargeReady = false;
+            this.swingFrame(POSE.windup);
+          } else {
+            this.charged = false;
+            this.setState("move");
+            this.faceIdle();
+          }
         }
+        break;
+      }
+      case "charge":
+        this.updateCharge(controls, world);
         break;
       case "roll":
         if (this.stateTime > PLAYER.rollTime) {
@@ -338,11 +362,62 @@ export class Player {
     if (g && !g.cut) g.img.play(g.anim, true);
   }
 
-  startAttack(world) {
+  /** Cuadro fijo de la hoja (pose de golpe o de carga), respetando el destello de daño. */
+  swingFrame(pose) {
+    const s = this.sprite;
+    const frame = SHEET_INDEX[viewOf(this.facing)] + pose;
+    const tex = this.flashing ? "cast-player-flash" : "cast-player";
+    s.setFlipX(this.facing === "left");
+    if (s.anims.isPlaying) s.anims.stop();
+    if (s.texture.key !== tex || s.frame.name !== frame) s.setTexture(tex, frame);
+  }
+
+  /** Mantener la acción después del golpe: carga, brilla, y al soltar sale el barrido amplio. */
+  updateCharge(controls, world) {
+    const s = this.sprite;
+    const cfg = PLAYER.charge;
+    this.body.setVelocity(0, 0);
+    const held = controls.held("attack");
+    const ready = this.scene.time.now - this.chargeStart >= cfg.hold;
+    if (held) {
+      if (ready && !this.chargeReady) {
+        this.chargeReady = true;
+        tone(this.scene, "heart");
+      }
+      if (this.chargeReady) {
+        const anim = `player-charge-${viewOf(this.facing)}`;
+        s.setFlipX(this.facing === "left");
+        if (s.anims.currentAnim?.key !== anim || !s.anims.isPlaying) s.play(anim);
+      } else this.swingFrame(POSE.windup);
+      return;
+    }
+    // Soltó.
+    this.chargeReady = false;
+    if (!ready) {
+      this.setState("move");
+      this.faceIdle();
+      return;
+    }
+    if (this.stamina < cfg.cost) {
+      // Sin aguante: la barrita parpadea y sale el golpe normal.
+      this.staminaFlash = 400;
+      this.barKey = "";
+      this.startAttack(world, { again: true });
+      return;
+    }
+    this.startAttack(world, { charged: true });
+  }
+
+  startAttack(world, { charged = false, again = false } = {}) {
     this.setState("attack");
+    this.charged = charged;
+    // Si se mantiene la acción desde este golpe, al terminar se queda cargando.
+    this.chargeHeld = !charged && !again;
+    this.chargeStart = this.scene.time.now;
     this.hitThisSwing.clear();
     this.body.setVelocity(0, 0);
-    this.faceIdle();
+    this.swingFrame(charged ? POSE.strike : POSE.windup);
+    if (charged) return this.startChargedSwing();
     const c = this.center();
     const [ox, oy] = SLASH_ORIGIN[this.facing];
     const slash = this.scene.add.sprite(c.x, c.y + 1, `slash-${this.facing}`, 0).setOrigin(ox, oy);
@@ -354,6 +429,68 @@ export class Player {
     // El golpe se evalúa en dos momentos del barrido.
     this.scene.time.delayedCall(40, () => this.scene.resolvePlayerHit?.(this.hitbox()));
     this.scene.time.delayedCall(110, () => this.scene.resolvePlayerHit?.(this.hitbox()));
+  }
+
+  /** Barrido cargado: más ancho, 2 de daño, empujón fuerte y congelado de muerte. Cuesta aguante. */
+  startChargedSwing() {
+    const cfg = PLAYER.charge;
+    this.stamina = Math.max(0, this.stamina - cfg.cost);
+    this.staminaRest = 0;
+    const c = this.center();
+    const [ox, oy] = WIDE_ORIGIN[this.facing];
+    const slash = this.scene.add.sprite(c.x, c.y + 1, `slash-wide-${this.facing}`, 0).setOrigin(ox, oy);
+    this.slash = slash;
+    slash.setDepth(this.facing === "up" ? this.sprite.y - 1 : this.sprite.y + 2);
+    slash.play(`slash-wide-${this.facing}`);
+    slash.once("animationcomplete", () => slash.destroy());
+    tone(this.scene, "swing");
+    tone(this.scene, "charge");
+    squash(this.scene, this.sprite, 1.15, 0.88, 140);
+    const d = DIRS[this.facing];
+    this.scene.fx?.dust(this.sprite.x - d.x * 6, this.sprite.y);
+    this.scene.time.delayedCall(40, () => this.resolveCharged());
+    this.scene.time.delayedCall(100, () => this.resolveCharged());
+    this.scene.time.delayedCall(160, () => this.resolveCharged());
+  }
+
+  /** Área del barrido cargado: casi todo el medio círculo de enfrente. */
+  wideHitbox() {
+    const c = this.center();
+    const d = DIRS[this.facing];
+    const side = this.facing === "left" || this.facing === "right";
+    const w = side ? 34 : 46;
+    const h = side ? 46 : 34;
+    return new Phaser.Geom.Rectangle(c.x + d.x * 14 - w / 2, c.y + d.y * 13 - h / 2 + 2, w, h);
+  }
+
+  resolveCharged() {
+    const scene = this.scene;
+    if (this.state !== "attack" || !this.charged) return;
+    const cfg = PLAYER.charge;
+    const rect = this.wideHitbox();
+    const c = this.center();
+    // El empujón de Enemy.hit ya crece con el daño; esto lo deja en ×cfg.push del golpe normal.
+    const push = cfg.push / (0.75 + 0.25 * cfg.damage);
+    for (const e of scene.enemies ?? []) {
+      if (e.dead || !e.body?.enable || this.hitThisSwing.has(e)) continue;
+      const b = e.body;
+      const r2 = new Phaser.Geom.Rectangle(b.x - 3, b.y - 12, b.width + 6, b.height + 14);
+      if (!Phaser.Geom.Intersects.RectangleToRectangle(rect, r2)) continue;
+      this.hitThisSwing.add(e);
+      if (e.invuln > 0) continue;
+      hitstop(scene, PLAYER.hitstop.kill, e);
+      if (e.hit(cfg.damage, c.x, c.y, { push })) shake(scene, "kill");
+    }
+    // Corta el pasto y los arbustos que alcanza, igual que el golpe normal (world.applyCut).
+    const x0 = Math.floor(rect.x / TILE);
+    const x1 = Math.floor((rect.right - 1) / TILE);
+    const y0 = Math.floor(rect.y / TILE);
+    const y1 = Math.floor((rect.bottom - 1) / TILE);
+    for (let y = y0; y <= y1; y += 1) {
+      for (let x = x0; x <= x1; x += 1) {
+        for (const k of [`g:${x},${y}`, `b:${x},${y}`]) if (scene.applyCut?.(k, true)) scene.net?.cut(k);
+      }
+    }
   }
 
   hitbox() {

@@ -24,11 +24,13 @@ import {
 } from "../state.js"; // el tiempo corre en la ruta, deuda con dientes, rumores comprobados
 import { Ambient } from "../engine/ambient.js"; // ambiente
 import { textWidth } from "../art/font.js"; // letreros de salida
+import { CART_ANCHOR } from "../art/creatures.js"; // yegua con carreta
 
 // Sonido de los pasos según la letra de la celda (si no está, según el bioma).
 const STEP_BY_CELL = { "=": "stone", B: "wood", _: "sand", s: "snow", i: "snow", "#": "stone", g: "stone" };
 const STEP_BY_BIOME = { desert: "sand", snow: "snow" };
-import { sfx, tone, duckTheme, restoreTheme, footstep } from "../sfx.js";
+import { sfx, tone, duckTheme, restoreTheme, footstep, stinger } from "../sfx.js";
+import { contracts as myContracts, contractBoard } from "../state.js"; // contratos del tablón de la posada
 import {
   GOODS, TOWNS, UPGRADES, STONE, TRAVEL_DAYS, DEBT, AMBER_TAX, addHeartContainer, addHeat, ambushProtection, cargo, cargoOf,
   flag, gold, hasUpgrade, heal, heatLevel, hp, hurt, localHeat, loseStones, maxHp, pay, purchaseUpgrade, reputation,
@@ -139,7 +141,7 @@ export class WorldScene extends Phaser.Scene {
     if (def.kind === "route") this.time.delayedCall(1200, () => this.checkRaids());
     // Deuda con dientes: tras la 3ª falta, dos matones del Gremio esperan en la siguiente ruta.
     if (def.kind === "route" && thugsPending(reg)) this.time.delayedCall(1600, () => this.spawnThugs());
-    this.speedBonus = def.kind === "route" && partyHas(reg, "horse") ? 1.1 : 1;
+    this.speedBonus = this.horseSpeed(); // yegua: ×1.1 en rutas, ×1.2 con herraduras
     // luz del día: velo por hora y luces en faroles, fogatas, fraguas y ventanas (las cuevas, noche suave).
     this.daylight = new Daylight(this, def);
 
@@ -205,6 +207,7 @@ export class WorldScene extends Phaser.Scene {
           const it = { get x() { return npc.x; }, get y() { return npc.y; }, r: 18, label: spec.role === "market" ? "Comerciar" : "Hablar", act: () => this.talkTo(npc) };
           npc.it = it;
           this.interactables.push(it);
+          if (spec.role === "inn" && this.def.kind === "town") this.spawnContractBoard(spec);
           break;
         }
         case "stash": {
@@ -379,19 +382,78 @@ export class WorldScene extends Phaser.Scene {
     return t?.remote ? t.vis : this.visibleCargo();
   }
 
+  /** Cuánto más rápido vas con la yegua en una ruta (herraduras: ×1.2). */
+  horseSpeed() {
+    const reg = this.registry;
+    if (this.def.kind !== "route" || !partyHas(reg, "horse")) return 1;
+    return hasUpgrade(reg, "horseshoes") ? 1.2 : 1.1;
+  }
+
   addHorse() {
     this.trail = [];
-    this.horse = this.add.sprite(this.player.x - 20, this.player.y, "horse", 0).setOrigin(0.5, 1);
+    // Con carreta: una tira por vista (cart-side/down/up) y el origen donde pisa la yegua.
+    this.hasCart = hasUpgrade(this.registry, "cart");
+    this.cartWait = null;
+    this.horse = this.add.sprite(this.player.x - 20, this.player.y, this.hasCart ? "cart-side" : "horse", 0).setOrigin(0.5, 1);
+    if (this.hasCart) this.setHorseView("side");
     this.horseShadow = this.add.image(this.horse.x, this.horse.y, "shadow-big").setOrigin(0.5, 0.6).setDepth(DEPTH.decal + 1);
+    this.speedBonus = this.horseSpeed();
+  }
+
+  /** Con carreta cada vista es otra textura con otro tamaño: se cambia y se ajusta el origen. */
+  setHorseView(view) {
+    const h = this.horse;
+    if (!this.hasCart) return;
+    const key = `cart-${view}`;
+    if (h.texture.key !== key) h.setTexture(key, 0);
+    const [ax, ay] = CART_ANCHOR[view];
+    h.setOrigin(ax / h.frame.width, ay / h.frame.height);
+  }
+
+  /**
+   * ¿La carreta no pasa por aquí? Bordes de salto, hielo y senderos de bosque (celda con bosque
+   * tupido o pinos a menos de 2 celdas por los dos lados). La calzada ancha sí pasa.
+   */
+  cartBlockedAt(x, y) {
+    const w = this.world;
+    const cx = Math.floor(x / TILE);
+    const cy = Math.floor((y - 2) / TILE);
+    const ch = w.at(cx, cy);
+    if (ch === "^" || ch === "i") return true;
+    const forest = (dx, dy) => [1, 2].some((k) => { const c = w.at(cx + dx * k, cy + dy * k); return c === "T" || c === "P"; });
+    return (forest(-1, 0) && forest(1, 0)) || (forest(0, -1) && forest(0, 1));
   }
 
   updateHorse() {
     if (!this.horse) return;
     const p = this.player;
+    // Carreta esperando: vuelve a seguirte cuando regresas junto a ella por donde sí pasa.
+    if (this.cartWait) {
+      this.horse.anims.stop();
+      if (Math.hypot(p.x - this.horse.x, p.y - this.horse.y) < 30 && !this.cartBlockedAt(p.x, p.y)) {
+        this.cartWait = null;
+        this.trail = [];
+      } else {
+        this.horse.setDepth(this.horse.y - 1);
+        return;
+      }
+    }
     const last = this.trail[this.trail.length - 1];
     if (!last || Math.hypot(last.x - p.x, last.y - p.y) > 2) this.trail.push({ x: p.x, y: p.y });
     if (this.trail.length > 16) {
-      const t = this.trail.shift();
+      const t = this.trail[0];
+      if (this.hasCart && this.def.kind === "route" && this.cartBlockedAt(t.x, t.y)) {
+        // No cabe por el sendero ni salta el borde: se queda esperando donde está (como con el hielo).
+        this.cartWait = { x: this.horse.x, y: this.horse.y };
+        this.trail = [];
+        this.horse.anims.stop();
+        if (!this.cartWarned || this.time.now - this.cartWarned > 6000) {
+          this.cartWarned = this.time.now;
+          this.ui.toast("La carreta no pasa por aquí: la yegua te espera en el camino", "font-o");
+        }
+        return;
+      }
+      this.trail.shift();
       // Hacia dónde va: se mira unos pasos adelante para no parpadear en diagonales.
       const ahead = this.trail[Math.min(4, this.trail.length - 1)] ?? t;
       const dx = ahead.x - this.horse.x;
@@ -402,7 +464,10 @@ export class WorldScene extends Phaser.Scene {
       const view = this.horseView ?? "side";
       if (view === "side" && Math.abs(dx) > 0.2) this.horse.setFlipX(dx < 0);
       if (view !== "side") this.horse.setFlipX(false);
-      this.horse.play(`horse-${view}`, true);
+      if (this.hasCart) {
+        this.setHorseView(view);
+        this.horse.play(`cart-${view}`, true);
+      } else this.horse.play(`horse-${view}`, true);
     } else {
       this.horse.anims.stop();
     }
@@ -422,7 +487,7 @@ export class WorldScene extends Phaser.Scene {
     if (this.modal || this.leaving) {
       this.player.body.setVelocity(0, 0);
       if (!this.net?.auth) for (const e of this.enemies) if (!e.dead && !e.puppet) e.body?.setVelocity(0, 0);
-      for (const n of this.npcs) n.sprite.body.setVelocity(0, 0);
+      for (const n of this.npcs) n.freeze(); // NPC: quietos y sin caminar en su lugar
       this.ui.prompt(null);
       this.net?.update(dt, true);
       return;
@@ -1045,6 +1110,7 @@ export class WorldScene extends Phaser.Scene {
       this.player.knockOut();
       duckTheme(this, 0.05);
       tone(this, "hurt");
+      stinger("ko", this);
       await new Promise((r) => this.time.delayedCall(1100, r));
       const byThugs = Boolean(source?.thug);
       let lost = 0;
@@ -1209,6 +1275,11 @@ export class WorldScene extends Phaser.Scene {
     if (!a) return;
     const ui = this.ui;
     this.tutorialEvent("town");
+    // Llegar tras el camino: fanfarria corta y, detrás, la campana del pueblo (suave).
+    if (a.trip || a.days) {
+      stinger("llegada", this);
+      this.time.delayedCall(1600, () => this.sys.isActive() && sfx(this, "bell", { volume: 0.22 }));
+    }
     ui.queueNotice(() => ui.afterBanner());
     if (a.trip) {
       ui.queueNotice(() => this.runModal(() => ui.tripReport(a.trip)));
@@ -1222,6 +1293,12 @@ export class WorldScene extends Phaser.Scene {
     ui.queueNotice(async () => {
       if (debtDue(reg)) await this.runModal(() => this.debtCollector());
     });
+    // Traes un contrato para aquí: que se sepa dónde se entrega.
+    const here = myContracts(reg).filter((c) => c.to === this.def.town);
+    if (here.length) {
+      const ready = here.some((c) => cargoOf(reg, c.good) >= c.qty);
+      ui.queueNotice(() => ui.noticeToast(ready ? "Contrato: entrégalo en el mercado" : "Contrato para aquí: te faltan piedras", ready ? "font-green" : "font-gold"));
+    }
     ui.queueNotice(() => {
       this.refreshSigns();
       this.showNeeds();
@@ -1506,6 +1583,7 @@ export class WorldScene extends Phaser.Scene {
     const cuota = debtCuota(reg);
     const name = "Cobrador del Gremio";
     const missed = d.missed ?? 0;
+    stinger("cobrador", this);
     const warn = missed >= 2 ? "Ya van dos. A la próxima no vengo yo." : missed === 1 ? "La vez pasada no pagaste." : null;
     await this.ui.say(["Un hombre con el sello del Gremio te cierra el paso.", `—Le debes ${d.owed} al Gremio. Toca la cuota: ${cuota}.`, ...(warn ? [`—${warn}`] : [])], { name, cast: null });
     const g = gold(reg);
@@ -1610,6 +1688,7 @@ export class WorldScene extends Phaser.Scene {
         continue;
       }
       const lost = emptyStash(reg, spec.id);
+      stinger("redada", this);
       this.ui.toast(`Redada: la Corona encontró tu refugio (${lost} piedras)`, "font-red");
       saveGame(reg);
       // Sigue revisando: con dos refugios en la misma ruta se evalúan los dos.
@@ -1665,8 +1744,9 @@ export class WorldScene extends Phaser.Scene {
     const [cx, cy] = this.def.crewSpots?.[who] ?? [8, 6];
     const x = cx * TILE;
     const y = cy * TILE;
+    const cart = who === "horse" && hasUpgrade(this.registry, "cart");
     const sprite = who === "horse"
-      ? this.add.sprite(x, y, "horse", 4).setOrigin(0.5, 1)
+      ? (cart ? this.add.sprite(x, y, "cart-down", 0).setOrigin(CART_ANCHOR.down[0] / 32, 1) : this.add.sprite(x, y, "horse", 4).setOrigin(0.5, 1))
       : this.add.sprite(x, y, "cast-archer", 0).setOrigin(0.5, 1).play("archer-idle-down");
     sprite.setDepth(y);
     const shadow = this.add.image(x, y, who === "horse" ? "shadow-big" : "shadow").setOrigin(0.5, 0.6).setDepth(DEPTH.decal + 1);
@@ -1739,6 +1819,36 @@ export class WorldScene extends Phaser.Scene {
     saveGame(reg);
   }
 
+  /**
+   * Tablón de contratos junto al posadero (M4): se busca un hueco libre a un lado (sin pared ni otro
+   * objeto) y se pone el tablón con su letrero "Contratos". Con pliegos si hoy queda algo que tomar.
+   */
+  spawnContractBoard(spec) {
+    const reg = this.registry;
+    const town = this.def.town;
+    const tries = [[1.7, -0.3], [-1.7, -0.3], [1.7, 0.8], [-1.7, 0.8], [0, -1.6], [2.6, 0], [-2.6, 0]];
+    const busy = (x, y) => this.def.objects.some((o) => o !== spec && Math.abs(o.x - x) < 1.3 && Math.abs(o.y - y) < 1.3);
+    // Libre: sin pared del mapa y sin tocar casas, cercas ni nada sólido (con 3 px de aire).
+    const solids = this.world.statics.getChildren().map((r) => ({ x0: r.x - r.width / 2, y0: r.y - r.height / 2, x1: r.x + r.width / 2, y1: r.y + r.height / 2 }));
+    const free = (px, py) => [[-9, -4], [9, -4], [-9, 3], [9, 3], [0, 0]].every(([dx, dy]) => !this.world.solidAt(px + dx, py + dy))
+      && !solids.some((b) => px + 14 > b.x0 && px - 14 < b.x1 && py + 9 > b.y0 && py - 22 < b.y1);
+    const spot = tries.map(([dx, dy]) => [spec.x + dx, spec.y + dy]).find(([x, y]) => !busy(x, y) && free(x * TILE, y * TILE));
+    if (!spot) return;
+    const px = Math.round(spot[0] * TILE);
+    const py = Math.round(spot[1] * TILE);
+    const any = () => contractBoard(reg, town).some((o) => !o.taken);
+    const img = this.add.sprite(px, py + 6, "contract-board", any() ? 1 : 0).setOrigin(0.5, 1).setDepth(py + 6);
+    this.world.addSolid(px - 9, py - 2, 18, 7);
+    this.contractBoardImg = img;
+    this.interactables.push({
+      x: px, y: py + 4, r: 20, label: "Contratos",
+      act: () => this.runModal(async () => {
+        await this.ui.contractBoard(town);
+        img.setFrame(any() ? 1 : 0);
+      }),
+    });
+  }
+
   /** Posadero: aquí se queda tu gente (cobra por día) y se oyen los rumores más confiables. */
   async innTalk(npc) {
     const reg = this.registry;
@@ -1747,12 +1857,15 @@ export class WorldScene extends Phaser.Scene {
     const guests = Object.keys(CREW).filter((w) => crewAt(reg, w) === here);
     const r = hearRumor(reg, 0.95);
     await this.ui.say([...(npc.spec.talk ?? []), r.text], { name });
-    // Una noche de cama: te curas y despiertas a las 7 del día siguiente.
+    // El tablón de contratos (también se lee directo, junto al posadero) y una noche de cama.
+    const open = contractBoard(reg, this.def.town).filter((o) => !o.taken).length;
     const bed = await this.ui.choose("Posada", [
+      { label: `Tablón de contratos · ${open ? `${open} ${open === 1 ? "nuevo" : "nuevos"}` : "nada hoy"}`, note: "Lleva piedras a otro pueblo por buena paga y fama" },
       { label: `Dormir · ${INN_SLEEP} oro`, disabled: gold(reg) < INN_SLEEP, note: online.on ? "Te curas (en línea el día no se salta)" : "Te curas y despiertas a las 7 del día siguiente" },
       { label: "Ahora no" },
     ]);
-    if (bed === 0) await this.sleepAtInn();
+    if (bed === 0) await this.ui.contractBoard(this.def.town);
+    if (bed === 1) await this.sleepAtInn();
     for (const who of guests) {
       const fee = lodgingFee(reg, who);
       const pick = await this.ui.choose(`${CREW[who].name} está arriba`, [
@@ -1786,6 +1899,40 @@ export class WorldScene extends Phaser.Scene {
     if (report.melted) this.ui.toast(`Se te derritió la escarcha (${report.melted})`, "font-red");
     // Si amaneció otro día, sleepUntilMorning ya dejó en la cola el cobrador y lo que quiere el pueblo.
     return true;
+  }
+
+  /** Nella vende mejoras para la yegua: alforjas, herraduras y la carreta (M11). */
+  async horseGearShop(npc) {
+    const reg = this.registry;
+    const name = npc.spec.name;
+    const ids = ["saddlebags", "horseshoes", "cart"].filter((id) => !hasUpgrade(reg, id));
+    if (!ids.length) return;
+    const options = ids.map((id) => {
+      const u = UPGRADES[id];
+      const locked = reputation(reg) < u.reputation;
+      return { id, label: locked ? `${u.name} (fama ${u.reputation})` : `${u.name} · ${u.cost} oro`, disabled: locked || gold(reg) < u.cost, note: u.effect };
+    });
+    const pick = await this.ui.choose("Nella, caballeriza", [...options, { label: "Nada por ahora" }], { name });
+    const choice = options[pick];
+    if (!choice) return;
+    const res = purchaseUpgrade(reg, choice.id);
+    tone(this, res.ok ? "chest" : "deny");
+    if (res.ok) sfx(this, "coins");
+    const extra = !res.ok ? []
+      : choice.id === "cart" ? ["Aguanta cuatro cargas más. Pero por los senderos del bosque no cabe, ni brinca bordes: ahí la yegua te espera en el camino."]
+      : choice.id === "horseshoes" ? ["Con herraduras nuevas pisa firme y va más ligera por la calzada."]
+      : ["Unas alforjas de cuero: un lugar más."];
+    await this.ui.say([res.reason, ...extra], { name });
+    // La yegua que ya te sigue se engancha a la carreta en el momento.
+    if (res.ok && choice.id === "cart" && this.horse) {
+      const { x, y } = this.horse;
+      this.horse.destroy();
+      this.horseShadow.destroy();
+      this.addHorse();
+      this.horse.setPosition(x, y);
+    }
+    this.speedBonus = this.horseSpeed();
+    saveGame(reg);
   }
 
   /** Nella: además de vender la yegua, la cuida en el establo. */
@@ -1827,6 +1974,7 @@ export class WorldScene extends Phaser.Scene {
     }
     if (at === "party") {
       await this.ui.say(["¿Cómo va la yegua? Si un día no la necesitas, déjamela aquí.", `(Háblale a la yegua para dejarla: ${LODGING.stable} oro por día.)`], { name });
+      await this.horseGearShop(npc);
       return;
     }
     const where = at?.startsWith("refuge:") ? REFUGES[at.slice(7)]?.name

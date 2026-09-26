@@ -3,8 +3,10 @@
  * Lo dinámico (NPC, enemigos, cofres, rejas) lo pone la escena del mundo.
  */
 
-import { paintGround, paintFlowerBeds, T } from "../art/terrain.js";
-import { hash, bayer } from "../art/pixel.js";
+import { paintGround, paintFlowerBeds, paintWaterSheet, waterRegions, T } from "../art/terrain.js";
+import { hash, bayer, smoothNoise } from "../art/pixel.js";
+import { pebbles, puddle, footprints, leafLitter } from "../art/props.js";
+import { bones } from "../art/biomes.js";
 import { num } from "../art/palette.js";
 import { DEPTH, TILE } from "../config.js";
 import { sunAngle, sunLength, sunStrength } from "./daylight.js";
@@ -31,13 +33,41 @@ export const BUSH = 3;
 
 const SOLID_CHARS = new Set(["~", "#", "T", "t", "P", "o", "O", "f", "|", "h", "r", "c", "x", "X", "k", "y", "I", "p"]);
 
-// Qué árbol / roca se dibuja según el bioma de la celda.
+// Qué árbol / roca se dibuja según el bioma de la celda. `v` es un número estable por celda (0-11).
+// Varias formas y tintes por bioma para que un bosque no se vea de árboles clonados (G6); el árbol
+// suelto no usa el roble ancho (los pueblos tienen casas cerca).
+const pick = (list) => (v) => list[v % list.length];
 const FLORA = {
-  temperate: { forest: (v) => `tree-${v % 3}`, single: (v) => `tree-${v % 3}`, rock: "rock", boulder: "boulder" },
-  mountain: { forest: () => "pine", single: (v) => (v % 2 ? "pine" : `tree-${v % 3}`), rock: "rock", boulder: "boulder" },
-  tropical: { forest: (v) => (v % 4 === 3 ? `palm-${v % 2}` : `jungle-tree-${v % 2}`), single: (v) => `palm-${v % 2}`, rock: "rock", boulder: "boulder" },
-  desert: { forest: (v) => `palm-${v % 2}`, single: (v) => `palm-${v % 2}`, rock: "sand-rock", boulder: "sand-boulder" },
-  snow: { forest: (v) => (v % 3 === 2 ? "bare-tree" : "pine-snow"), single: () => "bare-tree", rock: "snow-rock", boulder: "snow-boulder" },
+  temperate: {
+    forest: pick(["tree-0", "tree-tall", "tree-1", "tree-wide", "tree-2", "tree-young", "tree-0", "tree-1", "tree-tall", "tree-2", "tree-wide", "tree-1"]),
+    single: pick(["tree-0", "tree-1", "tree-tall", "tree-2", "tree-young", "tree-1"]),
+    pine: pick(["pine", "pine-tall", "pine", "pine-dark"]),
+    rock: "rock", boulder: "boulder",
+  },
+  mountain: {
+    forest: pick(["pine", "pine-tall", "pine-dark", "pine", "pine-small", "pine-tall"]),
+    single: pick(["pine", "tree-0", "pine-tall", "tree-young", "pine-small", "tree-tall"]),
+    pine: pick(["pine", "pine-tall", "pine-dark", "pine", "pine-tall", "pine-dark"]),
+    rock: "rock", boulder: "boulder",
+  },
+  tropical: {
+    forest: pick(["jungle-tree-0", "jungle-tree-1", "jungle-tree-2", "palm-0", "jungle-tree-0", "jungle-tree-2", "jungle-tree-1", "palm-small-1"]),
+    single: pick(["palm-0", "palm-1", "palm-small-0", "palm-1", "palm-0", "palm-small-1"]),
+    pine: pick(["pine", "pine-tall"]),
+    rock: "rock", boulder: "boulder",
+  },
+  desert: {
+    forest: pick(["palm-0", "palm-1", "palm-small-0", "palm-1", "palm-small-1", "palm-0"]),
+    single: pick(["palm-0", "palm-1", "palm-small-0", "palm-1"]),
+    pine: pick(["pine"]),
+    rock: "sand-rock", boulder: "sand-boulder",
+  },
+  snow: {
+    forest: pick(["pine-snow", "pine-snow-tall", "bare-tree", "pine-snow", "pine-snow-small", "pine-snow-tall"]),
+    single: pick(["bare-tree", "bare-tree-1", "bare-tree-2"]),
+    pine: pick(["pine-snow", "pine-snow-tall", "pine-snow", "pine-snow-small"]),
+    rock: "snow-rock", boulder: "snow-boulder",
+  },
 };
 
 // ---------------------------------------------------------------- sombras proyectadas
@@ -51,10 +81,15 @@ const FLORA = {
 // sunAngle/sunLength/sunStrength de daylight.js (de noche, la luna: sombra tenue). Cuevas: sombra fija.
 
 /** Qué texturas del suelo tiran sombra: "cast" = silueta proyectada, "drop" = corta a un lado. */
+const NEW_TREES = [
+  "tree-tall", "tree-young", "tree-wide", "tree-acacia", "jungle-tree-2", "pine-tall", "pine-small", "pine-dark",
+  "pine-snow-tall", "pine-snow-small", "palm-small-0", "palm-small-1",
+];
 const CASTS = new Set([
   "tree-0", "tree-1", "tree-2", "tree-autumn", "pine", "pine-snow", "palm-0", "palm-1",
   "jungle-tree-0", "jungle-tree-1", "bare-tree", "boulder", "sand-boulder", "snow-boulder",
   "cactus-0", "cactus-1", "cactus-2", "well", "sign", "lamp", "banner",
+  ...NEW_TREES, "bare-tree-1", "bare-tree-2", "ruin-column-0", "ruin-column-1", "milestone",
 ]);
 const SHADOW_ALPHA = 0.4;
 const SHADOW_INK = num("ink");
@@ -223,7 +258,7 @@ export function resetShadowSun() {
 /** Texturas de 2 cuadros que se mecen (copa corrida 1 px en el cuadro 1). */
 const SWAYS = new Set([
   "tree-0", "tree-1", "tree-2", "tree-autumn", "pine", "pine-snow", "palm-0", "palm-1",
-  "jungle-tree-0", "jungle-tree-1", "banner",
+  "jungle-tree-0", "jungle-tree-1", "banner", ...NEW_TREES,
   "stall-amber", "stall-rune", "stall-green", "stall-rain", "stall-sun", "stall-frost",
 ]);
 
@@ -246,6 +281,306 @@ function playSway(sprite, anim, seedX, seedY) {
   });
 }
 
+// ---------------------------------------------------------------- agua animada (G4)
+//
+// Cada mancha de agua (río, canal, estanque, golfo, oasis) y de hielo lleva su hoja de cuadros
+// (terrain.js → paintWaterSheet), recortada a su rectángulo. Todas cambian de cuadro juntas con un
+// solo reloj por escena; el desfase va dentro del dibujo (cada ola, orilla y destello a su compás).
+// Es una imagen por mancha, no un sprite por celda: el costo no crece con el tamaño del agua.
+
+const WATER_MS = 620;
+const ICE_MS = 1100;
+
+/** Hornea las hojas del mapa (una vez por mapa; la textura queda en caché). */
+function bakeWater(scene, id, ter, wd, W, H, seed) {
+  const out = [];
+  for (const [kind, name] of [[T.WATER, "water"], [T.ICE, "ice"]]) {
+    waterRegions(ter, W, H, kind).forEach((rect, i) => {
+      const sheet = paintWaterSheet(ter, wd, W, rect, { seed, kind });
+      const key = `${name}-${id}-${i}`;
+      if (scene.textures.exists(key)) scene.textures.remove(key);
+      const tex = scene.textures.addCanvas(key, sheet.buf.toCanvas());
+      for (let k = 0; k < sheet.frames; k += 1) {
+        tex.add(k, 0, sheet.across ? k * rect.w : 0, sheet.across ? 0 : k * rect.h, rect.w, rect.h);
+      }
+      out.push({ key, x: rect.x, y: rect.y, ice: kind === T.ICE, frames: sheet.frames });
+    });
+  }
+  return out;
+}
+
+function placeWater(scene, list) {
+  if (!list.length) return;
+  const water = [];
+  const ice = [];
+  for (const it of list) {
+    const img = scene.add.image(it.x, it.y, it.key, 0).setOrigin(0, 0).setDepth(DEPTH.ground + 1);
+    (it.ice ? ice : water).push(img);
+  }
+  const tick = (imgs, frames) => {
+    let k = 0;
+    return () => { k = (k + 1) % frames; for (const img of imgs) img.setFrame(k); };
+  };
+  if (water.length) scene.time.addEvent({ delay: WATER_MS, loop: true, callback: tick(water, list.find((i) => !i.ice).frames) });
+  if (ice.length) scene.time.addEvent({ delay: ICE_MS, loop: true, callback: tick(ice, list.find((i) => i.ice).frames) });
+}
+
+// ---------------------------------------------------------------- capa de detalle de las rutas (G6)
+//
+// Las rutas eran un verde enorme con pocos árboles iguales. Encima del trazado se reparte detalle
+// decorativo con ruido (claros vacíos y manchas densas), según el bioma de cada celda:
+//  - Calcomanías planas horneadas en el suelo: piedritas, charcos, huellas en el camino, hojarasca
+//    bajo el bosque, huesos en el desierto (paintDecals; cero costo al jugar).
+//  - Cosas chicas de pie (hongos, arbustos con flores, tocones, helechos, montículos de nieve):
+//    sprites ordenados por y, SIN colisión.
+//  - Cosas grandes (árboles, troncos caídos, columnas rotas, rocas con nieve): sprites con sombra y
+//    vaivén como los demás y con UNA celda sólida. Sólo van en pasto abierto (las 8 vecinas libres y
+//    separadas entre sí), así que nunca cierran un paso.
+//  - Un mojón al lado de cada cruce de camino (hasta 3 por mapa; chico, sin colisión).
+// Nada cae sobre el camino, las salidas, las entradas ni cerca de los objetos, enemigos y rondas del
+// mapa. Todo sale de hash(): igual en cada visita y en cada jugador en línea.
+
+const ROADS = new Set([":", "=", "g", "B", "_", "s", "X"]);
+const OPEN = new Set([".", ","]);
+
+const DETAIL = {
+  temperate: {
+    trees: ["tree-tall", "tree-young", "tree-wide", "tree-0", "tree-2", "tree-young", "tree-1", "tree-tall"],
+    big: ["log-moss", "ruin-column-0", "ruin-column-1", "ruin-blocks", "boulder", "log-moss"],
+    small: ["mushrooms-0", "flower-bush-0", "flower-bush-1", "mushrooms-1", "flower-bush-2", "stump-moss", "mushrooms-1", "stump"],
+    floor: ["mushrooms-0", "mushrooms-1", "stump-moss", "fern"],
+  },
+  mountain: {
+    trees: ["pine-small", "pine-tall", "pine-dark", "tree-young", "pine", "pine-small"],
+    big: ["log-moss", "ruin-column-0", "ruin-blocks", "boulder", "rock"],
+    small: ["mushrooms-1", "stump", "flower-bush-1", "mushrooms-1", "stump-moss", "flower-bush-2"],
+    floor: ["mushrooms-1", "stump-moss"],
+  },
+  tropical: {
+    trees: ["jungle-tree-2", "palm-small-0", "jungle-tree-0", "palm-small-1", "jungle-tree-1", "palm-0"],
+    big: ["log-moss", "ruin-column-1", "ruin-blocks", "boulder"],
+    small: ["fern", "flower-bush-0", "flower-bush-2", "mushrooms-0", "fern", "flower-bush-1"],
+    floor: ["fern", "mushrooms-0", "fern"],
+  },
+  desert: {
+    trees: ["tree-acacia", "palm-small-0", "tree-acacia", "palm-small-1"],
+    big: ["sand-boulder", "ruin-column-0", "ruin-blocks", "sand-rock", "cactus-0", "cactus-1"],
+    small: ["dry-bush", "cactus-small", "dry-bush", "cactus-small", "dry-bush"],
+    floor: ["dry-bush"],
+  },
+  snow: {
+    trees: ["pine-snow-small", "pine-snow-tall", "bare-tree-1", "pine-snow", "pine-snow-small", "pine-snow-tall", "bare-tree-2", "pine-snow"],
+    big: ["snow-rock", "snow-boulder", "snow-rock", "snow-mound-1"],
+    small: ["snow-mound-0", "snow-mound-1", "snow-mound-0", "bare-tree-2"],
+    floor: ["snow-mound-0"],
+  },
+};
+// Dónde va el pie de cada cosa respecto del borde de abajo de la celda (como los de la rejilla).
+const FOOT = { boulder: 0, "sand-boulder": 0, "snow-boulder": 0, rock: -1, "sand-rock": -1, "snow-rock": -1, "cactus-0": 1, "cactus-1": 1 };
+const footOf = (key) => FOOT[key] ?? (CASTS.has(key) && !/ruin|milestone/.test(key) ? 3 : 0);
+
+/** Densidad del detalle: ruido largo (claros y manchas). 0 en los claros, ~1 en lo más tupido. */
+function density(id, x, y) {
+  const n = smoothNoise(x * 16, y * 16, 128, id.length * 31 + 300) * 0.75 + smoothNoise(x * 16, y * 16, 40, id.length * 31 + 301) * 0.25;
+  return Math.max(0, Math.min(1, (n - 0.3) / 0.45));
+}
+
+/** Celdas a no tocar: salidas, entradas, objetos, enemigos y sus rondas. 2 = nada, 1 = nada grande. */
+function avoidMask(def, cols, H) {
+  const m = new Uint8Array(cols * H);
+  const mark = (cx, cy, r, v) => {
+    for (let y = Math.floor(cy - r); y <= Math.ceil(cy + r); y += 1) for (let x = Math.floor(cx - r); x <= Math.ceil(cx + r); x += 1) {
+      if (x >= 0 && y >= 0 && x < cols && y < H) m[y * cols + x] = Math.max(m[y * cols + x], v);
+    }
+  };
+  for (const e of def.exits ?? []) for (let y = e.y; y < e.y + (e.h ?? 1); y += 1) for (let x = e.x; x < e.x + (e.w ?? 1); x += 1) mark(x, y, 3, 2);
+  for (const e of Object.values(def.entries ?? {})) mark(e.x, e.y, 3, 2);
+  for (const o of def.objects ?? []) {
+    mark(o.x, o.y, o.type === "enemy" ? 2 : 1.5, 2);
+    if (o.type === "prop" || o.type === "house" || o.type === "stall") mark(o.x + 1, o.y + 1, 2.5, 2);
+    if (o.patrol) {
+      for (let k = 0; k < o.patrol.length - 1; k += 1) {
+        const [x0, y0] = o.patrol[k];
+        const [x1, y1] = o.patrol[k + 1];
+        const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) * 2) + 1;
+        for (let s = 0; s <= n; s += 1) mark(x0 + ((x1 - x0) * s) / n, y0 + ((y1 - y0) * s) / n, 1, 2);
+      }
+    }
+  }
+  return m;
+}
+
+/** Distancia (en celdas, hasta 4) al camino más cercano. */
+function roadDistance(at, cols, H) {
+  const d = new Uint8Array(cols * H).fill(9);
+  const queue = [];
+  for (let y = 0; y < H; y += 1) for (let x = 0; x < cols; x += 1) if (ROADS.has(at(x, y))) { d[y * cols + x] = 0; queue.push(y * cols + x); }
+  for (let q = 0; q < queue.length; q += 1) {
+    const i = queue[q];
+    const x = i % cols;
+    const y = (i - x) / cols;
+    if (d[i] >= 4) continue;
+    for (let dy = -1; dy <= 1; dy += 1) for (let dx = -1; dx <= 1; dx += 1) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= cols || ny >= H) continue;
+      const j = ny * cols + nx;
+      if (d[j] > d[i] + 1) { d[j] = d[i] + 1; queue.push(j); }
+    }
+  }
+  return d;
+}
+
+/** Cruces de camino: celdas de camino con 3 o más ramales en el anillo de radio 3. */
+function junctions(at, cols, H) {
+  const ring = [];
+  for (let x = -3; x <= 3; x += 1) ring.push([x, -3]);
+  for (let y = -2; y <= 3; y += 1) ring.push([3, y]);
+  for (let x = 2; x >= -3; x -= 1) ring.push([x, 3]);
+  for (let y = 2; y >= -2; y -= 1) ring.push([-3, y]);
+  const out = [];
+  for (let y = 0; y < H; y += 1) for (let x = 0; x < cols; x += 1) {
+    if (!ROADS.has(at(x, y)) || at(x, y) === "B") continue;
+    // Ramales: tramos seguidos de camino en el anillo, de 2 celdas o más (una celda suelta es borde).
+    const inside = (i, j) => i >= 0 && j >= 0 && i < cols && j < H;
+    const on = ring.map(([ax, ay]) => inside(x + ax, y + ay) && ROADS.has(at(x + ax, y + ay)));
+    const startK = on.indexOf(false);
+    if (startK < 0) continue;
+    let arcs = 0;
+    let run = 0;
+    for (let k = 1; k <= ring.length; k += 1) {
+      if (on[(startK + k) % ring.length]) run += 1;
+      else { if (run >= 2) arcs += 1; run = 0; }
+    }
+    if (arcs >= 3 && !out.some(([jx, jy]) => Math.abs(jx - x) < 7 && Math.abs(jy - y) < 7)) out.push([x, y]);
+  }
+  return out;
+}
+
+/** Calcomanías planas de las rutas, horneadas en el suelo antes de subirlo. */
+let decalCache = null;
+function paintDecals(buf, def, rows, at, ter, W) {
+  decalCache ??= {
+    pebbles: Object.fromEntries(["stone", "sand", "snow"].map((t) => [t, [0, 1, 2].map((v) => pebbles(v, t))])),
+    puddle: [puddle(0), puddle(1)],
+    prints: Object.fromEntries(["dirt", "snow", "sand"].map((soil) => [soil, ["boot", "boot", "hoof", "cart"].map((k) => footprints(k, soil))])),
+    leaves: [leafLitter(0), leafLitter(1), leafLitter(2, true)],
+    bones: bones(),
+  };
+  const D = decalCache;
+  const cols = rows[0].length;
+  const H = rows.length;
+  const seed = def.id.length * 17 + 400;
+  // La calcomanía sólo va donde el suelo horneado es del terreno esperado (no pisa bordes ni agua).
+  const fits = (x0, y0, img, terrain) => {
+    for (let y = 0; y < img.h; y += 1) for (let x = 0; x < img.w; x += 1) {
+      if (!(img.data[y * img.w + x] >>> 24)) continue;
+      const gx = x0 + x;
+      const gy = y0 + y;
+      if (gx < 0 || gy < 0 || gx >= W || gy * W + gx >= ter.length || !terrain.includes(ter[gy * W + gx])) return false;
+    }
+    return true;
+  };
+  const stamp = (img, x0, y0, terrain) => { if (fits(x0, y0, img, terrain)) buf.blit(img, x0, y0); };
+  for (let cy = 0; cy < H; cy += 1) for (let cx = 0; cx < cols; cx += 1) {
+    const ch = at(cx, cy);
+    const biome = biomeOf(def, cx, cy);
+    const r = hash(cx, cy, seed);
+    const r2 = hash(cx, cy, seed + 1);
+    const jx = cx * TILE + Math.floor(hash(cx, cy, seed + 2) * 8);
+    const jy = cy * TILE + Math.floor(hash(cx, cy, seed + 3) * 8);
+    const dens = density(def.id, cx, cy);
+    if (ch === ":" || ch === "_" || ch === "s") {
+      // Huellas en el camino: pisadas, herraduras y rodadas de carreta.
+      const soil = ch === "s" ? "snow" : ch === "_" || biome === "desert" ? "sand" : "dirt";
+      const terr = ch === "s" ? [T.SNOW] : ch === "_" ? [T.SAND] : [T.DIRT, T.SAND];
+      if (r < 0.11) stamp(D.prints[soil][Math.floor(r2 * 4)], cx * TILE + 3, cy * TILE, terr);
+      else if (r > 0.985 && ch === ":" && biome !== "desert" && biome !== "snow") stamp(D.puddle[r2 < 0.5 ? 0 : 1], cx * TILE - 2, jy, [T.DIRT]);
+    } else if (OPEN.has(ch) || ch === "x") {
+      const tone = biome === "desert" ? "sand" : biome === "snow" ? "snow" : "stone";
+      const terr = biome === "desert" ? [T.SAND] : biome === "snow" ? [T.SNOW] : [T.GRASS];
+      if (r < 0.03 + dens * 0.1) stamp(D.pebbles[tone][Math.floor(r2 * 3)], jx, jy + 4, terr);
+      else if (r > 0.992 && biome !== "desert" && biome !== "snow") stamp(D.puddle[1], jx - 2, jy + 3, [T.GRASS]);
+      else if (r > 0.985 && biome === "desert") stamp(D.bones, jx, jy + 4, [T.SAND]);
+    } else if (ch === "T" && (cx + cy) % 2 === 1 && biome !== "desert" && biome !== "snow") {
+      // Hojarasca entre los árboles del bosque.
+      if (r < 0.45) stamp(D.leaves[Math.floor(r2 * 3)], jx, jy + 4, [T.FOREST, T.GRASS]);
+    }
+  }
+}
+
+/**
+ * Detalle de pie: árboles y cosas grandes (con una celda sólida) y cosas chicas (sin colisión).
+ * Devuelve la lista de lo que hay que poner; las celdas sólidas se marcan antes de armar la colisión.
+ */
+function planDetail({ def, cols, H, at }) {
+  const out = [];
+  const avoid = avoidMask(def, cols, H);
+  const road = roadDistance(at, cols, H);
+  const seed = def.id.length * 19 + 500;
+  const bigAt = [];
+  const openRing = (x, y) => {
+    for (let dy = -1; dy <= 1; dy += 1) for (let dx = -1; dx <= 1; dx += 1) if (!OPEN.has(at(x + dx, y + dy))) return false;
+    return true;
+  };
+  const spaced = (x, y) => !bigAt.some(([bx, by]) => Math.abs(bx - x) <= 2 && Math.abs(by - y) <= 2);
+  const canBig = (x, y) => OPEN.has(at(x, y)) && !avoid[y * cols + x] && road[y * cols + x] >= 2 && openRing(x, y) && spaced(x, y);
+  const putBig = (key, x, y, flip) => {
+    out.push({ key, x: x * TILE + TILE / 2, y: (y + 1) * TILE + footOf(key), flip, solid: [x, y] });
+    bigAt.push([x, y]);
+  };
+
+  // Mojón en cada cruce de camino (hasta 3 por mapa), a un lado del camino. Es chico: sin colisión.
+  for (const [jx, jy] of junctions(at, cols, H).slice(0, 3)) {
+    let done = false;
+    for (let r = 2; r <= 4 && !done; r += 1) {
+      for (const [dx, dy] of [[r, 0], [-r, 0], [0, r], [0, -r], [r, r], [-r, r], [r, -r], [-r, -r]]) {
+        const x = jx + dx;
+        const y = jy + dy;
+        if (x < 1 || y < 1 || x >= cols - 1 || y >= H - 1) continue;
+        if (OPEN.has(at(x, y)) && !avoid[y * cols + x] && road[y * cols + x] === 1 && spaced(x, y)) {
+          out.push({ key: "milestone", x: x * TILE + TILE / 2, y: (y + 1) * TILE - 1, flip: false });
+          bigAt.push([x, y]);
+          done = true;
+          break;
+        }
+      }
+    }
+  }
+
+  for (let y = 1; y < H - 1; y += 1) for (let x = 1; x < cols - 1; x += 1) {
+    const ch = at(x, y);
+    const pool = DETAIL[biomeOf(def, x, y)] ?? DETAIL.temperate;
+    const dens = density(def.id, x, y);
+    const r = hash(x, y, seed);
+    const v = Math.floor(hash(x, y, seed + 1) * 97);
+    const flip = hash(x, y, seed + 2) < 0.5;
+    const i = y * cols + x;
+    if (ch === "T" || ch === "P") {
+      // Piso del bosque, entre los árboles (el bosque ya es sólido): hongos, tocones, helechos.
+      if ((x + y) % 2 === 1 && r < 0.22 * (0.4 + dens) && ch === "T") {
+        const key = pool.floor[v % pool.floor.length];
+        const jx = Math.round((hash(x, y, seed + 3) - 0.5) * 6);
+        out.push({ key, x: x * TILE + TILE / 2 + jx, y: (y + 1) * TILE - 2, flip });
+      }
+      continue;
+    }
+    if (!OPEN.has(ch) || avoid[i] >= 2) continue;
+    if (dens > 0.15 && r < 0.05 * dens && canBig(x, y)) {
+      // Árbol suelto: el doble de probable que lo demás grande.
+      putBig(pool.trees[v % pool.trees.length], x, y, flip);
+    } else if (dens > 0.25 && r > 1 - 0.02 * dens && canBig(x, y)) {
+      putBig(pool.big[v % pool.big.length], x, y, flip);
+    } else if (road[i] >= 1 && hash(x, y, seed + 4) < 0.02 + 0.13 * dens) {
+      const key = pool.small[v % pool.small.length];
+      const jx = Math.round((hash(x, y, seed + 5) - 0.5) * 8);
+      const jy = Math.round((hash(x, y, seed + 6) - 0.5) * 4);
+      out.push({ key, x: x * TILE + TILE / 2 + jx, y: (y + 1) * TILE - 2 + jy, flip });
+    }
+  }
+  return out;
+}
+
 export function buildMap(scene, def) {
   const rows = def.grid;
   const cols = rows[0].length;
@@ -259,16 +594,20 @@ export function buildMap(scene, def) {
       const g = GROUND[ch] ?? "D";
       return g === "D" ? DEFAULT_GROUND[biomeOf(def, x, y)] ?? T.GRASS : g;
     }));
-    const { buf } = paintGround(grid, {
-      biome: def.biome, seed: def.id.length * 13 + 5, crispCobble: def.kind === "town",
+    const seed = def.id.length * 13 + 5;
+    const { buf, ter, wd, W: GW, H: GH } = paintGround(grid, {
+      biome: def.biome, seed, crispCobble: def.kind === "town",
       biomeAt: def.biomeAt ? (cx, cy) => def.biomeAt(cx, cy) : null, plaza: def.plaza,
     });
     const beds = [];
     rows.forEach((r, y) => [...r].forEach((ch, x) => { if (ch === ",") beds.push([x, y]); }));
     paintFlowerBeds(buf, beds, 9);
-    scene.textures.addCanvas(texKey, buf.toCanvas());
+    if (def.kind === "route") paintDecals(buf, def, rows, at, ter, GW);
+    const tex = scene.textures.addCanvas(texKey, buf.toCanvas());
+    tex.customData.water = bakeWater(scene, def.id, ter, wd, GW, GH, seed);
   }
   scene.add.image(0, 0, texKey).setOrigin(0, 0).setDepth(DEPTH.ground);
+  placeWater(scene, scene.textures.get(texKey).customData.water ?? []);
 
   // --- Colisión por celdas ---
   const data = rows.map((r, y) => [...r].map((ch, x) => {
@@ -276,6 +615,9 @@ export function buildMap(scene, def) {
     if (ch === "b") return BUSH;
     return SOLID_CHARS.has(ch) ? SOLID : -1;
   }));
+  // Capa de detalle de las rutas (G6): lo grande ocupa su celda.
+  const detail = def.kind === "route" ? planDetail({ def, cols, H, at }) : [];
+  for (const d of detail) if (d.solid) data[d.solid[1]][d.solid[0]] = SOLID;
   const tilemap = scene.make.tilemap({ data, tileWidth: TILE, tileHeight: TILE });
   const tileset = tilemap.addTilesetImage("blank16", "blank16", TILE, TILE, 0, 0);
   const layer = tilemap.createLayer(0, tileset, 0, 0);
@@ -339,7 +681,7 @@ export function buildMap(scene, def) {
           break;
         case "P":
           if ((x + y) % 2 === 0 || !["P", "#"].includes(at(x, y - 1))) {
-            place(biomeOf(def, x, y) === "snow" ? "pine-snow" : "pine", cx + Math.round((r - 0.5) * 4), py + TILE + 3);
+            place(flora.pine(v), cx + Math.round((r - 0.5) * 4), py + TILE + 3);
           }
           break;
         case "o":
@@ -399,17 +741,14 @@ export function buildMap(scene, def) {
         case "^":
           place("ledge", px, py, { ox: 0, oy: 0, depth: DEPTH.decal });
           break;
-        case "~":
-          if (r < 0.05 && at(x, y - 1) === "~" && at(x, y + 1) === "~") {
-            const glint = scene.add.sprite(px + 4, py + 6, "glint", 0).setOrigin(0, 0).setDepth(DEPTH.decal);
-            glint.play({ key: "glint", delay: Math.floor(hash(x, y, 2) * 2000) });
-          }
-          break;
         default:
           break;
       }
     }
   }
+
+  // --- Capa de detalle de las rutas (G6) ---
+  for (const d of detail) place(d.key, d.x, d.y, { flip: d.flip });
 
   // --- Casas, puestos, pozos y adornos ---
   const chimneys = [];

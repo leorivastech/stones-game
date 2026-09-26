@@ -7,11 +7,12 @@ import { GOODS, TOWNS, TOWN_IDS } from "./world.js";
 import {
   GOOD_IDS, STONE, TRAVEL_DAYS, freshEconomy, freshDrift, quote, takeFromMarket, giveToMarket, stepDay, meltAfter, mixChill,
 } from "./economy.js";
-import { rollDay, rumor as makeRumor, activeEvents, eventCountdown } from "./director.js";
+import { rollDay, rumor as makeRumor, activeEvents, eventCountdown, contractOffers, CONTRACT } from "./director.js";
 import { online, send, request, isWorldFlag, canUse } from "./net/online.js";
 
 export { GOODS, TOWNS } from "./world.js";
 export { STONE, TRAVEL_DAYS, BOAT_COLD, GOOD_IDS, FROST } from "./economy.js";
+export { CONTRACT, caravanNews, stonesText } from "./director.js";
 
 export const UPGRADES = {
   stashKit: { id: "stashKit", name: "Herrajes de cueva", cost: 40, reputation: 2, effect: "puerta y cerrojo para las cuevas de los caminos" },
@@ -19,6 +20,10 @@ export const UPGRADES = {
   icebox: { id: "icebox", name: "Hielera de serrín", cost: 25, reputation: 0, effect: "la escarcha se derrite mucho más lento" },
   escort: { id: "escort", name: "Arquera escolta", cost: 150, reputation: 6, effect: "dispara a bandidos y bestias" },
   hideout: { id: "hideout", name: "Fondo falso", cost: 240, reputation: 10, effect: "oculta 2 piedras ante guardias" },
+  // Mejoras de la yegua (las vende Nella en Valkeep; sólo sirven si la yegua va contigo).
+  saddlebags: { id: "saddlebags", name: "Alforjas", cost: 40, reputation: 3, horseGear: true, effect: "+1 lugar en la yegua" },
+  horseshoes: { id: "horseshoes", name: "Herraduras", cost: 50, reputation: 3, horseGear: true, effect: "la yegua va ×1.2 más rápido en las rutas" },
+  cart: { id: "cart", name: "Carreta", cost: 120, reputation: 6, horseGear: true, effect: "+4 lugares · no entra a senderos ni salta bordes" },
 };
 
 /** Niveles de fama: las "medallas" del caminante. Sube vendiendo lo que un pueblo ocupa. */
@@ -97,7 +102,14 @@ export function freshRun() {
     drift: eco.drift,
     mods: eco.mods,
     heat: eco.heat,
+    caravans: eco.caravans,
     seen: {},
+    // Últimos precios vistos por pueblo y piedra (para la gráfica del mercado): { pueblo: { piedra: [{ day, p }] } }
+    priceLog: {},
+    // Contratos del tablón: los que llevas, el tablón de cada pueblo (del día) y lo que pasó con los viejos.
+    contracts: [],
+    boards: {},
+    contractLog: [],
     rumors: [],
     debt: { owed: DEBT.start, due: 1 + DEBT.every, missed: 0 },
     fameSold: {},
@@ -141,6 +153,7 @@ export function econ(registry) {
     drift: structuredClone(registry.get("drift")),
     mods: structuredClone(registry.get("mods") ?? []),
     heat: { ...fresh.heat, ...(registry.get("heat") ?? {}) },
+    caravans: structuredClone(registry.get("caravans") ?? []),
   };
 }
 
@@ -150,6 +163,7 @@ function commit(registry, st) {
   registry.set("drift", st.drift);
   registry.set("mods", st.mods);
   registry.set("heat", st.heat);
+  registry.set("caravans", st.caravans ?? []);
 }
 
 // ---------- Básicos ----------
@@ -206,7 +220,9 @@ export function hasUpgrade(registry, id) {
 }
 
 export function capacity(registry) {
-  return (registry.get("baseCapacity") ?? 4) + (partyHas(registry, "horse") ? 2 : 0);
+  const horse = partyHas(registry, "horse");
+  const gear = horse ? (hasUpgrade(registry, "saddlebags") ? 1 : 0) + (hasUpgrade(registry, "cart") ? 4 : 0) : 0;
+  return (registry.get("baseCapacity") ?? 4) + (horse ? 2 : 0) + gear;
 }
 
 export function hiddenCapacity(registry) {
@@ -661,6 +677,30 @@ export function recordSeen(registry, townId) {
   const st = econ(registry);
   const prices = Object.fromEntries(GOOD_IDS.map((g) => [g, quote(st, townId, g).sell]));
   setRecordValue(registry, "seen", townId, { day: st.day, prices });
+  // Historial para la gráfica del mercado: un precio por día visto (el último de ese día), hasta 7.
+  const log = { ...(getRecord(registry, "priceLog", {})[townId] ?? {}) };
+  for (const g of GOOD_IDS) {
+    const list = (log[g] ?? []).filter((e) => e.day !== st.day);
+    log[g] = [...list, { day: st.day, p: prices[g] }].sort((a, b) => a.day - b.day).slice(-PRICE_LOG);
+  }
+  setRecordValue(registry, "priceLog", townId, log);
+}
+
+/** Cuántos precios vistos se guardan por pueblo y piedra. */
+export const PRICE_LOG = 7;
+
+/**
+ * Los últimos precios vistos de una piedra en un pueblo, del más viejo al de hoy: [{ day, p }].
+ * `now` (el precio de este momento) reemplaza al de hoy: la gráfica se mueve mientras comercias.
+ */
+export function priceHistory(registry, townId, good, now = null) {
+  const list = [...(getRecord(registry, "priceLog", {})[townId]?.[good] ?? [])];
+  if (now != null) {
+    const today = day(registry);
+    const rest = list.filter((e) => e.day !== today);
+    return [...rest, { day: today, p: now }].slice(-PRICE_LOG);
+  }
+  return list;
 }
 
 export function seenOf(registry, townId) {
@@ -915,6 +955,84 @@ export function townTips(registry, townId) {
   return { wanted, cheap, yours, fameToday };
 }
 
+// ---------- Contratos del tablón (M4, 26-sep) ----------
+
+/** Los contratos que llevas (máx. CONTRACT.maxActive). */
+export function contracts(registry) {
+  return getRecord(registry, "contracts", []);
+}
+
+export function contractLog(registry) {
+  return getRecord(registry, "contractLog", []);
+}
+
+/** El tablón de la posada de un pueblo hoy (se arma una vez por pueblo y día; lo tomado queda marcado). */
+export function contractBoard(registry, townId) {
+  const today = day(registry);
+  const boards = getRecord(registry, "boards", {});
+  if (boards[townId]?.day === today) return boards[townId].offers;
+  const offers = contractOffers(econ(registry), townId);
+  // Sólo se guarda el tablón de hoy de cada pueblo.
+  registry.set("boards", { ...boards, [townId]: { day: today, offers } });
+  return offers;
+}
+
+/** Días que le quedan a un contrato (0 = vence hoy). */
+export function contractDaysLeft(registry, c) {
+  return c.due - day(registry);
+}
+
+/** Cuántas piedras del contrato llevas (tope: las que pide). */
+export function contractCarried(registry, c) {
+  return Math.min(c.qty, cargoOf(registry, c.good));
+}
+
+/** Tomar un contrato del tablón. Devuelve { ok, reason }. */
+export function acceptContract(registry, townId, id) {
+  const offers = contractBoard(registry, townId);
+  const offer = offers.find((o) => o.id === id);
+  if (!offer || offer.taken) return { ok: false, reason: "Ya lo tomó alguien." };
+  if (contracts(registry).length >= CONTRACT.maxActive) return { ok: false, reason: `Sólo puedes llevar ${CONTRACT.maxActive} contratos a la vez.` };
+  registry.set("contracts", [...contracts(registry), { ...offer, accepted: day(registry) }]);
+  const boards = getRecord(registry, "boards", {});
+  registry.set("boards", { ...boards, [townId]: { ...boards[townId], offers: offers.map((o) => (o.id === id ? { ...o, taken: true } : o)) } });
+  return { ok: true };
+}
+
+/** Los contratos que se pueden entregar aquí ahora (llevas todas las piedras). */
+export function deliverable(registry, townId) {
+  return contracts(registry).filter((c) => c.to === townId && cargoOf(registry, c.good) >= c.qty && contractDaysLeft(registry, c) >= 0);
+}
+
+function logContract(registry, c, result) {
+  registry.set("contractLog", [{ ...c, result, day: day(registry) }, ...contractLog(registry)].slice(0, 6));
+}
+
+/** Entregar un contrato: se van las piedras, llega el oro y la fama. Devuelve el contrato o null. */
+export function deliverContract(registry, id) {
+  const c = contracts(registry).find((x) => x.id === id);
+  if (!c || cargoOf(registry, c.good) < c.qty || contractDaysLeft(registry, c) < 0) return null;
+  setRecordValue(registry, "cargo", c.good, cargoOf(registry, c.good) - c.qty, cargoRecord());
+  registry.inc("gold", c.pay);
+  addFame(registry, c.fame);
+  registry.set("contracts", contracts(registry).filter((x) => x.id !== id));
+  logContract(registry, c, "ok");
+  return c;
+}
+
+/** Los contratos vencidos (pasó su día) se pierden: −1 de fama cada uno. Devuelve los que vencieron. */
+export function expireContracts(registry) {
+  const list = contracts(registry);
+  const late = list.filter((c) => contractDaysLeft(registry, c) < 0);
+  if (!late.length) return [];
+  registry.set("contracts", list.filter((c) => contractDaysLeft(registry, c) >= 0));
+  for (const c of late) {
+    registry.set("reputation", Math.max(0, reputation(registry) - c.penalty));
+    logContract(registry, c, "fail");
+  }
+  return late;
+}
+
 // ---------- Mejoras ----------
 
 export function purchaseUpgrade(registry, id) {
@@ -977,8 +1095,10 @@ const saveKey = () => (online.on && online.name ? `${BASE_KEY}-online-${online.n
 const SAVED = [
   "gold", "cargo", "chill", "baseCapacity", "reputation", "trips", "currentTown", "lastRoute", "day", "market", "drift", "mods",
   "heat", "seen", "rumors", "debt", "fameSold", "peddler", "upgrades", "hp", "maxHp", "tonics",
-  "stashes", "flags", "mapId", "crew", "hour", "tripStart",
+  "stashes", "flags", "mapId", "crew", "hour", "tripStart", "caravans", "priceLog", "contracts", "boards", "contractLog",
 ];
+/** Lo que en línea es del mundo (lo manda el servidor, no el guardado). */
+const WORLD_KEYS = ["day", "market", "drift", "mods", "heat", "caravans"];
 
 export function saveGame(registry) {
   try {
@@ -1004,8 +1124,8 @@ export function loadGame(registry) {
     if (!data) return false;
     // En línea el mercado y el día vienen del servidor, no del guardado (el buhonero guardado sólo
     // sirve de respaldo si el servidor tarda: ver peddlerOnline).
-    if (online.on) for (const k of ["day", "market", "drift", "mods", "heat"]) delete data[k];
-    const keep = online.on ? Object.fromEntries(["day", "market", "drift", "mods", "heat"].map((k) => [k, registry.get(k)])) : {};
+    if (online.on) for (const k of WORLD_KEYS) delete data[k];
+    const keep = online.on ? Object.fromEntries(WORLD_KEYS.map((k) => [k, registry.get(k)])) : {};
     registry.set({ ...freshRun(), ...data, ...keep });
     return true;
   } catch {
@@ -1014,7 +1134,7 @@ export function loadGame(registry) {
 }
 
 export function resetRun(registry) {
-  const keep = online.on ? Object.fromEntries(["day", "market", "drift", "mods", "heat"].map((k) => [k, registry.get(k)])) : {};
+  const keep = online.on ? Object.fromEntries(WORLD_KEYS.map((k) => [k, registry.get(k)])) : {};
   registry.set({ ...freshRun(), ...keep });
 }
 

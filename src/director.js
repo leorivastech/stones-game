@@ -149,6 +149,12 @@ export function rumor(state, { honest = 0.85, rng = Math.random } = {}) {
     const ev = events[Math.floor(rng() * events.length)];
     return { text: ev.news, true: true, event: ev.id, town: ev.town };
   }
+  // Los mercaderes de a pie de estos días: "Ayer un mercader vendió 4 perlas en Valkeep".
+  const caravan = (state.caravans ?? []).filter((c) => state.day - c.day <= 2);
+  if (caravan.length && rng() < 0.4) {
+    const c = caravan[Math.floor(rng() * caravan.length)];
+    return { text: caravanNews(c, state.day), true: true, town: c.to };
+  }
   // Sin sucesos, casi siempre alguien trae noticias del mercado de otro pueblo (verdaderas).
   if (rng() < 0.7) {
     const news = marketNews(state, rng);
@@ -187,3 +193,120 @@ function marketNews(state, rng) {
   return { text: `En ${TOWNS[n.t].name} les sobra ${name(n.g)}: ${lo(n.g)} dan ${lo(n.g) === "la" ? "barata" : "barato"}.`, town: n.t };
 }
 
+
+// ---------- Mercaderes de a pie (M10) ----------
+
+/** Cómo se cuentan N piedras: "4 perlas", "1 vidrio rúnico", "3 piedras solares". */
+export function stonesText(good, n) {
+  const one = n === 1;
+  switch (good) {
+    case "amber": return `${n} ${one ? "piedra" : "piedras"} de ámbar`;
+    case "rune": return `${n} ${one ? "vidrio rúnico" : "vidrios rúnicos"}`;
+    case "rain": return `${n} ${one ? "perla" : "perlas"}`;
+    case "sun": return `${n} ${one ? "piedra solar" : "piedras solares"}`;
+    case "frost": return `${n} ${one ? "cristal" : "cristales"} de escarcha`;
+    default: return `${n} ${GOODS[good]?.short.toLowerCase() ?? good}`;
+  }
+}
+
+/**
+ * Lo que la gente cuenta de un mercader: "Ayer un mercader vendió 4 perlas en Valkeep (las compró en
+ * Verdelume)". `today` null: sin "ayer" (las noticias del servidor ya llevan su día).
+ */
+export function caravanNews(c, today = null) {
+  const ago = today == null ? null : today - c.day;
+  const when = ago == null ? "Un mercader" : ago <= 0 ? "Esta mañana un mercader" : ago === 1 ? "Ayer un mercader" : `Hace ${ago} días un mercader`;
+  const masc = c.good === "rune" || c.good === "frost";
+  const them = c.n === 1 ? (masc ? "lo" : "la") : masc ? "los" : "las";
+  return `${when} vendió ${stonesText(c.good, c.n)} en ${TOWNS[c.to].name} (${them} compró en ${TOWNS[c.from].name}).`;
+}
+
+// ---------- Contratos del tablón (M4) ----------
+
+/**
+ * Contratos claros (26-sep, vuelven los pedidos como cartel): en la posada de cada pueblo, 2 o 3 por
+ * día. "Lleva 3 solar a Frostholm hasta el día N: paga 1,3× el precio y 2 de fama; si fallas, −1 de
+ * fama". Piden lo que el destino OCUPA hoy. Nunca escarcha (se derrite: no sería claro).
+ */
+export const CONTRACT = {
+  perBoard: [2, 3],
+  qty: { amber: [3, 4], rune: [2, 3], rain: [1, 2], sun: [2, 3] },
+  payRate: 1.3, // paga 1,3× el precio del destino…
+  priceBand: [1, 1.25], // …contado entre 1 y 1,25 veces el valor de la piedra (ni regalado ni loco)
+  fame: 2,
+  penalty: 1,
+  maxActive: 2,
+  maxLegs: 3, // hasta 3 tramos de distancia
+  slack: 1, // días de sobra además de uno por tramo
+};
+
+/** Tramos por tierra entre dos pueblos (la barca cuenta 3: son 3 días de mar). */
+export function legsBetween(from, to) {
+  const dist = { [from]: 0 };
+  const queue = [from];
+  while (queue.length) {
+    queue.sort((a, b) => dist[a] - dist[b]);
+    const cur = queue.shift();
+    const t = TOWNS[cur];
+    const next = [...Object.values(t.exits ?? {}).map((id) => [id, 1]), ...(t.boat ? [[t.boat, 3]] : [])];
+    for (const [id, w] of next) {
+      if (!TOWNS[id]) continue;
+      const d = dist[cur] + w;
+      if (dist[id] == null || d < dist[id]) { dist[id] = d; queue.push(id); }
+    }
+  }
+  return dist[to] ?? Infinity;
+}
+
+/** Dado con semilla (mulberry32): el mismo tablón para el mismo pueblo y día. */
+export function seededRng(text) {
+  let a = 2166136261;
+  for (let i = 0; i < text.length; i += 1) a = Math.imul(a ^ text.charCodeAt(i), 16777619);
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * Los contratos del tablón de `from` hoy. Para cada destino a 1-3 tramos y cada piedra que no es la
+ * del destino, qué tanto la ocupa (lo que paga contra su valor); se eligen los que más, con un poco de
+ * azar y destinos distintos. Devuelve [{ id, from, to, good, qty, per, pay, fame, penalty, due, posted }].
+ */
+export function contractOffers(state, from, rng = seededRng(`${from}-${state.day}`)) {
+  const cands = [];
+  for (const to of TOWN_IDS) {
+    if (to === from) continue;
+    const legs = legsBetween(from, to);
+    if (legs > CONTRACT.maxLegs) continue;
+    for (const g of Object.keys(CONTRACT.qty)) {
+      if (g === TOWNS[to].produce) continue;
+      const q = quote(state, to, g);
+      const need = q.sell / STONE[g].value;
+      cands.push({ to, g, legs, sell: q.sell, score: need + rng() * 0.35 });
+    }
+  }
+  cands.sort((a, b) => b.score - a.score);
+  const [lo, hi] = CONTRACT.perBoard;
+  const want = lo + Math.floor(rng() * (hi - lo + 1));
+  const picked = [];
+  for (const c of cands) {
+    if (picked.length >= want) break;
+    if (picked.some((p) => p.to === c.to || p.g === c.g)) continue;
+    picked.push(c);
+  }
+  return picked.map((c, i) => {
+    const v = STONE[c.g].value;
+    const [qlo, qhi] = CONTRACT.qty[c.g];
+    const qty = qlo + Math.floor(rng() * (qhi - qlo + 1));
+    const ref = Math.min(v * CONTRACT.priceBand[1], Math.max(v * CONTRACT.priceBand[0], c.sell));
+    const per = Math.round(ref * CONTRACT.payRate);
+    return {
+      id: `${from}-${state.day}-${i}`, from, to: c.to, good: c.g, qty, per, pay: per * qty,
+      fame: CONTRACT.fame, penalty: CONTRACT.penalty, due: state.day + c.legs + CONTRACT.slack, posted: state.day,
+    };
+  });
+}

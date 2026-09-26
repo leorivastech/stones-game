@@ -4,7 +4,7 @@
  */
 
 import { Buf, bayer, hash, rng, strip } from "./pixel.js";
-import { rgba } from "./palette.js";
+import { P, rgba } from "./palette.js";
 
 const L = normalize([-0.55, -0.75, 0.62]);
 function normalize(v) {
@@ -43,14 +43,48 @@ function contact(buf, cx, cy, rx, ry) {
   buf.ellipse(cx, cy, rx, ry, rgba("ink", 60));
 }
 
+// Contorno selectivo (G10): del lado de la luz (arriba-izquierda) el borde toma un tono medio del
+// material que toca; del lado de la sombra (abajo-derecha) queda la tinta. Así el objeto no parece
+// recortado con plumón y sigue leyéndose contra el pasto.
+let midOf = null;
+function midTone(c) {
+  if (!midOf) {
+    midOf = new Map();
+    const ramps = {};
+    for (const name of Object.keys(P)) {
+      const m = /^([a-z]+)(\d)$/.exec(name);
+      if (m && P[name]) (ramps[m[1]] ??= []).push(Number(m[2]));
+    }
+    for (const [ramp, idx] of Object.entries(ramps)) {
+      const top = Math.max(...idx);
+      const mid = Math.max(1, Math.floor(top / 2) - 1);
+      for (const i of idx) if (i > mid) midOf.set(rgba(`${ramp}${i}`), rgba(`${ramp}${mid}`));
+    }
+  }
+  return midOf.get(c);
+}
+
 function withOutline(buf, color = "ink") {
   // El contorno no debe tapar la sombra del piso (semi transparente).
-  const copy = buf.clone();
-  for (let i = 0; i < copy.data.length; i += 1) if ((copy.data[i] >>> 24) < 255) copy.data[i] = 0;
-  copy.outline(color);
-  for (let i = 0; i < copy.data.length; i += 1) {
-    if ((copy.data[i] >>> 24) === 255 && (buf.data[i] >>> 24) < 255) buf.data[i] = copy.data[i];
+  const ink = rgba(color);
+  const { w, h, data } = buf;
+  const solid = (x, y) => x >= 0 && y >= 0 && x < w && y < h && (data[y * w + x] >>> 24) === 255;
+  const out = data.slice();
+  for (let y = 0; y < h; y += 1) {
+    for (let x = 0; x < w; x += 1) {
+      if (solid(x, y)) continue;
+      const r = solid(x + 1, y);
+      const d = solid(x, y + 1);
+      const l = solid(x - 1, y);
+      const u = solid(x, y - 1);
+      if (!(r || d || l || u)) continue;
+      // Lado de la luz: sólo toca el objeto por la derecha o por abajo.
+      let c = ink;
+      if (!l && !u) c = midTone(data[r ? y * w + x + 1 : (y + 1) * w + x]) ?? ink;
+      out[y * w + x] = c;
+    }
   }
+  data.set(out);
   return buf;
 }
 
@@ -87,15 +121,112 @@ export function tree(variant = 0, { autumn = false, sway = 0 } = {}) {
   return withOutline(b, autumn ? "r0" : "f0");
 }
 
-/** Pino. `sway` (0/1) corre 1 px los dos pisos de arriba (segundo cuadro del vaivén). */
-export function pine(snow = false, sway = 0) {
-  const b = new Buf(24, 40);
-  contact(b, 12, 37, 4, 1.5);
-  b.rect(10, 30, 4, 7, "o2");
-  b.vline(10, 30, 7, "o3");
-  b.vline(13, 30, 7, "o1");
-  const tiers = [[12 + sway, 2, 5, 9], [12 + sway, 8, 7, 12], [12, 14, 9, 14], [12, 20, 11, 12]];
-  for (const [cx, top, half, h] of tiers) {
+/**
+ * Más árboles para que las rutas no se vean clonadas (G6): cada forma con su tamaño, copa y tinte.
+ * Todas con 2 cuadros de vaivén (los racimos de arriba se corren 1 px) y la misma luz que tree().
+ *  - tall:  álamo, copa alta y angosta.
+ *  - young: arbolito joven, chico y verde claro (rampa del pasto).
+ *  - wide:  roble ancho de copa baja y oscura.
+ *  - acacia: copa plana en olivo, tronco que se abre en horqueta (desierto y sabana).
+ *  - jungle: árbol de selva chico, verde hondo con lianas.
+ */
+const TREE_KINDS = {
+  tall: {
+    w: 26, h: 46, foot: [13, 43, 4], trunk: [11, 32, 4, 11], swayAbove: 20, line: "f0",
+    ramp: ["f1", "f2", "f3", "f4", "f5", "f6"],
+    clumps: [[13, 11, 7, 8], [13, 20, 8, 8], [13, 28, 8, 5], [8, 16, 5, 6], [18, 15, 5, 6], [13, 5, 5, 4]],
+  },
+  young: {
+    w: 22, h: 30, foot: [11, 27, 3.5], trunk: [10, 19, 3, 8], swayAbove: 10, line: "g0",
+    ramp: ["g1", "g2", "g3", "g4", "g5", "g6"],
+    clumps: [[11, 11, 7, 6], [6, 14, 4, 4], [16, 14, 4, 4], [11, 6, 5, 4]],
+  },
+  wide: {
+    w: 44, h: 38, foot: [22, 34, 6], trunk: [19, 23, 6, 11], swayAbove: 13, line: "f0",
+    ramp: ["f0", "f1", "f2", "f3", "f4", "f5"],
+    clumps: [[22, 13, 12, 8], [10, 18, 8, 6], [34, 18, 8, 6], [22, 20, 12, 5], [14, 9, 7, 5], [30, 9, 7, 5], [22, 6, 7, 4]],
+  },
+  acacia: {
+    w: 40, h: 34, foot: [20, 31, 4], trunk: null, swayAbove: 10, line: "l0",
+    ramp: ["l0", "l1", "l2", "l3", "l4", "g4"],
+    clumps: [[20, 9, 14, 4], [10, 11, 8, 3.5], [30, 11, 8, 3.5], [20, 6, 9, 3], [14, 12, 6, 3], [26, 12, 6, 3]],
+  },
+  jungle: {
+    w: 34, h: 40, foot: [17, 37, 5], trunk: [14, 24, 6, 13], swayAbove: 12, line: "f0",
+    ramp: ["f0", "f1", "f2", "g2", "g3", "g4"],
+    clumps: [[17, 12, 11, 8], [8, 17, 7, 6], [26, 17, 7, 6], [17, 21, 9, 5], [12, 7, 7, 5], [23, 7, 7, 5]],
+  },
+};
+
+export function treeKind(kind = "tall", sway = 0) {
+  const K = TREE_KINDS[kind];
+  const b = new Buf(K.w, K.h);
+  const [fx, fy, fr] = K.foot;
+  contact(b, fx, fy, fr, 1.5);
+  if (K.trunk) {
+    const [tx, ty, tw, th] = K.trunk;
+    b.rect(tx, ty, tw, th, "o2");
+    b.vline(tx, ty, th, "o3");
+    b.vline(tx + tw - 1, ty, th, "o1");
+    b.set(tx - 1, ty + th - 1, "o2"); b.set(tx + tw, ty + th - 1, "o1");
+    b.set(tx + 1, ty + Math.floor(th / 2), "o1");
+  } else {
+    // Acacia: tronco delgado que se abre en dos ramas hacia la copa plana.
+    for (let y = 0; y < 18; y += 1) {
+      const t = y / 17;
+      const spread = t > 0.45 ? Math.round((t - 0.45) * 16) : 0;
+      const x = fx - 1 + Math.round(Math.sin(t * 3) * 1.2);
+      b.rect(x - spread, fy - y, 2, 1, "o2");
+      b.set(x - spread, fy - y, "o3");
+      if (spread) { b.rect(x + spread, fy - y, 2, 1, "o1"); b.set(x + spread, fy - y, "o2"); }
+    }
+  }
+  const r = rng(kind.length * 17 + 5);
+  const clumps = K.clumps.map(([x, y, rx, ry]) => [
+    x + Math.round((r() - 0.5) * 2) + (y < K.swayAbove ? sway : 0), y + Math.round((r() - 0.5) * 2), rx, ry,
+  ]);
+  clumps.sort((a, b2) => a[1] - b2[1]).forEach(([x, y, rx, ry], i) => sphere(b, x, y, rx, ry, K.ramp, { seed: kind.length * 7 + i, grain: kind === "jungle" ? 0.26 : 0.18 }));
+  if (K.trunk) b.hline(K.trunk[0] + 1, K.trunk[1] + 2, K.trunk[2] - 2, "o1");
+  if (kind === "jungle") {
+    // Lianas cortas que cuelgan de la copa.
+    for (let k = 0; k < 4; k += 1) {
+      const x = 6 + Math.floor(r() * 22);
+      let y0 = 26;
+      while (y0 > 0 && !b.alpha(x, y0)) y0 -= 1;
+      for (let y = y0; y < y0 + 4 + Math.floor(r() * 6); y += 1) b.set(x + (Math.floor(y / 4) % 2), y, y % 3 ? "f2" : "g3");
+    }
+  }
+  // Hojitas sueltas de luz arriba a la izquierda.
+  for (let i = 0; i < 6; i += 1) {
+    const x0 = 3 + Math.floor(r() * (K.w - 6));
+    const y = 2 + Math.floor(r() * (K.swayAbove + 2));
+    const x = x0 + (y < K.swayAbove ? sway : 0);
+    if (b.alpha(x, y) === 255) b.set(x, y, K.ramp[5]);
+  }
+  return withOutline(b, K.line);
+}
+
+/**
+ * Pino. `sway` (0/1) corre 1 px los dos pisos de arriba (segundo cuadro del vaivén).
+ * `size`: "normal" (24×40), "tall" (28×52, 5 pisos) o "small" (18×28, 3 pisos).
+ * `dark`: rampa más honda (pinar viejo).
+ */
+export function pine(snow = false, sway = 0, { size = "normal", dark = false } = {}) {
+  const S = {
+    normal: { w: 24, h: 40, trunk: [10, 30, 4, 7], tiers: [[2, 5, 9], [8, 7, 12], [14, 9, 14], [20, 11, 12]] },
+    tall: { w: 28, h: 52, trunk: [12, 42, 4, 7], tiers: [[2, 4, 8], [7, 6, 11], [13, 8, 13], [20, 10, 14], [28, 12, 14]] },
+    small: { w: 18, h: 28, trunk: [7, 21, 3, 5], tiers: [[2, 4, 7], [7, 6, 9], [12, 8, 10]] },
+  }[size];
+  const b = new Buf(S.w, S.h);
+  const cx0 = S.w / 2;
+  const [tx, ty, tw, th] = S.trunk;
+  contact(b, cx0, ty + th, Math.max(3, tw), 1.5);
+  b.rect(tx, ty, tw, th, "o2");
+  b.vline(tx, ty, th, "o3");
+  b.vline(tx + tw - 1, ty, th, "o1");
+  const ramp = dark ? ["f0", "f0", "f1", "f2", "f3"] : ["f0", "f1", "f2", "f3", "f4"];
+  S.tiers.forEach(([top, half, h], i) => {
+    const cx = cx0 + (i < 2 ? sway : 0);
     for (let y = 0; y < h; y += 1) {
       const w = Math.round(((y + 1) / h) * half);
       for (let x = -w; x <= w; x += 1) {
@@ -104,14 +235,13 @@ export function pine(snow = false, sway = 0) {
         const side = x / Math.max(1, w);
         let tone = side < -0.35 ? 4 : side < 0.1 ? 3 : side < 0.55 ? 2 : 1;
         if (y >= h - 2) tone = Math.max(0, tone - 2);
-        if (hash(px, py, 5) < 0.12) tone = Math.max(0, tone - 1);
-        const ramp = ["f0", "f1", "f2", "f3", "f4"];
+        if (hash(px, py, size === "normal" ? 5 : 5 + S.w) < 0.12) tone = Math.max(0, tone - 1);
         b.set(px, py, ramp[tone]);
         if (snow && y < 3 + (x < 0 ? 1 : 0) && hash(px, py, 9) < 0.8) b.set(px, py, x < 0 ? "n4" : "n3");
       }
     }
-  }
-  return withOutline(b, "f0");
+  });
+  return withOutline(b, dark ? "ink" : "f0");
 }
 
 export function bush(berries = false) {
@@ -185,16 +315,274 @@ export function rock(big = false) {
   return withOutline(b, "s0");
 }
 
+/** Tocón: corte redondo con anillos, corteza en vetas y raíces que se abren al pie. 16×12. */
 export function stump() {
-  const b = new Buf(14, 12);
-  shadow(b, 7, 10, 6, 2);
-  b.rect(2, 4, 10, 6, "o2");
-  b.vline(2, 4, 6, "o3");
-  b.vline(11, 4, 6, "o1");
-  b.ellipse(7, 4, 5, 2.5, "o4");
-  b.ellipse(7, 4, 3, 1.5, "o5");
-  b.set(7, 4, "o3");
+  const b = new Buf(16, 12);
+  stumpBody(b);
   return withOutline(b, "o0");
+}
+
+function stumpBody(b) {
+  shadow(b, 8, 10.5, 7, 1.6);
+  // Tronco corto que se ensancha abajo.
+  for (let y = 4; y < 10; y += 1) {
+    const flare = y > 7 ? y - 7 : 0;
+    for (let x = 3 - flare; x <= 12 + flare; x += 1) {
+      const u = (x - 3) / 9;
+      b.set(x, y, u < 0.2 ? "o4" : u < 0.55 ? "o3" : u < 0.85 ? "o2" : "o1");
+    }
+  }
+  // Vetas de la corteza.
+  for (const x of [5, 8, 11]) b.vline(x, 6, 3, x > 9 ? "o0" : "o1");
+  // Raíces.
+  b.hline(0, 10, 3, "o2"); b.set(1, 9, "o3");
+  b.hline(13, 10, 3, "o1");
+  // Corte: anillos claros con el centro oscuro.
+  b.ellipse(7.5, 4, 5.5, 2.4, "o4");
+  b.ellipse(7.5, 4, 4, 1.6, "o5");
+  b.ellipse(7.5, 4, 2, 0.9, "o4");
+  b.set(7, 4, "o3");
+}
+
+// ---------- Capa de detalle de las rutas (G6) ----------
+// Cosas chicas que se reparten por las rutas con ruido (claros y zonas densas). Las que se paran
+// (hongos, arbustos, tocones, columnas) son sprites ordenados por y; las planas (piedritas, charcos,
+// huellas, hojarasca) se hornean en el suelo (mapbuild.js → paintDecals).
+
+/** Tocón viejo con musgo encima y un retoño. 16×12. */
+export function stumpMoss() {
+  const b = new Buf(16, 12);
+  stumpBody(b);
+  // Musgo que cae por la izquierda (lado de la luz) y cubre medio corte.
+  [[2, 3], [3, 3], [4, 2], [5, 2], [2, 4], [3, 5], [3, 6], [4, 7], [2, 8], [3, 4], [4, 3]].forEach(([x, y], i) => b.set(x, y, i % 3 ? "g3" : "g4"));
+  b.set(6, 2, "g2"); b.set(12, 3, "g3");
+  // Retoño.
+  b.set(11, 1, "g4"); b.set(10, 0, "g5"); b.set(11, 2, "g2");
+  return withOutline(b, "o0");
+}
+
+/** Racimo de hongos: 0 = sombrero rojo con pintas, 1 = pardos. 12×10. */
+export function mushrooms(variant = 0) {
+  const b = new Buf(12, 10);
+  shadow(b, 6, 8.5, 5, 1.3);
+  const caps = variant ? ["o2", "o3", "o4", "o5"] : ["e1", "e2", "e3", "e4"];
+  const heads = variant ? [[3, 5, 2.6], [8, 4, 3], [6, 7, 2]] : [[4, 4, 3.2], [9, 6, 2.2]];
+  for (const [x, y, r] of heads) {
+    b.rect(Math.round(x) - 1, y, 2, 8 - y + (r > 2.5 ? 1 : 0), "c3");
+    b.set(Math.round(x), y + 1, "c1");
+  }
+  for (const [x, y, r] of heads) {
+    b.ellipse(x, y, r, r * 0.65, caps[1]);
+    b.ellipse(x - 0.5, y - 0.5, r * 0.7, r * 0.4, caps[2]);
+    b.set(Math.round(x - r * 0.5), Math.round(y - 1), caps[3]);
+    b.hline(Math.round(x - r) + 1, Math.round(y + r * 0.5), Math.round(r * 2) - 1, caps[0]);
+    if (!variant) { b.set(Math.round(x + 0.5), Math.round(y - 1), "c4"); b.set(Math.round(x - 1), Math.round(y), "c4"); }
+  }
+  return withOutline(b, variant ? "o0" : "e0");
+}
+
+/** Arbusto bajo con flores. 0 = rojas, 1 = violetas, 2 = amarillas. 16×12. */
+export function flowerBush(variant = 0) {
+  const b = new Buf(16, 12);
+  shadow(b, 8, 10, 7, 1.6);
+  const ramp = ["g1", "g2", "g3", "g4", "g5"];
+  sphere(b, 5, 7, 4, 3.2, ramp, { seed: 21 + variant });
+  sphere(b, 11, 7, 4, 3.2, ramp, { seed: 22 + variant });
+  sphere(b, 8, 5, 4.5, 3.4, ramp, { seed: 23 + variant });
+  const petal = [["e3", "e4"], ["v3", "v4"], ["y3", "y4"]][variant % 3];
+  const r = rng(40 + variant);
+  for (let i = 0; i < 7; i += 1) {
+    const x = 2 + Math.floor(r() * 12);
+    const y = 2 + Math.floor(r() * 6);
+    if (b.alpha(x, y) !== 255) continue;
+    b.set(x, y, petal[1]);
+    if (b.alpha(x + 1, y + 1) === 255) b.set(x + 1, y + 1, petal[0]);
+  }
+  return withOutline(b, "g0");
+}
+
+/** Tronco caído con musgo y un hongo. 30×13. */
+export function mossLog() {
+  const b = new Buf(30, 13);
+  shadow(b, 15, 11, 14, 1.6);
+  b.rect(4, 3, 22, 7, "o3");
+  b.hline(4, 3, 22, "o4");
+  b.hline(4, 4, 22, "o4");
+  b.hline(4, 9, 22, "o1");
+  for (let x = 7; x < 25; x += 5) b.hline(x, 6, 3, "o2");
+  // Corte del tronco a la izquierda, anillos.
+  b.ellipse(4, 6, 2.6, 3.6, "o4");
+  b.ellipse(4, 6, 1.6, 2.2, "o5");
+  b.set(4, 6, "o3");
+  // Musgo encima.
+  for (let x = 8; x < 25; x += 1) {
+    const n = hash(x, 1, 33);
+    if (n < 0.7) b.set(x, 3, n < 0.35 ? "g4" : "g3");
+    if (n < 0.3) b.set(x, 2, "g3");
+  }
+  // Rama rota.
+  b.set(19, 1, "o3"); b.set(20, 0, "o3"); b.set(19, 2, "o2");
+  // Hongo chiquito al pie.
+  b.set(26, 8, "c3"); b.set(26, 7, "o4"); b.set(25, 7, "o4"); b.set(27, 7, "o3");
+  return withOutline(b, "o0");
+}
+
+/** Columna rota de una ruina vieja: 0 = alta, 1 = muñón bajo con hiedra. 16×30. */
+export function ruinColumn(variant = 0) {
+  const b = new Buf(16, 30);
+  contact(b, 8, 27, 7, 1.6);
+  const top = variant ? 14 : 4;
+  // Basa
+  b.rect(1, 24, 14, 4, "s3");
+  b.hline(1, 24, 14, "s5");
+  b.vline(14, 24, 4, "s1");
+  b.hline(1, 27, 14, "s1");
+  // Fuste acanalado, luz a la izquierda.
+  for (let y = top; y < 24; y += 1) for (let x = 3; x < 13; x += 1) {
+    const flute = (x - 3) % 3 === 2;
+    const tone = x < 5 ? "s5" : x < 8 ? "s4" : x < 11 ? "s3" : "s2";
+    b.set(x, y, flute ? (x < 7 ? "s3" : "s1") : tone);
+  }
+  // Rotura dentada arriba.
+  for (let x = 3; x < 13; x += 1) {
+    const cut = Math.floor(hash(x, variant, 41) * 4);
+    for (let y = top; y < top + cut; y += 1) b.data[y * b.w + x] = 0;
+    b.set(x, top + cut, x < 7 ? "s5" : "s4");
+  }
+  // Grieta y liquen.
+  for (let y = top + 5; y < 22; y += 3) b.set(8 + (y % 2), y, "s1");
+  b.set(4, 20, "l3"); b.set(5, 21, "l2"); b.set(11, 17, "t2");
+  if (variant) {
+    // Hiedra que trepa.
+    for (let y = top + 2; y < 24; y += 1) if (hash(1, y, 43) < 0.7) b.set(3 + (y % 3 === 0 ? 1 : 0), y, y % 2 ? "g3" : "g2");
+    b.set(4, top + 3, "g4"); b.set(5, top + 5, "g4");
+  }
+  return withOutline(b, "s0");
+}
+
+/** Bloques caídos de una ruina, medio enterrados. 24×12. */
+export function ruinBlocks() {
+  const b = new Buf(24, 12);
+  shadow(b, 12, 10, 11, 1.6);
+  const block = (x, y, w, h) => {
+    b.rect(x, y, w, h, "s3");
+    b.hline(x, y, w, "s5");
+    b.vline(x, y, h, "s4");
+    b.vline(x + w - 1, y, h, "s2");
+    b.hline(x, y + h - 1, w, "s1");
+  };
+  block(2, 5, 9, 5);
+  block(12, 3, 8, 7);
+  block(9, 8, 6, 3);
+  b.set(14, 5, "s1"); b.set(15, 6, "s1");
+  b.set(3, 4, "g3"); b.set(4, 4, "g4"); b.set(19, 9, "g3"); b.set(20, 9, "g2");
+  return withOutline(b, "s0");
+}
+
+/** Mojón de piedra en los cruces de camino, con una marca tallada. 12×16. */
+export function milestone() {
+  const b = new Buf(12, 16);
+  contact(b, 6, 14, 5, 1.3);
+  for (let y = 2; y < 14; y += 1) for (let x = 2; x < 10; x += 1) {
+    if (y < 4 && (x === 2 || x === 9)) continue;
+    if (y === 2 && (x === 3 || x === 8)) continue;
+    b.set(x, y, x < 4 ? "s5" : x < 7 ? "s4" : x < 9 ? "s3" : "s2");
+  }
+  b.hline(2, 13, 8, "s1");
+  // Marca: flecha tallada y un número.
+  b.vline(6, 5, 5, "s1"); b.set(6, 4, "s1"); b.set(5, 5, "s1"); b.set(7, 5, "s1"); b.set(4, 6, "s2"); b.set(8, 6, "s2");
+  b.hline(4, 11, 4, "s2");
+  b.set(3, 12, "g3"); b.set(2, 12, "g4"); b.set(9, 12, "g2");
+  return withOutline(b, "s0");
+}
+
+// ---------- Calcomanías planas (se hornean en el suelo) ----------
+
+/** Piedritas sueltas. tone: "stone" | "sand" | "snow". 3 variantes. ~9×5. */
+export function pebbles(variant = 0, tone = "stone") {
+  const R = { stone: ["s1", "s3", "s4", "s5"], sand: ["d2", "d3", "d5", "d6"], snow: ["s2", "s4", "n3", "n4"] }[tone];
+  const b = new Buf(10, 6);
+  const layouts = [
+    [[1, 2, 2], [5, 1, 3], [7, 4, 1]],
+    [[2, 3, 3], [6, 3, 1], [4, 0, 1]],
+    [[1, 1, 1], [4, 2, 2], [7, 1, 2], [3, 4, 1]],
+  ][variant % 3];
+  for (const [x, y, w] of layouts) {
+    b.hline(x, y + 1, w, R[0]);
+    b.hline(x, y, w, R[2]);
+    b.set(x, y, R[3]);
+    if (w > 2) b.set(x + w - 1, y, R[1]);
+  }
+  return b;
+}
+
+/** Charco con reflejo del cielo. 0 = alargado, 1 = redondo. */
+export function puddle(variant = 0) {
+  const [w, h, rx, ry] = variant ? [14, 8, 6, 3] : [20, 7, 9, 2.6];
+  const b = new Buf(w, h);
+  b.ellipse(w / 2, h / 2, rx + 1, ry + 1, "d2");
+  b.ellipse(w / 2, h / 2, rx, ry, "w2");
+  b.ellipse(w / 2 + 1, h / 2 + 0.5, rx - 1.5, ry - 0.8, "w3");
+  // Reflejo: una raya clara arriba a la izquierda.
+  b.hline(Math.round(w / 2 - rx / 2), Math.floor(h / 2 - ry / 2), Math.max(2, Math.round(rx / 2)), "w5");
+  b.set(Math.round(w / 2 + rx / 2), Math.floor(h / 2), "w4");
+  // Canto de lodo abajo.
+  for (let x = 0; x < w; x += 1) {
+    let y = h - 1;
+    while (y > 0 && !b.alpha(x, y)) y -= 1;
+    if (b.alpha(x, y)) b.set(x, y, "d1");
+  }
+  return b;
+}
+
+/**
+ * Huellas en el camino. kind: "boot" (pisadas que suben), "hoof" (herraduras), "cart" (rodadas cortas).
+ * `soil`: "dirt" | "snow" | "sand" elige el tono de la huella.
+ */
+export function footprints(kind = "boot", soil = "dirt") {
+  const T2 = { dirt: ["d1", "d2"], snow: ["n1", "n2"], sand: ["d3", "d4"] }[soil];
+  if (kind === "cart") {
+    const b = new Buf(12, 16);
+    for (let y = 0; y < 16; y += 1) {
+      const dx = Math.round(Math.sin(y * 0.3) * 0.6);
+      if (hash(0, y, 51) < 0.85) b.set(1 + dx, y, T2[0]);
+      if (hash(1, y, 51) < 0.85) b.set(10 + dx, y, T2[0]);
+      if (y % 3 === 0) { b.set(2 + dx, y, T2[1]); b.set(11 + dx, y, T2[1]); }
+    }
+    return b;
+  }
+  const b = new Buf(10, 16);
+  const steps = kind === "hoof" ? [[1, 12], [6, 8], [2, 3]] : [[1, 11], [5, 6], [1, 1]];
+  for (const [x, y] of steps) {
+    if (kind === "hoof") {
+      // Herradura: una U abierta hacia arriba.
+      b.set(x, y, T2[0]); b.set(x + 2, y, T2[0]);
+      b.set(x, y + 1, T2[0]); b.set(x + 2, y + 1, T2[0]);
+      b.hline(x, y + 2, 3, T2[0]);
+      b.set(x + 1, y + 1, T2[1]);
+    } else {
+      // Bota: suela de 2×3 y tacón separado.
+      b.rect(x, y, 2, 3, T2[1]);
+      b.hline(x, y + 2, 2, T2[0]);
+      b.hline(x, y + 4, 2, T2[0]);
+    }
+  }
+  return b;
+}
+
+/** Hojarasca: hojas sueltas del piso del bosque (se hornea entre los árboles). */
+export function leafLitter(variant = 0, autumn = false) {
+  const b = new Buf(12, 8);
+  const cols = autumn ? ["r3", "y2", "o4", "r2"] : ["o3", "o4", "t2", "f2"];
+  const r = rng(61 + variant);
+  for (let i = 0; i < 6; i += 1) {
+    const x = Math.floor(r() * 10);
+    const y = Math.floor(r() * 7);
+    const c2 = cols[Math.floor(r() * cols.length)];
+    b.set(x, y, c2);
+    if (r() < 0.6) b.set(x + 1, y, c2);
+  }
+  return b;
 }
 
 // ---------- Construcciones pequeñas ----------

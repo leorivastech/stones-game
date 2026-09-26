@@ -36,8 +36,15 @@ export class BootScene extends Phaser.Scene {
     for (const cast of Object.keys(CASTS)) {
       for (const [dir, base] of Object.entries(SHEET_INDEX)) {
         const walk = POSE.walk.map((f) => ({ key: `cast-${cast}`, frame: base + f }));
-        a.create({ key: `${cast}-walk-${dir}`, frames: walk, frameRate: 9, repeat: -1 });
-        a.create({ key: `${cast}-run-${dir}`, frames: walk, frameRate: 14, repeat: -1 });
+        // 6 cuadros de paso: 13/s caminando y 20/s corriendo (la misma zancada que 4 a 9 y 14).
+        a.create({ key: `${cast}-walk-${dir}`, frames: walk, frameRate: 13, repeat: -1 });
+        a.create({ key: `${cast}-run-${dir}`, frames: walk, frameRate: 20, repeat: -1 });
+        // Ataque cargado listo: brilla y tiembla (dos cuadros, uno corrido 1 px).
+        a.create({ key: `${cast}-charge-${dir}`, frames: POSE.charge.map((f) => ({ key: `cast-${cast}`, frame: base + f })), frameRate: 18, repeat: -1 });
+        // Trabajo (el herrero martilla: 1.2 s por golpe) y acomodar (el comerciante estira las manos).
+        const at = (f, duration) => ({ key: `cast-${cast}`, frame: base + f, duration });
+        a.create({ key: `${cast}-work-${dir}`, frames: [at(POSE.idle, 420), at(POSE.windup, 480), at(POSE.strike, 300)], frameRate: 1000, repeat: -1 });
+        a.create({ key: `${cast}-reach-${dir}`, frames: [at(POSE.windup, 260), at(POSE.strike, 340)], frameRate: 1000, repeat: 1 });
         // Respirar: quieto un rato, cabeza abajo un momento.
         a.create({
           key: `${cast}-idle-${dir}`,
@@ -49,6 +56,7 @@ export class BootScene extends Phaser.Scene {
     a.create({ key: "roll", frames: [0, 1, 2, 3].map((f) => ({ key: "roll", frame: f })), frameRate: 18, repeat: -1 });
     for (const dir of ["right", "down", "left", "up"]) {
       a.create({ key: `slash-${dir}`, frames: [0, 1, 2].map((f) => ({ key: `slash-${dir}`, frame: f })), frameRate: 20, repeat: 0 });
+      a.create({ key: `slash-wide-${dir}`, frames: [0, 1, 2, 3].map((f) => ({ key: `slash-wide-${dir}`, frame: f })), frameRate: 22, repeat: 0 });
       a.create({ key: `claw-${dir}`, frames: [0, 1, 2].map((f) => ({ key: `claw-${dir}`, frame: f })), frameRate: 18, repeat: 0 });
     }
     a.create({ key: "boar-walk", frames: [0, 1].map((f) => ({ key: "boar", frame: f })), frameRate: 6, repeat: -1 });
@@ -56,9 +64,18 @@ export class BootScene extends Phaser.Scene {
     a.create({ key: "wolf-walk", frames: [0, 1].map((f) => ({ key: "wolf", frame: f })), frameRate: 7, repeat: -1 });
     a.create({ key: "wolf-run", frames: [0, 1].map((f) => ({ key: "wolf", frame: f })), frameRate: 16, repeat: -1 });
     a.create({ key: "scorpion-walk", frames: [0, 1].map((f) => ({ key: "scorpion", frame: f })), frameRate: 8, repeat: -1 });
+    // Vistas de frente (4-5) y de espalda (6-7): el sprite elige según hacia dónde va (enemies.js).
+    for (const [kind, walk, run] of [["boar", 6, 14], ["wolf", 7, 16], ["scorpion", 8, 12]]) {
+      for (const [view, base] of [["down", 4], ["up", 6]]) {
+        const frames = [0, 1].map((f) => ({ key: kind, frame: base + f }));
+        a.create({ key: `${kind}-walk-${view}`, frames, frameRate: walk, repeat: -1 });
+        a.create({ key: `${kind}-run-${view}`, frames, frameRate: run, repeat: -1 });
+      }
+    }
     // Caballo: 0-3 de lado, 4-7 de frente, 8-11 de espalda.
     [["side", 0], ["down", 4], ["up", 8]].forEach(([view, base]) => {
       a.create({ key: `horse-${view}`, frames: [0, 1, 2, 3].map((f) => ({ key: "horse", frame: base + f })), frameRate: 8, repeat: -1 });
+      a.create({ key: `cart-${view}`, frames: [0, 1, 2, 3].map((f) => ({ key: `cart-${view}`, frame: f })), frameRate: 8, repeat: -1 });
     });
     a.create({ key: "dust", frames: [0, 1, 2, 3].map((f) => ({ key: "dust", frame: f })), frameRate: 16, repeat: 0 });
     a.create({ key: "spark", frames: [0, 1, 2].map((f) => ({ key: "spark", frame: f })), frameRate: 22, repeat: 0 });

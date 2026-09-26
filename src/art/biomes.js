@@ -24,34 +24,42 @@ function stroke(b, pointAt, widthAt, colorAt, steps = 60) {
 
 // ---------- Selva ----------
 
-/** Palmera. `sway` (0/1): las puntas de las pencas se corren 1 px (segundo cuadro del vaivén). */
-export function palm(variant = 0, sway = 0) {
-  const b = new Buf(40, 48);
-  contact(b, 20, 45, 4, 1.5);
-  const lean = variant % 2 ? -4 : 5;
+/**
+ * Palmera. `sway` (0/1): las puntas de las pencas se corren 1 px (segundo cuadro del vaivén).
+ * `small`: palmera joven (32×36), tronco corto y pencas más cortas.
+ */
+export function palm(variant = 0, sway = 0, small = false) {
+  const k = small ? 0.68 : 1;
+  const W = small ? 32 : 40;
+  const H = small ? 36 : 48;
+  const b = new Buf(W, H);
+  const fx = W / 2;
+  const fy = H - 2;
+  contact(b, fx, fy - 1, small ? 3 : 4, 1.5);
+  const lean = (variant % 2 ? -4 : 5) * k;
   // Tronco curvo en anillos.
-  stroke(b, (t) => [20 + lean * t * t, 46 - t * 30], () => 4.2, (t, dx) => {
+  stroke(b, (t) => [fx + lean * t * t, fy - t * 30 * k], () => (small ? 3.4 : 4.2), (t, dx) => {
     const ring = Math.floor((1 - t) * 30) % 3 === 0;
     if (ring) return "o2";
     return dx < -0.8 ? "o5" : dx > 0.8 ? "o2" : "o4";
   });
-  const cx = 20 + lean;
-  const cy = 15;
+  const cx = fx + lean;
+  const cy = fy - 31 * k;
   const r = rng(51 + variant);
   const fronds = [200, 235, 270, 305, 340, 20, 160, 110].map((a) => a + (r() - 0.5) * 18);
   for (const deg of fronds) {
     const a = (deg * Math.PI) / 180;
-    const len = 13 + r() * 5;
-    const droop = 7 + r() * 4;
+    const len = (13 + r() * 5) * k;
+    const droop = (7 + r() * 4) * k;
     const px = (t) => cx + Math.cos(a) * len * t + sway * t * t * 1.4;
     const py = (t) => cy + Math.sin(a) * len * t * 0.8 + droop * t * t;
-    stroke(b, (t) => [px(t), py(t)], (t) => 1 + 3.2 * Math.sin(Math.PI * Math.min(1, t * 1.1)), (t, dx, dy) => {
+    stroke(b, (t) => [px(t), py(t)], (t) => 1 + 3.2 * k * Math.sin(Math.PI * Math.min(1, t * 1.1)), (t, dx, dy) => {
       if (Math.abs(dy) < 0.5 && t < 0.8) return "f2";
       return dy < 0 ? (t < 0.5 ? "g4" : "g5") : t < 0.5 ? "g3" : "f4";
     });
   }
   // Cocos.
-  [[cx - 2, cy + 2], [cx + 1, cy + 3], [cx - 1, cy + 4]].forEach(([x, y]) => { b.ellipse(x, y, 1.6, 1.6, "o2"); b.set(Math.round(x - 0.5), Math.round(y - 1), "o4"); });
+  if (!small) [[cx - 2, cy + 2], [cx + 1, cy + 3], [cx - 1, cy + 4]].forEach(([x, y]) => { b.ellipse(x, y, 1.6, 1.6, "o2"); b.set(Math.round(x - 0.5), Math.round(y - 1), "o4"); });
   return withOutline(b, "f0");
 }
 
@@ -166,9 +174,11 @@ export function sandRock(big = false) {
 
 // ---------- Nieve ----------
 
-export function bareTree(snow = true) {
+/** Árbol pelado. `variant` cambia la forma: 0 = copa en V, 1 = torcido y bajo, 2 = alto y ralo. */
+export function bareTree(snow = true, variant = 0) {
   const b = new Buf(30, 40);
   contact(b, 15, 37, 4, 1.5);
+  const [spreadL, spreadR, first, shrink] = [[0.45, 0.4, 13, 0.68], [0.6, 0.35, 10, 0.74], [0.35, 0.5, 11, 0.75]][variant % 3];
   const branch = (x, y, a, len, w, depth) => {
     const x2 = x + Math.cos(a) * len;
     const y2 = y + Math.sin(a) * len;
@@ -179,12 +189,50 @@ export function bareTree(snow = true) {
       if (Math.abs(Math.sin(a)) < 0.85) b.set(sx, sy, hash(sx, sy, 2) < 0.5 ? "n4" : "white");
     }
     if (depth > 0) {
-      branch(x2, y2, a - 0.45, len * 0.68, Math.max(1, w - 1), depth - 1);
-      branch(x2, y2, a + 0.4, len * 0.62, Math.max(1, w - 1), depth - 1);
+      branch(x2, y2, a - spreadL, len * shrink, Math.max(1, w - 1), depth - 1);
+      branch(x2, y2, a + spreadR, len * (shrink - 0.06), Math.max(1, w - 1), depth - 1);
     }
   };
-  branch(15, 37, -Math.PI / 2, 13, 4, 3);
+  branch(15, 37, -Math.PI / 2 + (variant === 1 ? 0.18 : 0), first, 4, 3);
   return withOutline(b, "ink2");
+}
+
+/** Montículo de nieve blanda, con sombra azulada abajo a la derecha. 0 = largo, 1 = doble. 20×9. */
+export function snowMound(variant = 0) {
+  const b = new Buf(20, 9);
+  shadow(b, 10, 7.5, 9, 1.5);
+  const ramp = ["n1", "n2", "n3", "n4", "white"];
+  if (variant) {
+    sphere(b, 6, 6, 5, 3, ramp, { seed: 71, grain: 0.05, rim: false });
+    sphere(b, 13, 5.5, 6, 3.4, ramp, { seed: 72, grain: 0.05, rim: false });
+  } else sphere(b, 10, 5.5, 8.5, 3.2, ramp, { seed: 73, grain: 0.05, rim: false });
+  // Pasto seco que asoma.
+  b.set(4, 3, "t2"); b.set(5, 2, "t3"); b.set(15, 2, "t2");
+  return withOutline(b, "n0");
+}
+
+/** Cactus bola chico con flor. 12×12. */
+export function cactusSmall() {
+  const b = new Buf(12, 12);
+  contact(b, 6, 10, 4, 1.2);
+  sphere(b, 6, 6.5, 4.2, 4, ["f1", "f2", "f3", "f4", "f5"], { seed: 81, grain: 0.1 });
+  for (let x = 3; x < 10; x += 2) b.vline(x, 4, 5, "f2");
+  [[3, 5], [8, 4], [5, 8], [9, 7]].forEach(([x, y]) => b.set(x, y, "c4"));
+  b.set(6, 2, "e3"); b.set(5, 2, "e4"); b.set(7, 2, "e4"); b.set(6, 1, "y4");
+  return withOutline(b, "f0");
+}
+
+/** Huesos al sol (calcomanía del desierto): costillas y un cráneo chico. 14×7. */
+export function bones() {
+  const b = new Buf(14, 7);
+  for (let i = 0; i < 4; i += 1) {
+    b.set(1 + i * 2, 2, "c3"); b.set(1 + i * 2, 3, "c4"); b.set(2 + i * 2, 4, "c2");
+  }
+  b.hline(1, 5, 8, "c2");
+  b.rect(10, 2, 3, 3, "c4");
+  b.set(10, 3, "d1"); b.set(12, 3, "d1");
+  b.hline(10, 5, 3, "c2");
+  return b;
 }
 
 export function snowRock(big = false) {

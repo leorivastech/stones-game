@@ -73,6 +73,7 @@ function applyEcon(econ) {
   reg.set("drift", econ.drift);
   reg.set("mods", econ.mods);
   reg.set("heat", econ.heat);
+  reg.set("caravans", econ.caravans ?? []);
 }
 
 const CORE = {

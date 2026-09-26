@@ -194,7 +194,7 @@ export function paintGround(grid, { biome = "temperate", seed = 7, crispCobble =
 
   // 5) Adornos sueltos: matas, flores, piedritas.
   decorate(buf, ter, W, H, seed, gpAt);
-  return { buf, ter, W, H };
+  return { buf, ter, W, H, wd: waterDist };
 }
 
 function shadowOf(t, gp, amount) {
@@ -470,12 +470,150 @@ function water(x, y, seed, wd) {
   if (wd <= 1) return c(hash(x, y >> 1, seed) < 0.75 ? "w6" : "w5");
   if (wd <= 2) return c(bayer(x, y) < 0.6 ? "w5" : "w4");
   if (wd <= 5) return c(bayer(x, y) < (5 - wd) / 3 ? "w4" : "w3");
-  const deep = wd > 14 ? 1 : wd > 9 ? 0.5 : 0;
-  // Brillos horizontales sueltos.
+  // Brillos horizontales sueltos (sólo en el agua horneada: la capa animada pone olas y destellos).
   const glint = hash(Math.floor(x / 5), y, seed + 41) < 0.018;
   if (glint) return c("w4");
+  return deepWater(x, y, seed, wd);
+}
+
+function deepWater(x, y, seed, wd) {
+  const deep = wd > 14 ? 1 : wd > 9 ? 0.5 : 0;
   if (deep && bayer(x, y) < deep) return c("w1");
   return c(patch(x, y, 18, seed + 43, 0.25, 0.8) > 0 ? "w3" : "w2");
+}
+
+// ---------- Agua animada (G4) ----------
+//
+// El suelo trae el agua horneada (sirve de respaldo). Encima, mapbuild.js pone una hoja de
+// WATER_FRAMES cuadros por cada río, canal, estanque o golfo, recortada a su rectángulo: olas
+// cortas que avanzan y se deshacen, espuma de orilla que late y destellos que titilan. Cada ola,
+// cada tramo de costa y cada destello lleva su propio desfase, así que con una sola animación
+// compartida (todas las hojas cambian de cuadro a la vez) el agua no se mueve en bloque.
+// El hielo (estanque helado) no tiene olas: sólo destellos lentos sobre el suelo horneado.
+
+export const WATER_FRAMES = 4;
+
+/** Rectángulos (en píxeles, alineados a la rejilla) que cubren cada mancha conexa de `kind`. */
+export function waterRegions(ter, W, H, kind = T.WATER) {
+  const cols = Math.ceil(W / TILE);
+  const rows = Math.ceil(H / TILE);
+  const has = new Uint8Array(cols * rows);
+  for (let y = 0; y < H; y += 1) for (let x = 0; x < W; x += 1) if (ter[y * W + x] === kind) has[(y >> 4) * cols + (x >> 4)] = 1;
+  const seen = new Uint8Array(cols * rows);
+  const out = [];
+  for (let i = 0; i < has.length; i += 1) {
+    if (!has[i] || seen[i]) continue;
+    let x0 = cols;
+    let y0 = rows;
+    let x1 = -1;
+    let y1 = -1;
+    const stack = [i];
+    seen[i] = 1;
+    while (stack.length) {
+      const j = stack.pop();
+      const cx = j % cols;
+      const cy = (j - cx) / cols;
+      x0 = Math.min(x0, cx); x1 = Math.max(x1, cx); y0 = Math.min(y0, cy); y1 = Math.max(y1, cy);
+      for (let dy = -1; dy <= 1; dy += 1) for (let dx = -1; dx <= 1; dx += 1) {
+        const nx = cx + dx;
+        const ny = cy + dy;
+        if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
+        const k = ny * cols + nx;
+        if (has[k] && !seen[k]) { seen[k] = 1; stack.push(k); }
+      }
+    }
+    out.push({ x: x0 * TILE, y: y0 * TILE, w: Math.min(W, (x1 + 1) * TILE) - x0 * TILE, h: Math.min(H, (y1 + 1) * TILE) - y0 * TILE });
+  }
+  return out;
+}
+
+/** Un píxel de agua en el cuadro `k`. */
+function waterFrame(x, y, seed, wd, k) {
+  // Espuma de orilla que late: la franja crece y se recoge; cada tramo de costa a su compás.
+  const beat = (k + Math.floor(smoothNoise(x, y, 22, seed + 5) * 4)) & 3;
+  const reach = [1, 2, 3, 2][beat];
+  if (wd <= 1) return c(hash(x, y >> 1, seed) < 0.75 ? "w6" : "w5");
+  if (wd <= reach) return c(bayer(x, y) < (wd >= 3 ? 0.35 : 0.65) ? "w6" : "w5");
+  // Resaca: al recogerse la espuma queda una rayita clara un poco más adentro.
+  if (beat === 0 && wd === 3 && bayer(x, y) < 0.5) return c("w5");
+  if (wd <= 2) return c(bayer(x, y) < 0.6 ? "w5" : "w4");
+  const base = wd <= 5 ? (bayer(x, y) < (5 - wd) / 3 ? "w4" : "w3") : null;
+  const deep = base ?? (wd > 14 && bayer(x, y) < 1 ? "w1" : wd > 9 && bayer(x, y) < 0.5 ? "w1" : patch(x, y, 18, seed + 43, 0.25, 0.8) > 0 ? "w3" : "w2");
+  if (wd > 3) {
+    // Olas: crestas cortas en hileras corridas; cada una avanza 1 px por cuadro, crece y se deshace.
+    const row = Math.floor(y / 6);
+    const ly = y - row * 6;
+    if (ly === 3 || ly === 4) {
+      const off = (row * 7) % 13;
+      const col = Math.floor((x + off) / 13);
+      const lx = x + off - col * 13;
+      const h1 = hash(col, row, seed + 91);
+      if (h1 < 0.42 && smoothNoise(x, y, 28, seed + 93) > 0.28) {
+        const p = (k + Math.floor(h1 * 97)) & 3;
+        const len = [3, 5, 4, 0][p];
+        const start = 1 + Math.floor(hash(col, row, seed + 92) * 3) + p;
+        if (len && lx >= start && lx < start + len) {
+          if (ly === 3) return c(p === 1 && lx > start && lx < start + len - 1 ? "w5" : "w4");
+          if (lx > start) return c(deep === "w3" || deep === "w4" ? "w2" : "w1");
+        }
+      }
+    }
+  }
+  if (wd > 5) {
+    // Destellos en lo hondo: una crucecita que se prende y se apaga, cada una a su ritmo.
+    const tx = x >> 3;
+    const ty = y >> 3;
+    const th = hash(tx, ty, seed + 97);
+    if (th < 0.07) {
+      const sx = (tx << 3) + 2 + Math.floor(hash(tx, ty, seed + 98) * 4);
+      const sy = (ty << 3) + 2 + Math.floor(hash(tx, ty, seed + 99) * 4);
+      const p = (k + Math.floor(th * 400)) & 3;
+      if (p === 0 && ((x === sx && Math.abs(y - sy) <= 1) || (y === sy && Math.abs(x - sx) <= 1))) return c(x === sx && y === sy ? "w6" : "w5");
+      if (p === 1 && x === sx && y === sy) return c("w5");
+    }
+  }
+  return c(deep);
+}
+
+/** Destello lento sobre el hielo (0 = transparente: se ve el hielo horneado). */
+function iceFrame(x, y, seed, k) {
+  const tx = Math.floor(x / 12);
+  const ty = Math.floor(y / 10);
+  const th = hash(tx, ty, seed + 101);
+  if (th >= 0.3) return 0;
+  const sx = tx * 12 + 3 + Math.floor(hash(tx, ty, seed + 102) * 6);
+  const sy = ty * 10 + 2 + Math.floor(hash(tx, ty, seed + 103) * 6);
+  const p = (k + Math.floor(th * 300)) & 3;
+  const dx = Math.abs(x - sx);
+  const dy = Math.abs(y - sy);
+  if (p === 1 && !dx && !dy) return c("n4");
+  if (p === 2 && ((!dx && dy <= 1) || (!dy && dx <= 1))) return c(!dx && !dy ? "white" : "n4");
+  if (p === 2 && !dx && dy === 2 && bayer(x, y) < 0.5) return c("n4");
+  if (p === 3 && !dx && !dy) return c("white");
+  return 0;
+}
+
+/**
+ * Hoja animada de un rectángulo de agua (o de hielo): `frames` cuadros del tamaño del rectángulo,
+ * en fila (o en columna si el rectángulo es más ancho que alto, para no pasar del tope de textura).
+ * Sólo pinta los píxeles de ese terreno; lo demás queda transparente.
+ */
+export function paintWaterSheet(ter, wd, W, rect, { seed = 7, kind = T.WATER, frames = WATER_FRAMES } = {}) {
+  const across = rect.w <= rect.h;
+  const buf = new Buf(across ? rect.w * frames : rect.w, across ? rect.h : rect.h * frames);
+  for (let k = 0; k < frames; k += 1) {
+    const ox = across ? k * rect.w : 0;
+    const oy = across ? 0 : k * rect.h;
+    for (let y = 0; y < rect.h; y += 1) for (let x = 0; x < rect.w; x += 1) {
+      const gx = rect.x + x;
+      const gy = rect.y + y;
+      const i = gy * W + gx;
+      if (ter[i] !== kind) continue;
+      const col = kind === T.ICE ? iceFrame(gx, gy, seed, k) : waterFrame(gx, gy, seed, wd[i], k);
+      if (col) buf.data[(oy + y) * buf.w + ox + x] = col;
+    }
+  }
+  return { buf, frames, across, frameWidth: rect.w, frameHeight: rect.h };
 }
 
 function cliff(x, y, seed, at, gp) {

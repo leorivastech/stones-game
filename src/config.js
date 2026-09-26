@@ -23,6 +23,9 @@ export const PLAYER = {
   stamina: { runDrain: 1 / 3, rollCost: 0.35, regen: 0.5, delay: 500, recoverAt: 0.3 },
   // Rebote al pegarle de frente al escudo de un guardia.
   blockPush: 120,
+  // Ataque cargado: mantener la acción `hold` ms (tiembla y brilla) y soltar. Cuesta `cost` de aguante;
+  // sin aguante sale el golpe normal. Barrido amplio de `damage` con empujón ×`push` y congelado de muerte.
+  charge: { hold: 400, cost: 0.3, damage: 2, push: 1.6, time: 320 },
 };
 
 // knock: qué tan lejos sale volando al pegarle (los ligeros más). push: qué tan fuerte te empuja.

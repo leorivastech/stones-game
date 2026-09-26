@@ -22,8 +22,10 @@ function fitZoom() {
   const w = touch.on ? window.innerWidth - SIDE * 2 : window.innerWidth;
   const r = Math.min(w / VIEW_W, window.innerHeight / VIEW_H);
   const z = Math.max(1, Math.floor(r + 0.001));
-  // En celular la pantalla es chica: se usa todo lo que cabe (entero sólo si casi llega).
-  if (touch.on) return z >= 2 && r - z < 0.15 ? z : r;
+  // En celular también se prefiere el zoom entero (píxeles parejos) con franjas a los lados, si lo que
+  // se pierde es poco: menos de 12 % de la pantalla, o hasta 0.35 de zoom desde ×2. Sólo cuando el
+  // entero deja demasiado borde (un celular chico entre ×1 y ×2) se estira a lo que cabe.
+  if (touch.on) return z >= 3 || (z >= 2 && r - z < 0.35) || (r - z) / r < 0.12 ? z : r;
   return z < 3 && r - z > 0.35 ? r : z;
 }
 
