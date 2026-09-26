@@ -2332,6 +2332,7 @@ export class WorldScene extends Phaser.Scene {
   startTutorial() {
     const reg = this.registry;
     setTutorialStep(reg, 0);
+    setFlag(reg, "tutorialFrom", reg.get("currentTown"));
     setFlag(reg, "tutorial-ran", false);
     setFlag(reg, "tutorial-crouch", false);
     const lines = online.on
@@ -2348,6 +2349,11 @@ export class WorldScene extends Phaser.Scene {
     });
   }
 
+  /** Lo que falta hacer en el pueblo, dicho corto (para el aviso de "Antes: …"). */
+  tutorialText(step) {
+    return step === 0 ? "habla con Brena, la comerciante" : "compra una piedra en el mercado";
+  }
+
   /** En la ruta del tutorial ya corriste y te agachaste. */
   get tutorialHalf() {
     return flag(this.registry, "tutorial-ran") && flag(this.registry, "tutorial-crouch");
@@ -2359,11 +2365,18 @@ export class WorldScene extends Phaser.Scene {
     const step = tutorialStep(reg);
     if (step < 0) return;
     let next = null;
+    // Cada paso avanza sólo con SU acción: salir a la ruta o volver a un pueblo antes de tiempo
+    // no se salta pasos (antes salir de Ashfen sin comprar te llevaba al paso 4, y volver, al 5).
     if (kind === "shop" && step === 0) next = 1;
-    else if (kind === "buy" && step <= 1) next = 2;
-    else if (kind === "route" && step <= 2) next = 3;
-    else if (kind === "town" && step === 3) next = 4;
+    else if (kind === "buy" && step === 1) next = 2;
+    else if (kind === "route" && step === 2) next = 3;
+    else if (kind === "town" && step === 3 && reg.get("currentTown") !== ((reg.get("flags") ?? {}).tutorialFrom ?? "ashfen")) next = 4;
     else if (kind === "sell" && step === 4) { this.endTutorial(false); return; }
+    else if (kind === "route" && step < 2) {
+      // Saliste sin terminar lo del pueblo: se avisa y la flecha te regresa.
+      this.ui.queueNotice(() => this.ui.noticeToast(`Antes: ${this.tutorialText(step)}. Vuelve al pueblo`, "font-gold"));
+      return;
+    }
     if (next == null) return;
     setTutorialStep(reg, next);
     saveGame(reg);
@@ -2390,14 +2403,18 @@ export class WorldScene extends Phaser.Scene {
   /** A dónde apunta la flecha del paso: {x, y, dir} en el mundo (dir = hacia dónde apunta). */
   tutorialTarget(step) {
     const reg = this.registry;
-    if (step === 0 || step === 1 || step === 4) {
+    if ((step === 0 || step === 1 || step === 4) && this.def.kind !== "route") {
       const m = this.npcs.find((n) => n.spec.role === "market");
       return m ? { x: m.x, y: m.y - 42, dir: "down" } : null; // encima de la burbuja con la gema
     }
     const town = reg.get("currentTown");
-    const ex = step === 2
-      ? (this.def.exits ?? []).find((e) => MAPS[e.to]?.kind === "route")
-      : step === 3 ? (this.def.exits ?? []).find((e) => MAPS[e.to]?.kind === "town" && MAPS[e.to].town !== town) : null;
+    const from = (reg.get("flags") ?? {}).tutorialFrom ?? "ashfen";
+    const exits = this.def.exits ?? [];
+    const inRoute = this.def.kind === "route";
+    let ex = null;
+    if (inRoute && step < 2) ex = exits.find((e) => MAPS[e.to]?.town === from); // regresa a terminar lo del pueblo
+    else if (!inRoute && (step === 2 || step === 3)) ex = exits.find((e) => MAPS[e.to]?.kind === "route");
+    else if (inRoute && step === 3) ex = exits.find((e) => MAPS[e.to]?.kind === "town" && MAPS[e.to].town !== from);
     if (!ex) return null;
     const dir = this.exitDir(ex);
     const [ix, iy] = { up: [0, 1], down: [0, -1], left: [1, 0], right: [-1, 0] }[dir];
