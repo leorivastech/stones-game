@@ -7,26 +7,36 @@
 import { Buf, bayer, rng, smoothNoise, strip } from "./pixel.js";
 import { rgba } from "./palette.js";
 
-/** Copos: 0 chico (1 px), 1 mediano (2 px), 2 grande (cruz 3×3, para el primer plano). */
+/**
+ * Copos: 0 chico (1 px), 1 mediano (2 px), 2 grande (cruz 3×3, para el primer plano).
+ * Llevan un píxel azulado abajo para que se lean también sobre el suelo nevado.
+ */
 function snowSheet() {
   const f0 = new Buf(3, 3);
-  f0.set(1, 1, "n4");
+  f0.set(1, 1, "white"); f0.set(1, 2, "n2");
   const f1 = new Buf(3, 3);
-  f1.set(1, 1, "white"); f1.set(2, 1, "n4"); f1.set(1, 2, "n3");
+  f1.set(1, 1, "white"); f1.set(2, 1, "n4"); f1.set(1, 2, "n2"); f1.set(2, 2, "n1");
   const f2 = new Buf(3, 3);
-  f2.set(1, 0, "n3"); f2.set(0, 1, "n3"); f2.set(1, 1, "white"); f2.set(2, 1, "n4"); f2.set(1, 2, "n3");
+  f2.set(1, 0, "n3"); f2.set(0, 1, "n3"); f2.set(1, 1, "white"); f2.set(2, 1, "n4"); f2.set(1, 2, "n2");
   return strip([f0, f1, f2]);
 }
 
-/** Arena: grano de 1 px y estela de 2 px. */
+/**
+ * Arena en ráfaga: estelas claras de 2-6 px (se leen sobre la arena) y granos oscuros sueltos.
+ * Miran a la derecha; con viento a la izquierda el emisor las voltea.
+ */
 function sandSheet() {
-  const f0 = new Buf(2, 1);
-  f0.set(0, 0, "d6");
-  const f1 = new Buf(2, 1);
-  f1.set(0, 0, "d4"); f1.set(1, 0, "d6");
-  const f2 = new Buf(2, 1);
-  f2.set(0, 0, "d5");
-  return strip([f0, f1, f2]);
+  const line = (cols) => {
+    const f = new Buf(6, 1);
+    cols.forEach((c, x) => c && f.set(x, 0, c));
+    return f;
+  };
+  return strip([
+    line([null, null, "d6", "d6", "c4", "c4"]),
+    line(["d5", "d6", "d6", "c3", "c4", "white"]),
+    line([null, null, null, null, "d3", "d2"]),
+    line([null, null, null, "c3", "c4", null]),
+  ]);
 }
 
 /**
@@ -44,7 +54,8 @@ function leafSheet() {
     f.stamp(["...", "abb", "..."], { a, b });
     return f;
   };
-  return strip([face("f5", "f3"), edge("f5", "f3"), face("y3", "o4"), edge("y3", "o4")]);
+  // Tonos claros: sobre el pasto una hoja verde oscura desaparece.
+  return strip([face("g6", "g4"), edge("g6", "g4"), face("y4", "o4"), edge("y4", "o4")]);
 }
 
 /** Polen y pétalos: 0 polen (1 px), 1 pétalo claro (2 px), 2 pétalo rosado (2 px). */
@@ -58,13 +69,14 @@ function pollenSheet() {
   return strip([f0, f1, f2]);
 }
 
-/** Luciérnaga: punto de 2 px amarillo-verde con un halo tenue. */
+/** Luciérnaga: punto de 2 px amarillo-verde con halo de dos anillos tenues (se suma con ADD). */
 function firefly() {
-  const b = new Buf(4, 4);
-  const halo = rgba("g6", 90);
-  b.set(1, 0, halo); b.set(2, 0, halo); b.set(0, 1, halo); b.set(3, 1, halo);
-  b.set(0, 2, halo); b.set(3, 2, halo); b.set(1, 3, halo); b.set(2, 3, halo);
-  b.set(1, 1, "y5"); b.set(2, 1, "g6"); b.set(1, 2, "g6"); b.set(2, 2, "g5");
+  const b = new Buf(6, 6);
+  const far = rgba("g5", 70);
+  const near = rgba("g6", 150);
+  for (const [x, y] of [[2, 0], [3, 0], [0, 2], [0, 3], [5, 2], [5, 3], [2, 5], [3, 5]]) b.set(x, y, far);
+  for (const [x, y] of [[2, 1], [3, 1], [1, 2], [4, 2], [1, 3], [4, 3], [2, 4], [3, 4]]) b.set(x, y, near);
+  b.set(2, 2, "y5"); b.set(3, 2, "y5"); b.set(2, 3, "g6"); b.set(3, 3, "y4");
   return b;
 }
 
@@ -86,7 +98,7 @@ function mote() {
 
 /** Polvo que levantan los pies: 0 tierra, 1 arena, 2 piedra, 3 nieve. */
 function kickSheet() {
-  return strip([["d4", "d5"], ["d5", "d6"], ["s4", "s5"], ["n3", "white"]].map(([lo, hi]) => {
+  return strip([["d5", "d6"], ["d6", "c4"], ["s4", "s6"], ["n2", "white"]].map(([lo, hi]) => {
     const f = new Buf(2, 2);
     f.set(0, 0, hi); f.set(1, 0, lo); f.set(0, 1, lo);
     return f;

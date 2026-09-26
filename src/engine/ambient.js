@@ -72,6 +72,7 @@ export class Ambient {
     this.makeEmitters();
     this.makeSparks();
     this.makeKick();
+    this.capParticles();
     this.clouds = AMBIENT.clouds && !this.indoor ? this.makeClouds() : [];
   }
 
@@ -112,9 +113,9 @@ export class Ambient {
     // Nieve: copos lentos que se mecen; unos pocos grandes y rápidos delante (parallax barato).
     S.snow = [
       this.emitter("amb-snow", {
-        frame: [0, 0, 1], frequency: 110, lifespan: { min: 5000, max: 7000 },
+        frame: [0, 1, 1], frequency: 110, lifespan: { min: 5000, max: 7000 },
         speedY: { min: 9, max: 17 }, speedX: { min: 2 * W, max: 6 * W },
-        alpha: { onEmit: () => 0, onUpdate: fade(0.8) }, emitCallback: seedSway(10),
+        alpha: { onEmit: () => 0, onUpdate: fade(0.95) }, emitCallback: seedSway(10),
       }, { max: 52, sway: 0.0016 }),
       this.emitter("amb-snow", {
         frame: 2, frequency: 420, lifespan: { min: 2600, max: 3400 },
@@ -124,10 +125,10 @@ export class Ambient {
     ];
     // Desierto: la arena sólo vuela en ráfagas (ver gusts()).
     S.desert = [this.emitter("amb-sand", {
-      frame: [0, 0, 1, 2], frequency: 24, quantity: 2, lifespan: { min: 800, max: 1400 },
-      speedX: { min: 110 * W, max: 170 * W }, speedY: { min: -6, max: 12 },
-      alpha: { onEmit: () => 0, onUpdate: fade(0.9, 0.2) },
-    }, { max: 46 })];
+      frame: [0, 1, 1, 2, 3], frequency: 20, quantity: 3, lifespan: { min: 800, max: 1400 },
+      speedX: { min: 110 * W, max: 170 * W }, speedY: { min: -6, max: 12 }, scaleX: W, // estela hacia atrás del viento
+      alpha: { onEmit: () => 0, onUpdate: fade(1, 0.2) },
+    }, { max: 64 })];
     this.sandGust = S.desert[0];
     // Hojas que caen "girando" (dos cuadros: de cara y de canto).
     const leaves = (anim, max, freq) => this.emitter("amb-leaf", {
@@ -147,11 +148,11 @@ export class Ambient {
     S.mountain = [pollen(5, 1100), leaves(["amb-leaf-amber", "amb-leaf-green"], 3, 2200)];
     // Luciérnagas de noche (selva y bosque): prenden y apagan despacio, por encima del velo.
     this.fireflies = this.emitter("amb-firefly", {
-      frequency: 260, lifespan: { min: 2600, max: 4200 },
+      frequency: 170, lifespan: { min: 2800, max: 4400 },
       speedX: { min: -6, max: 6 }, speedY: { min: -6, max: 4 },
-      alpha: { onEmit: () => 0, onUpdate: (p, k, t) => Math.max(0, Math.sin(t * Math.PI)) * (0.55 + 0.45 * Math.sin(t * 19 + p.swayPh)) },
+      alpha: { onEmit: () => 0, onUpdate: (p, k, t) => Math.min(1, Math.sin(t * Math.PI) * 1.8) * (0.6 + 0.4 * Math.sin(t * 19 + p.swayPh)) },
       emitCallback: seedSway(8), blendMode: Phaser.BlendModes.ADD,
-    }, { depth: GLOW_DEPTH, max: 20, sway: 0.003 });
+    }, { depth: GLOW_DEPTH, max: 22, sway: 0.003 });
     this.nextGust = rand(1500, 3000);
   }
 
@@ -165,7 +166,7 @@ export class Ambient {
       const x = o.x * TILE + at[0];
       const y = o.y * TILE + at[1];
       const e = this.scene.add.particles(x, y, "amb-ember", {
-        frame: [0, 0, 1, 2], frequency: 230, lifespan: { min: 600, max: 1100 },
+        frame: [0, 0, 1, 2], frequency: 170, lifespan: { min: 600, max: 1100 },
         x: { min: -3, max: 3 }, speedY: { min: -30, max: -18 }, speedX: { min: -5, max: 5 },
         accelerationX: { min: -12, max: 12 }, alpha: { start: 1, end: 0 },
         blendMode: Phaser.BlendModes.ADD,
@@ -181,6 +182,20 @@ export class Ambient {
       alpha: { start: 0.9, end: 0 },
     });
     this.kick.maxAliveParticles = 6;
+  }
+
+  /** Tope global (AMBIENT.maxParticles): si un bioma + luciérnagas + chispas + polvo se pasa, recorta en proporción. */
+  capParticles() {
+    const fixed = this.sparks.reduce((n, e) => n + e.maxAliveParticles, 0) + this.kick.maxAliveParticles;
+    for (const [k, list] of Object.entries(this.sets)) {
+      const glow = (k === "tropical" || k === "forest") && this.fireflies ? [this.fireflies] : [];
+      const scaled = [...list, ...glow];
+      const total = scaled.reduce((n, e) => n + e.maxAliveParticles, 0);
+      const room = AMBIENT.maxParticles - fixed;
+      if (total <= room) continue;
+      const f = Math.max(0, room) / total;
+      for (const e of scaled) e.maxAliveParticles = Math.max(1, Math.floor(e.maxAliveParticles * f));
+    }
   }
 
   makeClouds() {
@@ -220,13 +235,27 @@ export class Ambient {
     return false;
   }
 
-  /** Mueve las zonas de emisión con la cámara. */
+  /**
+   * Mueve las zonas de emisión con la cámara. En mapas más chicos que la pantalla (refugios) la zona
+   * se recorta al mapa, para que no caigan hojas ni motas sobre el fondo liso de alrededor.
+   */
   follow() {
     const { scrollX, scrollY } = this.cam;
+    const { W, H } = this.scene.world;
     const all = [...Object.values(this.sets).flat(), this.fireflies].filter(Boolean);
     for (const e of all) {
-      e.zoneRect.x = scrollX * e.sf - MARGIN;
-      e.zoneRect.y = scrollY * e.sf - MARGIN;
+      const r = e.zoneRect;
+      const x0 = scrollX * e.sf - MARGIN;
+      const y0 = scrollY * e.sf - MARGIN;
+      if (e.sf !== 1) {
+        r.x = x0;
+        r.y = y0;
+        continue;
+      }
+      r.x = Math.max(x0, 0);
+      r.y = Math.max(y0, 0);
+      r.width = Math.max(1, Math.min(x0 + VIEW_W + MARGIN * 2, W) - r.x);
+      r.height = Math.max(1, Math.min(y0 + VIEW_H + MARGIN * 2, H) - r.y);
     }
   }
 
@@ -254,8 +283,10 @@ export class Ambient {
       const glow = night && (this.active === "tropical" || this.active === "forest");
       if (glow !== this.glowOn) {
         this.glowOn = glow;
-        if (glow) this.fireflies?.start();
-        else this.fireflies?.stop();
+        if (glow) {
+          this.fireflies?.start();
+          if (this.frames < 10) this.fireflies?.fastForward(3000, 50); // al entrar ya están ahí
+        } else this.fireflies?.stop();
       }
       this.night = night;
     }
