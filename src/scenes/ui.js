@@ -18,7 +18,7 @@ import {
   GOODS, GOOD_IDS, STONE, TOWNS, UPGRADES, buy, canBuy, capacity, cargo, cargoOf, chill, day, debt, flag, gold,
   hasUpgrade, heatLevel, hiddenCapacity, hp, load, localHeat, maxHp, priceOf, reputation, saveGame, sell, setFlag,
   seenOf, stones, rumors, fameTitle, nextFameTitle, moveStash, stashOf, stashCount, STASH_CAPACITY, STASH_RAID_HEAT,
-  tonics, TONIC, townTips,
+  tonics, TONIC, townTips, FAME_TITLES, REFUGES,
 } from "../state.js";
 
 const D = 20000;
@@ -36,6 +36,7 @@ export class UIScene extends Phaser.Scene {
     this.mode = null;
     this.def = null;
     this.toasts = [];
+    this.bornAt = this.time.now; // lo que llega al cargar la partida no es "pagar" ni "subir de fama"
     this.buildHud();
     this.buildPrompt();
     this.registry.events.on("changedata", () => this.refresh(), this);
@@ -74,28 +75,45 @@ export class UIScene extends Phaser.Scene {
       this.hud.add(h);
     }
     const life = hp(reg);
+    const prevLife = this.lastHp;
     this.hearts.forEach((h, i) => {
       const v = life - i * 2;
       h.setTexture(v >= 2 ? "heart-full" : v === 1 ? "heart-half" : "heart-empty");
       h.setVisible(i < total);
+      if (prevLife == null || i >= total) return;
+      const was = Math.max(0, Math.min(2, prevLife - i * 2));
+      const now = Math.max(0, Math.min(2, v));
+      if (now < was) this.heartHurt(h);
+      else if (now > was) this.heartHeal(h, i);
     });
-    if (this.lastHp != null && life < this.lastHp) {
+    if (prevLife != null && life < prevLife) {
       this.tweens.add({ targets: this.hearts, y: 7, duration: 60, yoyo: true });
     }
     this.lastHp = life;
 
-    // Oro
+    // Oro: el número cuenta hasta el nuevo valor; al pagar, las monedas salen del HUD.
     const g = gold(reg);
     if (this.lastGold != null && g !== this.lastGold) {
-      this.tweens.add({ targets: this.goldText, y: 15, duration: 70, yoyo: true });
+      if (g < this.lastGold && this.settled()) this.coinsOut(3);
+      this.countGold(g);
+    } else if (this.lastGold == null) {
+      this.goldShown = g;
+      this.goldText.setText(String(g));
     }
     this.lastGold = g;
-    this.goldText.setText(String(g));
+
+    // Fama: un título nuevo merece ceremonia.
+    const rep = reputation(reg);
+    const rank = FAME_TITLES.filter((t) => rep >= t.min).length;
+    if (this.lastRank != null && rank > this.lastRank && this.settled()) this.fameCeremony(this.lastRep ?? 0, rep);
+    this.lastRank = rank;
+    this.lastRep = rep;
 
     // Carga: una casilla por lugar; las primeras N son del fondo falso.
     const cap = capacity(reg);
     const hid = hiddenCapacity(reg);
-    const x0 = 22 + textWidth(String(g)) + 8;
+    // Mientras el oro cuenta, deja lugar para el número más ancho de los dos.
+    const x0 = 22 + Math.max(textWidth(String(g)), textWidth(String(Math.round(this.goldShown ?? g)))) + 8;
     while (this.slots.length < cap) {
       const s = this.add.image(0, 16, "ui-slot").setOrigin(0, 0);
       const gem = this.add.image(0, 17, "gem-amber").setOrigin(0, 0);
@@ -131,10 +149,204 @@ export class UIScene extends Phaser.Scene {
     this.skyIcon.setFrame(isNight(reg) ? 1 : 0).setX(VIEW_W - 6 - this.dayText.width - 10); // luz del día
   }
 
+  // ------------------------------------------------------------------ juice del HUD
+
+  settled() {
+    return this.time.now - this.bornAt > 1500;
+  }
+
+  /**
+   * El oro cuenta hasta `to` (350-500 ms; más si la diferencia es grande) y brilla dorado al llegar.
+   * `goldDelay` (lo pone el mercado al vender) hace esperar a que lleguen las monedas.
+   */
+  countGold(to) {
+    const from = this.goldShown ?? to;
+    this.goldCount?.stop();
+    this.goldFlash?.remove();
+    const delay = this.goldDelay ?? 0;
+    this.goldDelay = 0;
+    const k = { v: from };
+    const dur = Phaser.Math.Clamp(350 + Math.abs(to - from) * 2, 350, 500);
+    this.goldCount = this.tweens.add({
+      targets: k, v: to, delay, duration: dur, ease: "Quad.Out",
+      onUpdate: () => {
+        const n = Math.round(k.v);
+        if (n === this.goldShown) return;
+        this.goldShown = n;
+        this.goldText.setText(String(n));
+      },
+      onComplete: () => {
+        this.goldCount = null;
+        this.goldShown = to;
+        this.goldText.setText(String(to)).setFont("font-gold");
+        this.tweens.add({ targets: this.goldText, y: 15, duration: 70, yoyo: true });
+        this.goldFlash = this.time.delayedCall(160, () => { this.goldText.setFont("font-o"); this.goldFlash = null; });
+        this.refresh(); // vuelve a acomodar las casillas al ancho final
+      },
+    });
+  }
+
+  /** Monedas en arco de (x, y) al contador de oro, con 40 ms entre una y otra; suenan al llegar. */
+  coinsIn(x, y, n = 3) {
+    const tx = 11;
+    const ty = 23;
+    let rang = false;
+    for (let i = 0; i < n; i += 1) {
+      const c = this.add.sprite(x + (i - n / 2) * 3, y, "coin", i % 4).setDepth(D + 25).play("coin");
+      const sx = c.x;
+      const sy = c.y;
+      const peak = Math.min(sy, ty) - 26 - i * 3;
+      const k = { t: 0 };
+      this.tweens.add({
+        targets: k, t: 1, delay: i * 40, duration: 360, ease: "Sine.In",
+        onUpdate: () => {
+          const t = k.t;
+          const u = 1 - t;
+          c.setPosition(Math.round(u * u * sx + 2 * u * t * ((sx + tx) / 2) + t * t * tx), Math.round(u * u * sy + 2 * u * t * peak + t * t * ty));
+        },
+        onComplete: () => {
+          c.destroy();
+          if (!rang) { rang = true; sfx(this, "coins", { volume: 0.35 }); }
+          this.coinIcon.setScale(1.2);
+          this.tweens.add({ targets: this.coinIcon, scale: 1, duration: 90 });
+        },
+      });
+    }
+  }
+
+  /** Pagaste: monedas que salen del contador hacia el centro y se desvanecen. */
+  coinsOut(n = 3) {
+    const cx = VIEW_W / 2;
+    const cy = VIEW_H / 2 - 10;
+    for (let i = 0; i < n; i += 1) {
+      const c = this.add.sprite(11, 23, "coin", i % 4).setDepth(D + 25).play("coin");
+      const ex = cx + (i - (n - 1) / 2) * 14;
+      const ey = cy + (i % 2) * 6;
+      const k = { t: 0 };
+      this.tweens.add({
+        targets: k, t: 1, delay: i * 40, duration: 420, ease: "Quad.Out",
+        onUpdate: () => {
+          const t = k.t;
+          c.setPosition(Math.round(11 + (ex - 11) * t), Math.round(23 + (ey - 23) * t - Math.sin(t * Math.PI) * 18));
+          c.setAlpha(t < 0.55 ? 1 : 1 - (t - 0.55) / 0.45);
+        },
+        onComplete: () => c.destroy(),
+      });
+    }
+  }
+
+  /** Corazón perdido: se enciende rojo 120 ms. */
+  heartHurt(h) {
+    h.setTint(0xe03a3a).setTintMode(Phaser.TintModes.FILL);
+    this.time.delayedCall(120, () => h.active && h.clearTint());
+  }
+
+  /** Corazón que vuelve: brilla y crece 1.3 → 1 (desde su centro). */
+  heartHeal(h, i) {
+    const bx = 6 + i * 9;
+    const k = { s: 1.3 };
+    const apply = () => h.setScale(k.s).setX(Math.round(bx - ((k.s - 1) * 9) / 2));
+    apply();
+    h.setTint(0x806040).setTintMode(Phaser.TintModes.ADD);
+    this.tweens.add({ targets: k, s: 1, duration: 220, ease: "Back.Out", onUpdate: apply, onComplete: () => { apply(); h.clearTint(); } });
+  }
+
+  /**
+   * Título nuevo de fama: panel al centro 2.4 s con la estrella que rebota, el nombre en oro y lo
+   * que abre. Mientras está, el mercado no compra ni vende.
+   */
+  fameCeremony(fromRep, rep) {
+    const title = fameTitle(rep);
+    const opens = [
+      ...Object.values(UPGRADES).filter((u) => u.reputation > fromRep && u.reputation <= rep).map((u) => u.name),
+      ...Object.values(REFUGES).filter((r) => r.fame > fromRep && r.fame <= rep).map((r) => r.name),
+    ];
+    const next = Object.values(UPGRADES).filter((u) => u.reputation > rep).sort((a, b) => a.reputation - b.reputation)[0];
+    const line = opens.length ? `Ya puedes: ${opens.join(" · ")}` : next ? `Con fama ${next.reputation}: ${next.name}` : "Todo el golfo sabe tu nombre.";
+    if (this.ceremony) { this.killTree(this.ceremony.box); this.ceremony.box.destroy(); this.ceremony.timer.remove(); }
+    const w = even(Math.max(textWidth(title), textWidth(line), 120) + 28);
+    const h = 88;
+    const x = Math.round(VIEW_W / 2 - w / 2);
+    const y = Math.round(VIEW_H / 2 - h / 2 - 8);
+    const sy = y + 18;
+    const box = this.add.container(0, 0).setDepth(D + 40);
+    // Fondo casi opaco: el marco es translúcido y encima del mercado se leería revuelto.
+    box.add(this.add.rectangle(x + 2, y + 2, w - 4, h - 4, 0x120e17, 0.92).setOrigin(0, 0));
+    box.add(this.panel(x, y, "ui-dark", w, h));
+    box.add(centerX(this.add.bitmapText(VIEW_W / 2, y + 38, "font-dim", "Nuevo título")));
+    box.add(centerX(this.add.bitmapText(VIEW_W / 2, y + 51, "font-gold", title)));
+    box.add(centerX(this.add.bitmapText(VIEW_W / 2, y + 68, opens.length ? "font-green" : "font-o", line)));
+    const star = this.add.image(VIEW_W / 2, sy, "ui-star").setScale(0);
+    box.add(star);
+    // Chispas que salen de la estrella.
+    for (let i = 0; i < 6; i += 1) {
+      const a = (i / 6) * Math.PI * 2 - Math.PI / 2;
+      const sp = this.add.image(VIEW_W / 2, sy, "sparkle").setAlpha(0);
+      box.add(sp);
+      this.tweens.add({ targets: sp, x: VIEW_W / 2 + Math.cos(a) * 28, y: sy + Math.sin(a) * 16, alpha: { from: 1, to: 0 }, delay: 140, duration: 520, ease: "Quad.Out" });
+    }
+    this.openBox(box, VIEW_W / 2, y + h / 2);
+    this.tweens.add({ targets: star, scale: 3, duration: 420, ease: "Back.Out", easeParams: [3] });
+    sfx(this, "jingle-fame", { volume: 0.4 });
+    const timer = this.time.delayedCall(2400, () => this.endCeremony());
+    this.ceremony = { box, timer, at: this.time.now };
+  }
+
+  endCeremony() {
+    const c = this.ceremony;
+    if (!c) return;
+    this.ceremony = null;
+    c.timer.remove();
+    this.closeBox(c.box);
+  }
+
+  // ------------------------------------------------------------------ abrir y cerrar ventanas
+
+  /** Abre una ventana: escala 0.96 → 1 alrededor de (cx, cy) y alpha 0 → 1, 110 ms, Back.Out suave. */
+  openBox(box, cx = VIEW_W / 2, cy = VIEW_H / 2) {
+    const k = { s: 0.96 };
+    box.boxPivot = [cx, cy];
+    const apply = (tw) => {
+      if (!box.scene) return;
+      box.setScale(k.s).setPosition(cx * (1 - k.s), cy * (1 - k.s));
+      box.setAlpha(tw ? Math.min(1, tw.progress * 1.6) : 0);
+    };
+    apply();
+    box.boxTween = this.tweens.add({
+      targets: k, s: 1, duration: 110, ease: "Back.Out", easeParams: [1.1],
+      onUpdate: (tw) => apply(tw),
+      onComplete: () => { box.boxTween = null; if (box.scene) box.setScale(1).setPosition(0, 0).setAlpha(1); },
+    });
+    return box;
+  }
+
+  /** Cierra una ventana: escala 1 → 0.96 y alpha → 0 en 90 ms; luego la destruye y llama `cb`. */
+  closeBox(box, cb) {
+    if (!box || !box.active || box.closing) { cb?.(); return; }
+    box.closing = true;
+    box.boxTween?.stop();
+    this.killTree(box);
+    const [cx, cy] = box.boxPivot ?? [VIEW_W / 2, VIEW_H / 2];
+    const k = { s: box.scaleX, a: box.alpha };
+    this.tweens.add({
+      targets: k, s: 0.96, a: 0, duration: 90, ease: "Quad.In",
+      onUpdate: () => box.scene && box.setScale(k.s).setPosition(cx * (1 - k.s), cy * (1 - k.s)).setAlpha(k.a),
+      onComplete: () => { box.destroy(); cb?.(); },
+    });
+  }
+
+  /** Quita los tweens de un objeto y de todo lo que lleva dentro (para no dejar tweens vivos). */
+  killTree(obj) {
+    this.tweens.killTweensOf(obj);
+    if (obj.boxTween) { obj.boxTween.stop(); obj.boxTween = null; }
+    if (obj.list) for (const c of obj.list) this.killTree(c);
+  }
+
   /** Cierra cualquier ventana abierta (por si el mapa cambió con una abierta). */
   resetModals() {
     for (const [key, obj] of [["dialog", this.dialog], ["choice", this.choice], ["shopState", this.shopState], ["pauseState", this.pauseState], ["stashState", this.stashState]]) {
       if (!obj) continue;
+      this.killTree(obj.box);
       obj.box.destroy();
       this[key] = null;
       obj.resolve(key === "choice" ? -1 : undefined);
@@ -365,8 +577,7 @@ export class UIScene extends Phaser.Scene {
       const arrow = this.add.bitmapText(VIEW_W - 26, VIEW_H - 22, "font-dark", "▼").setVisible(false);
       box.add([text, arrow]);
       this.tweens.add({ targets: arrow, y: VIEW_H - 20, duration: 300, yoyo: true, repeat: -1 });
-      box.setAlpha(0);
-      this.tweens.add({ targets: box, alpha: 1, duration: 100 });
+      this.openBox(box, VIEW_W / 2, VIEW_H - 39);
       const keys = (l) => l.replace(/\{(\w+)\}/g, (_, a) => keyName(a) || a);
       this.dialog = { box, text, arrow, lines: lines.map(keys), page: -1, shown: 0, full: "", resolve, tick: 0 };
       this.nextPage();
@@ -377,7 +588,7 @@ export class UIScene extends Phaser.Scene {
     const d = this.dialog;
     d.page += 1;
     if (d.page >= d.lines.length) {
-      d.box.destroy();
+      this.closeBox(d.box);
       this.dialog = null;
       this.mode = null;
       d.resolve();
@@ -420,8 +631,9 @@ export class UIScene extends Phaser.Scene {
     return new Promise((resolve) => {
       this.closeAll();
       this.mode = "choice";
-      const w = even(Math.max(textWidth(title), ...options.map((o) => Math.max(textWidth(o.label) + 14, textWidth(o.note ?? ""))), 150) + 20);
-      const h = 30 + options.length * 14 + 16;
+      const keysHint = `${keyName("confirm")} elegir · ${keyName("cancel")} volver`;
+      const w = even(Math.max(textWidth(title), textWidth(keysHint), ...options.map((o) => Math.max(textWidth(o.label) + 14, textWidth(o.note ?? ""))), 150) + 20);
+      const h = 30 + options.length * 14 + 28;
       const x = VIEW_W / 2 - w / 2;
       const y = VIEW_H / 2 - h / 2 - 10;
       const box = this.add.container(0, 0).setDepth(D + 12);
@@ -433,11 +645,13 @@ export class UIScene extends Phaser.Scene {
         return t;
       });
       const cursor = this.add.bitmapText(x + 10, y + 24, "font-gold", "▶");
-      const noteText = this.add.bitmapText(x + 10, y + h - 15, "font-dim", "");
-      box.add([cursor, noteText]);
+      const noteText = this.add.bitmapText(x + 10, y + h - 27, "font-dim", "");
+      // Pie con las teclas (en celular, los botones).
+      box.add(this.add.rectangle(x + 8, y + h - 16, w - 16, 1, 0x8c5e13, 0.6).setOrigin(0, 0));
+      const keysText = this.add.bitmapText(x + w - 10, y + h - 13, "font-dim", keysHint).setOrigin(1, 0);
+      box.add([cursor, noteText, keysText]);
       if (note) box.add(this.add.bitmapText(x + 10, y + h + 4, "font-o", note));
-      box.setScale(0.96).setAlpha(0);
-      this.tweens.add({ targets: box, alpha: 1, scale: 1, duration: 120 });
+      this.openBox(box, VIEW_W / 2, y + h / 2);
       let index = start != null && options[start] && !options[start].disabled ? start : options.findIndex((o) => !o.disabled);
       if (index < 0) index = options.length - 1;
       this.choice = { box, rows, cursor, noteText, options, index, resolve, x, y };
@@ -475,7 +689,7 @@ export class UIScene extends Phaser.Scene {
 
   finishChoice(i) {
     const c = this.choice;
-    c.box.destroy();
+    this.closeBox(c.box);
     this.choice = null;
     this.mode = null;
     c.resolve(i);
@@ -526,10 +740,9 @@ export class UIScene extends Phaser.Scene {
       const cursor = this.add.bitmapText(x + 10, y + 52, "font-gold", "▶");
       const info = this.add.bitmapText(x + 10, y + h - 40, "font-o", "").setMaxWidth(w - 20);
       const footer = this.add.bitmapText(x + 10, y + h - 27, "font-dim", "");
-      const hint = this.add.bitmapText(x + 10, y + h - 14, "font-dim", `←→ comprar o vender · ↑↓ piedra · ${keyName("confirm")} confirmar · ${keyName("cancel")} salir`);
+      const hint = this.add.bitmapText(x + 10, y + h - 14, "font-dim", `←→ comprar o vender · ↑↓ piedra · ${keyName("confirm")} confirmar (mantén: varias) · ${keyName("cancel")} salir`);
       box.add([cursor, info, footer, hint]);
-      box.setAlpha(0);
-      this.tweens.add({ targets: box, alpha: 1, duration: 120 });
+      this.openBox(box, VIEW_W / 2, y + h / 2);
       this.shopState = { townId, box, rows, cursor, pick, info, footer, col, index: 0, side: 0, resolve, x, y, w, sold: {} };
       // Arranca donde haya algo que hacer: vender lo que llevas, o comprar lo que aquí sobra.
       const carried = rows.findIndex((r) => cargoOf(this.registry, r.good) > 0);
@@ -573,13 +786,39 @@ export class UIScene extends Phaser.Scene {
     if (this.controls.pressed("left") || this.controls.pressed("right")) { s.side = 1 - s.side; tone(this, "select"); this.drawShop(); }
     if (this.controls.pressed("cancel")) return this.closeShop();
     if (this.time.now - this.openedAt < 250) return;
-    if (!(this.controls.pressed("confirm") || this.controls.pressed("interact"))) return;
+    // Con el título nuevo en pantalla no se compra ni se vende; J o K lo cierran (tras un momento).
+    if (this.ceremony) {
+      if (this.time.now - this.ceremony.at > 700 && (this.controls.pressed("confirm") || this.controls.pressed("interact"))) this.endCeremony();
+      s.repeatAt = Infinity;
+      return;
+    }
+    // Mantener J repite: la primera vez a los 350 ms, luego cada 120 ms. Sólo tras apretarla aquí.
+    const tap = this.controls.pressed("confirm") || this.controls.pressed("interact");
+    const hold = this.controls.held("confirm") || this.controls.held("interact");
+    if (tap) s.repeatAt = this.time.now + 350;
+    else if (hold && this.time.now >= (s.repeatAt ?? Infinity)) s.repeatAt = this.time.now + 120;
+    else {
+      if (!hold) s.repeatAt = Infinity;
+      return;
+    }
+    this.shopTrade(s, reg);
+  }
+
+  /** Una compra o venta del renglón elegido, con su monedita, su número flotante y su sonido. */
+  shopTrade(s, reg) {
     const row = s.rows[s.index];
     const buying = s.side === 0;
+    const titleBefore = fameTitle(reputation(reg));
+    // Al vender, el contador del HUD espera a que lleguen las monedas.
+    if (!buying) this.goldDelay = 330;
     const res = buying ? buy(reg, s.townId, row.good) : sell(reg, s.townId, row.good);
     const cell = buying ? row.buy : row.sell;
     if (!res) {
+      this.goldDelay = 0;
+      s.repeatAt = Infinity; // no insistir a lo loco con lo que no se puede
       tone(this, "deny");
+      this.tweens.killTweensOf(cell);
+      cell.setX(buying ? s.col.buy : s.col.sell);
       this.tweens.add({ targets: cell, x: cell.x + 2, duration: 40, yoyo: true, repeat: 2 });
       return;
     }
@@ -590,17 +829,16 @@ export class UIScene extends Phaser.Scene {
       .setOrigin(0.5, 1).setDepth(D + 20);
     this.tweens.add({ targets: t, y: t.y - 12, alpha: 0, duration: 700, onComplete: () => t.destroy() });
     if (res.fame) {
-      // Vendiste lo que aquí ocupan: la gente habla de ti.
+      // Vendiste lo que aquí ocupan: la gente habla de ti. (El título nuevo trae su propia ceremonia.)
       const f = this.add.bitmapText(s.col.tag, row.y - 2, "font-green", `+${res.fame} fama`).setOrigin(0.5, 1).setDepth(D + 20);
       this.tweens.add({ targets: f, y: f.y - 16, alpha: 0, delay: 250, duration: 1100, onComplete: () => f.destroy() });
-      const title = fameTitle(reputation(reg));
-      sfx(this, title !== this.lastTitle ? "jingle-fame" : "jingle-mission", { volume: 0.4 });
-      if (this.lastTitle && title !== this.lastTitle) this.toast(`Ahora eres ${title}`, "font-gold");
+      if (fameTitle(reputation(reg)) === titleBefore) sfx(this, "jingle-mission", { volume: 0.4 });
     }
-    this.lastTitle = fameTitle(reputation(reg));
     if (buying) {
       const gem = this.add.image(row.icon.x + 4, row.icon.y, `gem-${row.good}`).setDepth(D + 20);
       this.tweens.add({ targets: gem, x: 60, y: 20, duration: 380, ease: "Quad.In", onComplete: () => gem.destroy() });
+    } else {
+      this.coinsIn(cell.x, row.y + 4, Phaser.Math.Clamp(3 + Math.floor(res.price / 25), 3, 5));
     }
     this.drawShop();
     saveGame(reg);
@@ -611,7 +849,7 @@ export class UIScene extends Phaser.Scene {
     // En línea, vender de a varias es noticia para los demás (y para los rumores).
     if (online.on && Object.values(s.sold).reduce((a, n) => a + n, 0) >= 2) send({ t: "sold", town: s.townId, sold: s.sold });
     tone(this, "select");
-    s.box.destroy();
+    this.closeBox(s.box);
     this.shopState = null;
     this.mode = null;
     s.resolve();
@@ -654,8 +892,7 @@ export class UIScene extends Phaser.Scene {
         heat >= STASH_RAID_HEAT ? "Ruta caliente: la Corona puede dar con él." : "Lo guardado aquí no lo pierdes al caer.");
       const hint = this.add.bitmapText(x + 10, y + h - 15, "font-dim", `→ guardar · ← sacar · ↑↓ elegir · ${keyName("cancel")} salir`);
       box.add([cursor, warn, hint]);
-      box.setAlpha(0);
-      this.tweens.add({ targets: box, alpha: 1, duration: 120 });
+      this.openBox(box, VIEW_W / 2, y + h / 2);
       this.stashState = { id, box, rows, cursor, count, cap, index: 0, resolve, y };
       this.drawStash();
     });
@@ -685,7 +922,7 @@ export class UIScene extends Phaser.Scene {
     if (this.controls.pressed("up")) { s.index = (s.index + n - 1) % n; tone(this, "select"); this.drawStash(); }
     if (this.controls.pressed("cancel") || this.controls.pressed("pause")) {
       tone(this, "select");
-      s.box.destroy();
+      this.closeBox(s.box);
       this.stashState = null;
       this.mode = null;
       s.resolve();
@@ -712,8 +949,12 @@ export class UIScene extends Phaser.Scene {
       this.controls.lock(3);
       this.mode = "pause";
       tone(this, "confirm");
-      const box = this.add.container(0, 0).setDepth(D + 30);
-      box.add(this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0x120e17, 0.82).setOrigin(0, 0));
+      // Velo que oscurece (sube en 140 ms) y, encima, el panel que abre con openBox.
+      const outer = this.add.container(0, 0).setDepth(D + 30);
+      const veil = this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0x120e17, 1).setOrigin(0, 0).setAlpha(0);
+      const box = this.add.container(0, 0);
+      outer.add([veil, box]);
+      this.tweens.add({ targets: veil, alpha: 0.82, duration: 140 });
       box.add(this.panel(8, 8, "ui-dark", VIEW_W - 16, VIEW_H - 16).setOrigin(0, 0));
       const tabs = ["MAPA", "CARGA", "FAMA", "MERCADOS", "CONTROLES"];
       const tabTexts = tabs.map((t, i) => {
@@ -725,8 +966,9 @@ export class UIScene extends Phaser.Scene {
       box.add(this.add.bitmapText(VIEW_W - 22, VIEW_H - 24, "font-dim", `←→ pestañas · ${keyName("cancel")} volver`).setOrigin(1, 0));
       const page = this.add.container(0, 0);
       box.add(page);
-      this.pauseState = { box, tabs, tabTexts, page, index: 0, resolve, def };
+      this.pauseState = { box: outer, panel: box, veil, tabs, tabTexts, page, index: 0, resolve, def };
       this.drawPause();
+      this.openBox(box);
     });
   }
 
@@ -734,6 +976,7 @@ export class UIScene extends Phaser.Scene {
     const p = this.pauseState;
     const reg = this.registry;
     p.tabTexts.forEach((t, i) => t.setFont(i === p.index ? "font-gold" : "font-dim"));
+    this.killTree(p.page); // los ▼ que rebotan no deben quedar vivos al cambiar de pestaña
     p.page.removeAll(true);
     const add = (o) => { p.page.add(o); return o; };
     const txt = (x, y, s, f = "font") => add(this.add.bitmapText(x, y, f, s));
@@ -950,7 +1193,9 @@ export class UIScene extends Phaser.Scene {
     if (this.controls.pressed("left")) { p.index = (p.index + p.tabs.length - 1) % p.tabs.length; tone(this, "select"); this.drawPause(); }
     if (this.controls.pressed("pause") || this.controls.pressed("cancel")) {
       tone(this, "select");
-      p.box.destroy();
+      this.tweens.killTweensOf(p.veil);
+      this.tweens.add({ targets: p.veil, alpha: 0, duration: 90 });
+      this.closeBox(p.panel, () => p.box.destroy());
       this.pauseState = null;
       this.mode = null;
       p.resolve();
