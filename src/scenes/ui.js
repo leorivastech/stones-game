@@ -1498,7 +1498,8 @@ export class UIScene extends Phaser.Scene {
       outer.add([veil, box]);
       this.tweens.add({ targets: veil, alpha: 0.82, duration: 140 });
       box.add(this.panel(8, 8, "ui-dark", VIEW_W - 16, VIEW_H - 16).setOrigin(0, 0));
-      const tabs = ["MAPA", "CARGA", "FAMA", "MERCADOS", "CONTRATOS", "CONTROLES", "OPCIONES"];
+      // En línea, una pestaña más: quién está conectado y dónde anda.
+      const tabs = ["MAPA", "CARGA", "FAMA", "MERCADOS", "CONTRATOS", "CONTROLES", "OPCIONES", ...(online.on ? ["JUGADORES"] : [])];
       // Pestañas repartidas a lo ancho según lo que mide cada nombre.
       const room = VIEW_W - 44 - tabs.reduce((a, t) => a + textWidth(t), 0);
       const gap = Math.floor(room / (tabs.length - 1));
@@ -1726,6 +1727,8 @@ export class UIScene extends Phaser.Scene {
       const car = (reg.get("caravans") ?? [])[0];
       if (car && day(reg) - car.day <= 2) txt(24, 228, caravanNews(car, day(reg)), "font-o");
       else txt(24, 228, "Los rumores de la gente traen noticias frescas.", "font-dim");
+    } else if (p.tabs[p.index] === "JUGADORES") {
+      this.drawPausePlayers(txt, add);
     } else if (p.index === 4) {
       this.drawPauseContracts(txt, add);
     } else if (p.index === 6) {
@@ -1760,6 +1763,38 @@ export class UIScene extends Phaser.Scene {
       txt(24, 196, "Guardias: revisan si llevas piedras a la vista; su escudo para los golpes de frente.", "font-dim");
       txt(24, 208, "Bandidos: te arrancan piedras; recógelas antes que ellos.", "font-dim");
     }
+  }
+
+  /** Pestaña JUGADORES (en línea): quién está conectado, en qué mapa y quién habla. */
+  drawPausePlayers(txt, add) {
+    const where = (map) => {
+      const def = MAPS[map];
+      if (!def) return "llegando…";
+      return def.kind === "route" ? `${def.name} (camino)` : def.name;
+    };
+    const me = this.scene.get("world")?.mapId;
+    const others = [...online.players.values()].filter((pl) => pl.name && pl.id !== online.id);
+    const h = hourOf(this.registry);
+    txt(24, 42, `EN LÍNEA · ${others.length + 1} ${others.length ? "jugadores" : "jugador"}`, "font-gold");
+    txt(VIEW_W - 26 - textWidth(`Día ${day(this.registry)} · ${String(Math.floor(h)).padStart(2, "0")}:00`), 42,
+      `Día ${day(this.registry)} · ${String(Math.floor(h)).padStart(2, "0")}:00`, "font-dim");
+    const g = add(this.add.graphics());
+    const row = (y, name, place, color, extra) => {
+      g.fillStyle(0x1b1422, 1).fillRect(24, y + 1, 7, 7);
+      g.fillStyle(color, 1).fillRect(25, y + 2, 5, 5);
+      txt(36, y, name, "font");
+      txt(150, y, place, "font-dim");
+      if (extra) txt(VIEW_W - 26 - textWidth(extra), y, extra, "font-gold");
+    };
+    row(60, `${online.name ?? "Tú"} (tú)`, where(me), 0xe6b736, online.connected ? null : "sin conexión");
+    others.slice(0, 9).forEach((pl, i) => {
+      const same = pl.map && pl.map === me;
+      row(76 + i * 14, pl.name, where(pl.map), 0x7891da, pl.talking ? "habla" : same ? "aquí" : null);
+    });
+    if (others.length > 9) txt(36, 76 + 9 * 14, `y ${others.length - 9} más`, "font-dim");
+    if (!others.length) txt(36, 80, "Nadie más por ahora. Pásale el enlace a alguien.", "font-dim");
+    txt(24, 204, "En el MAPA, un cuadrito azul por jugador. Voz: tecla T · chat: Enter.", "font-dim");
+    txt(24, 216, "Tu avance se guarda en el servidor con tu nombre: sigue desde cualquier aparato.", "font-dim");
   }
 
   /** Pestaña CONTRATOS: los que llevas (con plazo, pago y castigo) y lo que pasó con los últimos. */
@@ -1839,9 +1874,12 @@ export class UIScene extends Phaser.Scene {
     }
     const seenTowns = new Set();
     for (const r of marks) {
-      if (seenTowns.has(r.town)) continue;
-      seenTowns.add(r.town);
-      const [x, y] = WORLD_PINS[r.town] ?? [];
+      const key = r.town ?? r.route;
+      if (seenTowns.has(key)) continue;
+      seenTowns.add(key);
+      // Rumor de un pueblo: junto al pueblo. De un refugio escondido: a medio camino de su ruta.
+      const [a, b] = r.route ? MAPS[r.route]?.between ?? [] : [];
+      const [x, y] = r.town ? WORLD_PINS[r.town] ?? [] : a && b ? [(WORLD_PINS[a][0] + WORLD_PINS[b][0]) / 2 + 8, (WORLD_PINS[a][1] + WORLD_PINS[b][1]) / 2 + 2] : [];
       if (x == null) continue;
       tag(mx + x - 11, my + y - 10, "?", r.checked === "false" ? "font-dim" : r.checked === "true" ? "font-green" : "font-gold", r.checked === "false");
     }
@@ -1857,7 +1895,7 @@ export class UIScene extends Phaser.Scene {
     txt(rx, 172, "RUMORES", "font-gold");
     if (!marks.length) txt(rx, 184, "Habla con la gente.", "font-dim");
     marks.slice(0, 4).forEach((r, i) => {
-      const name = TOWNS[r.town]?.name ?? "?";
+      const name = r.town ? TOWNS[r.town]?.name ?? "?" : r.route ? `${MAPS[r.route]?.name ?? "?"} (escondite)` : "?";
       const left = Math.max(0, (r.until ?? today) - today);
       const status = r.checked === "false" ? "falso" : r.checked === "true" ? "cierto" : left ? `${left} ${left === 1 ? "día" : "días"}` : "hoy";
       const font = r.checked === "false" ? "font-dim" : r.checked === "true" ? "font-green" : "font-o";

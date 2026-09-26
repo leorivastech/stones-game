@@ -151,6 +151,13 @@ export function buildArt() {
   add("shelf", refuge.shelf());
   add("cot", { buf: refuge.cot() });
   add("workbench", { buf: refuge.workbench() });
+  // Refugios escondidos (26-sep): puertas de cada tipo, el derrumbe con palanca y las pistas.
+  add("cellar-door", refuge.cellarDoor());
+  add("crevice-door", refuge.creviceDoor());
+  add("hut-door", refuge.hutDoor());
+  add("rockfall", refuge.rockfall());
+  add("rare-flowers", { buf: refuge.rareFlowers() });
+  add("marked-stone", { buf: refuge.markedStone() });
 
   // Efectos: el barrido se dibuja a la derecha y se rota (abajo = 1 giro, izquierda = 2, arriba = 3).
   const slash = fx.slashSheet();

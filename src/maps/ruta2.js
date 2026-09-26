@@ -5,7 +5,9 @@
  *  2. El paso (56-65): garganta entre farallones con la ADUANA de la Corona.
  *     · Vereda del este: tapada por un arbusto, pasto alto y lobos; rodea la aduana hacia el norte.
  *     · Cornisa del oeste: bordes que sólo se bajan — atajo de regreso hacia Valkeep.
- *  3. Meseta (42-55): alijo en roca partida.
+ *  3. Meseta (42-55). Dos refugios escondidos en los pinares (26-sep): al oeste la Cueva del Paso Alto
+ *     (vereda tras un arbusto junto a una piedra marcada); al este la Cueva del manantial, tapada por
+ *     un derrumbe que se abre con una palanca escondida en el pasto alto.
  *  4. Bajada a la selva (30-41): arroyo con puente.
  *  5. Selva (0-29): árboles gigantes, pasto alto con emboscadas, alijo en tronco hueco.
  */
@@ -57,9 +59,9 @@ function build() {
 
   // ---- 3. Meseta ----
   g.road([[18, 55], [16, 50], [18, 44]], 3, ":");
-  g.ellipse(11, 47, 3, 2, "g", ".", 6);
   g.ellipse(25, 45, 3, 2, '"', ".", 7);
   [[8, 52], [27, 53], [13, 43], [24, 49]].forEach(([x, y]) => g.set(x, y, "o"));
+
 
   // ---- 4. Bajada y arroyo ----
   g.road([[18, 44], [21, 38], [17, 32], [18, 28]], 3, ":");
@@ -69,6 +71,19 @@ function build() {
   g.rect(0, 36, W, 1, "_", ".P");
   g.ellipse(9, 39, 3, 1.5, "e", ".", 8);
   g.ellipse(27, 40, 3, 1.5, '"', ".", 9);
+
+  // ---- Refugios escondidos (26-sep): pinares a los dos lados de la meseta ----
+  // Oeste: la Cueva del Paso Alto. Se entra cortando un arbusto junto a una piedra marcada y
+  // siguiendo una vereda de una celda que no se ve desde el camino.
+  // La cueva queda al fondo de un pasillo de una celda: los pinos de enfrente la tapan.
+  g.rect(3, 40, 10, 10, "P", ".ge");
+  g.trail([[12, 41], [11, 41], [11, 42], [9, 42], [9, 44], [4, 44]]);
+  g.set(12, 41, "b");
+  // Este: la Cueva del manantial, tapada por un derrumbe (se abre con una palanca escondida en el
+  // pasto alto). Detrás, una vereda que da vuelta hasta la cueva.
+  g.rect(25, 37, 11, 10, "P", '.e"T');
+  g.rect(29, 44, 3, 3, ".");
+  g.trail([[30, 44], [30, 42], [32, 42], [32, 39], [27, 39]]);
 
   // ---- 5. Selva ----
   g.road([[18, 28], [14, 20], [20, 12], [17.5, 0]], 3, ":");
@@ -100,8 +115,12 @@ export default {
     // Faroles de la aduana: de noche, bajo su luz los guardias ven como de día.
     { type: "prop", art: "lamp", x: 14.1, y: 59.9, solid: [2, 22, 6, 5] },
     { type: "prop", art: "lamp", x: 22.6, y: 59.9, solid: [2, 22, 6, 5] },
-    { type: "refuge", id: "refugio-r2", x: 11, y: 47.2 },
-    { type: "sign", x: 13.4, y: 48.6, text: ["Una cueva seca en la cornisa.", "Con puerta y cerrojo sería un buen escondite."] },
+    // Refugios escondidos: sin letrero; la pista es una piedra marcada y el derrumbe.
+    { type: "refuge", id: "refugio-r2", x: 5.5, y: 44.95 },
+    { type: "prop", art: "marked-stone", x: 13.2, y: 41 },
+    { type: "refuge", id: "refugio-r2b", x: 28.5, y: 39.95 },
+    { type: "gate", id: "gate-r2-derrumbe", art: "rockfall", x: 29, y: 45.5 },
+    { type: "lever", id: "gate-r2-derrumbe", x: 23.6, y: 44.8, news: "movió el derrumbe del Paso Alto.", say: ["Las peñas rodaron a un lado.", "Detrás del derrumbe se oye correr agua."] },
     { type: "bridge-rails", x0: 16, x1: 19, y0: 34, y1: 35 },
     { type: "chest", id: "r2-selva", x: 6.5, y: 27.6, loot: { gold: 25 } },
     // Enemigos
@@ -125,6 +144,7 @@ export default {
   entries: {
     south: { x: 18, y: 78.2, dir: "up" },
     north: { x: 17.5, y: 1.4, dir: "down" },
-    refugio: { x: 11, y: 48.8, dir: "down" },
+    refugio: { x: 7.4, y: 44.8, dir: "right" },
+    "refugio-r2b": { x: 30.4, y: 39.8, dir: "right" },
   },
 };

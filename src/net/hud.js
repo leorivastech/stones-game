@@ -1,6 +1,7 @@
 /**
  * Lo del modo en línea que va encima del juego, en HTML (acentos, emoji y el teclado del celular):
- *  - arriba: en línea / sin conexión, el día del mundo con su barrita, quién está y quién habla;
+ *  - arriba a la izquierda (debajo de los corazones, lejos del cartel del tutorial y del de lugar):
+ *    en línea / sin conexión, el día del mundo con su barrita, quién está y quién habla;
  *  - abajo a la izquierda: el chat (Enter para escribir, Esc para cerrar);
  *  - hablar: botón 🎤 (mantener) o la tecla T; escribir: botón 💬 o Enter. En celular, botones redondos.
  *  - el nombre, si el enlace no lo trae.
@@ -14,8 +15,9 @@ import { P } from "../art/palette.js";
 const CSS = `
 @font-face { font-family: "Pixel"; src: url("/assets/fonts/pixelify-sans.woff2") format("woff2"); font-weight: 400 700; }
 #net { position: fixed; inset: 0; pointer-events: none; z-index: 20; font-family: "Pixel", system-ui, sans-serif; color: ${P.c4}; }
-#net .bar { position: absolute; top: 6px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; align-items: center;
-  background: ${P.ink}cc; border: 2px solid ${P.y1}; padding: 3px 10px 4px; border-radius: 6px; font-size: 13px; white-space: nowrap; }
+#net .bar { position: absolute; top: 6px; left: 6px; display: flex; gap: 8px; align-items: center;
+  background: ${P.ink}cc; border: 2px solid ${P.y1}; padding: 2px 8px 3px; border-radius: 6px; font-size: 13px; white-space: nowrap; }
+#net .bar.hide, #net .row.hide { display: none; }
 #net .dot { width: 9px; height: 9px; border-radius: 50%; background: ${P.g5}; display: inline-block; }
 #net .dot.off { background: ${P.e3}; }
 #net .day { display: inline-flex; align-items: center; gap: 5px; }
@@ -43,6 +45,8 @@ const CSS = `
 #net .name form { position: static; display: flex; flex-direction: column; gap: 10px; align-items: center; }
 #net .name h2 { margin: 0; color: ${P.y3}; font-size: 22px; }
 #net .name button { padding: 6px 18px; border: 2px solid ${P.y3}; background: ${P.y1}; color: ${P.c4}; border-radius: 4px; font-size: 16px; }
+#net .name p { margin: 0; color: ${P.c4}; font-size: 13px; opacity: 0.8; }
+#net .name .cancel { background: transparent; border-color: ${P.c4}66; font-size: 13px; padding: 3px 12px; }
 `;
 
 let root;
@@ -63,26 +67,62 @@ function el(tag, cls, parent, html) {
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
-/** Pide el nombre si el enlace no lo trae. */
-export function askName() {
+/** La capa de HTML del modo en línea (también se usa en el título para pedir el nombre). */
+function ensureRoot() {
+  if (root) return root;
+  const style = document.createElement("style");
+  style.textContent = CSS;
+  document.head.append(style);
+  root = el("div", null, document.body);
+  root.id = "net";
+  return root;
+}
+
+/** El último nombre con el que se entró en línea en este aparato. */
+export function lastName() {
+  try { return localStorage.getItem("stones-online-name") ?? ""; } catch { return ""; }
+}
+
+/**
+ * Pide el nombre (recuerda el último). Sin `force`, si el enlace ya lo trae, no pregunta.
+ * Devuelve el nombre, o null si se canceló (sólo con `cancel`).
+ */
+export function askName({ force = false, cancel = false } = {}) {
   return new Promise((resolve) => {
-    if (online.name) { resolve(online.name); return; }
+    if (online.name && !force) { resolve(online.name); return; }
+    ensureRoot();
     const box = el("div", "name", root);
     const f = el("form", null, box);
     el("h2", null, f, "Stones · en línea");
+    el("p", null, f, "¿Cómo te llamas? Así te ven los demás y así se guarda tu avance.");
     const i = el("input", null, f);
     i.placeholder = "Tu nombre";
     i.maxLength = 16;
-    try { i.value = localStorage.getItem("stones-online-name") ?? ""; } catch { /* sin almacenamiento */ }
+    i.value = online.name ?? lastName();
     el("button", null, f, "Entrar");
+    // Mientras escribes, el juego no oye el teclado (si no, la "w" o la "a" no se escriben).
+    setGameKeys(false);
+    const done = (name) => {
+      setGameKeys(true);
+      box.remove();
+      resolve(name);
+    };
+    if (cancel) {
+      const c = el("button", "cancel", f, "Volver");
+      c.type = "button";
+      c.onclick = () => done(null);
+    }
+    i.addEventListener("keydown", (e) => {
+      e.stopPropagation();
+      if (e.key === "Escape" && cancel) { e.preventDefault(); done(null); }
+    });
     f.onsubmit = (e) => {
       e.preventDefault();
       const name = i.value.trim().slice(0, 16);
       if (!name) return;
       try { localStorage.setItem("stones-online-name", name); } catch { /* sin almacenamiento */ }
       online.name = name;
-      box.remove();
-      resolve(name);
+      done(name);
     };
     setTimeout(() => i.focus(), 50);
   });
@@ -104,7 +144,7 @@ function setGameKeys(on) {
 export function openChat() {
   if (form.classList.contains("open")) return;
   form.classList.add("open");
-  hint.style.display = "none";
+  hint.classList.add("hide");
   setGameKeys(false);
   input.value = "";
   setTimeout(() => input.focus(), 0);
@@ -112,12 +152,47 @@ export function openChat() {
 
 function closeChat() {
   form.classList.remove("open");
-  hint.style.display = touch.on ? "none" : "";
+  layout();
   input.blur();
   setGameKeys(true);
 }
 
+/**
+ * Dónde va cada cosa según lo que muestra el juego: la barra debajo de los corazones (se esconde con
+ * la pausa, el mercado y los tableros, que tapan la pantalla); con un diálogo abajo, los botones se
+ * esconden y el chat sube junto a la barra para no tapar el texto.
+ */
+function layout() {
+  const game = globalThis.__stonesGame;
+  const canvas = game?.canvas;
+  const r = canvas?.getBoundingClientRect();
+  if (!r?.width) return;
+  const z = r.width / 480;
+  const mode = game.scene.isActive("ui") ? game.scene.getScene("ui").mode : null;
+  const inGame = game.scene.isActive("world");
+  const full = ["pause", "shop", "board", "stash", "report", "boat", "leaving"].includes(mode);
+  const talk = mode === "dialog" || mode === "choice";
+  bar.classList.toggle("hide", full || !inGame);
+  bar.style.left = `${Math.round(r.left + 4 * z)}px`;
+  bar.style.top = `${Math.round(r.top + 29 * z)}px`;
+  bar.style.fontSize = `${Math.max(10, Math.min(15, Math.round(6.5 * z)))}px`;
+  hint.classList.toggle("hide", touch.on || talk || full || form.classList.contains("open"));
+  // Todo pegado al juego (no a la ventana): en celular, a los lados van la palanca y los botones.
+  const left = `${Math.round(Math.max(6, r.left + 4 * z))}px`;
+  const floor = Math.max(6, Math.round(window.innerHeight - r.bottom + 4 * z));
+  for (const e of [hint, form]) { e.style.left = left; e.style.bottom = `${floor}px`; }
+  log.style.left = left;
+  if (talk) {
+    log.style.bottom = "auto";
+    log.style.top = `${Math.round(r.top + 29 * z + bar.offsetHeight + 4)}px`;
+  } else {
+    log.style.top = "";
+    log.style.bottom = `${floor + (hint.classList.contains("hide") ? 0 : hint.offsetHeight + 6)}px`;
+  }
+}
+
 function renderBar() {
+  layout();
   const players = [...online.players.values()].filter((p) => p.name && p.id !== online.id);
   const who = players.map((p) => `<span class="${p.talking ? "talk" : ""}">${esc(p.name)}${p.talking ? " 🎤" : ""}</span>`).join("");
   const day = online.reg?.get("day") ?? online.world.econ?.day ?? 1;
@@ -156,11 +231,7 @@ function touchButtons() {
 
 export function setupHud() {
   if (!online.on) return;
-  const style = document.createElement("style");
-  style.textContent = CSS;
-  document.head.append(style);
-  root = el("div", null, document.body);
-  root.id = "net";
+  ensureRoot();
   bar = el("div", "bar", root);
   log = el("div", "log", root);
   // En la compu: botones a la vista (también se puede con T y Enter).
@@ -208,14 +279,14 @@ export function setupHud() {
     addLine(say);
   });
   onNet("chat", (m) => addLine(`<b>${esc(m.name)}:</b> ${esc(m.text)}`, m.id === online.id ? "me" : ""));
-  onNet("join", (m) => addLine(`<b>${esc(m.name)}</b> entró al golfo.`));
+  onNet("join", (m) => addLine(`<b>${esc(m.name)}</b> ${m.back ? "volvió." : "entró al golfo."}`));
   onNet("leave", (m) => { if (m.name) addLine(`<b>${esc(m.name)}</b> se fue.`); });
   onNet("talk", (m) => {
     const p = online.players.get(m.id);
     if (m.on && p && p.map !== voice.me.map) addLine(`📻 <b>${esc(p.name)}</b> habla desde lejos.`);
   });
-  if (touch.on) { touchButtons(); hint.style.display = "none"; }
-  window.addEventListener("touchcontrols", () => { if (!root.querySelector(".tbtn")) touchButtons(); hint.style.display = "none"; });
+  if (touch.on) touchButtons();
+  window.addEventListener("touchcontrols", () => { if (!root.querySelector(".tbtn")) touchButtons(); layout(); });
   setInterval(renderBar, 250);
   renderBar();
 }

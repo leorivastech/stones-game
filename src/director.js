@@ -136,10 +136,26 @@ const CALM = [
 ];
 
 /**
+ * Pistas de los refugios escondidos (26-sep): lo que cuenta la gente, sin decir la celda. Cada una
+ * insinúa la ruta, la zona y la señal (flores de luna, piedra marcada, ruinas, derrumbe). Siempre
+ * son verdad: el "?" queda en la ruta del mapa hasta que das con el refugio.
+ */
+export const REFUGE_HINTS = [
+  { refuge: "refugio-r1", route: "ruta1", text: "Un viejo guardaba sus cosas bajo unas ruinas del bosque, pasando el río de la Calzada del Ámbar. En la orilla crecen flores de luna." },
+  { refuge: "refugio-r2", route: "ruta2", text: "Los pastores del Paso Alto rayan una piedra junto a un arbusto. Detrás, entre los pinos del oeste, hay una cueva seca." },
+  { refuge: "refugio-r2b", route: "ruta2", text: "Dicen que detrás del derrumbe del Paso Alto se oye agua. La palanca la esconden en el pasto alto." },
+  { refuge: "refugio-r3", route: "ruta3", text: "Aurelio, el campesino, se fue a vivir selva adentro, al sur del camino de la Ruta 3. Busca las flores de luna." },
+  { refuge: "refugio-r3b", route: "ruta3", text: "En la selva del Tránsito, al norte del camino, hay un estero con una choza vieja. Se llega por unos tablones." },
+  { refuge: "refugio-r4", route: "ruta4", text: "Saliendo del lago helado, donde se juntan los pinos nevados, hay una cueva fría. Los que la usan marcan una piedra." },
+  { refuge: "refugio-r5", route: "ruta5", text: "En el cañón de la Ruta 5 hay una grieta entre las peñas del oeste. Ahí duermen los que no quieren ser vistos." },
+];
+
+/**
  * Un rumor para contar. `honest`: qué tanto dice la verdad la fuente (0-1).
  * Con sucesos activos, casi siempre cuenta uno; si miente, inventa algo de otro pueblo.
+ * `hints`: pistas de refugios que el jugador no ha encontrado (de vez en cuando se cuenta una).
  */
-export function rumor(state, { honest = 0.85, rng = Math.random } = {}) {
+export function rumor(state, { honest = 0.85, rng = Math.random, hints = [] } = {}) {
   const events = activeEvents(state);
   if (rng() > honest) {
     const town = TOWN_IDS[Math.floor(rng() * TOWN_IDS.length)];
@@ -148,6 +164,10 @@ export function rumor(state, { honest = 0.85, rng = Math.random } = {}) {
   if (events.length && rng() < 0.85) {
     const ev = events[Math.floor(rng() * events.length)];
     return { text: ev.news, true: true, event: ev.id, town: ev.town };
+  }
+  if (hints.length && rng() < 0.22) {
+    const h = hints[Math.floor(rng() * hints.length)];
+    return { text: h.text, true: true, route: h.route, refuge: h.refuge };
   }
   // Los mercaderes de a pie de estos días: "Ayer un mercader vendió 4 perlas en Valkeep".
   const caravan = (state.caravans ?? []).filter((c) => state.day - c.day <= 2);

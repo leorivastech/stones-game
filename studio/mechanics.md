@@ -1,6 +1,6 @@
 # Mecánicas — Stones
 
-Estado: **mundo completo y vivo** — 6 pueblos, 5 rutas, barca, 3 refugios, mercado de oferta y
+Estado: **mundo completo y vivo** — 6 pueblos, 5 rutas, barca, 7 refugios escondidos, mercado de oferta y
 demanda, días, deuda y sucesos. **Las reglas del mercado son provisionales** (Leo, 23-sep: hay que
 sentarse a analizarlas y dejarlas claras). 2026-09-23; tanda 4 (26-sep): el tiempo corre en la
 ruta, deuda con dientes, sucesos con cuenta atrás, rumores en el mapa, K.O. con castigo; tanda 6
@@ -224,23 +224,46 @@ pedían, cuánto tiempo había ni cuándo se perdían).
   que acabe el suceso (o 4 días). Al llegar a ese pueblo se comprueba: si era falso se **tacha** en
   rojo ("El rumor de aquí era falso"); si era cierto, el "?" se pone verde.
 
-## Refugios secretos
+## Refugios secretos (escondidos)
 
-Cuartitos privados, como las bases secretas de Pokémon. Se entra caminando.
+Cuartitos privados, como las bases secretas de Pokémon. Se entra caminando. **Desde el 26-sep están
+escondidos** (Leo: "ya están muy a la vista; que te tengas que meter adentrito, buscándolo"): ningún
+refugio se ve desde el camino ni tiene letrero. Se llega por una **vereda de una celda** entre el
+bosque, las peñas o el palmar, tapada por un **arbusto que se corta** (o por un derrumbe), y los
+árboles de enfrente tapan la puerta. La única señal es chica: **flores de luna** (blancas y azules,
+no crecen en otro lado), una **piedra marcada** (un aro rayado) o unas piedras de ruina. Dónde está
+cada uno, paso a paso: `studio/refugios.md`.
 
-| Refugio | Dónde | Cómo se consigue | Tiene |
+| Refugio | Dónde | Cómo se consigue | Tiene / ventaja |
 |---|---|---|---|
-| Cueva del Paso Alto | Ruta 2, junto a la cornisa | Herrajes de Oskar (fama 2, 40) | estante, mesa |
-| Tierra escondida | Ruta 3, en la selva | Aurelio te la vende (fama 3, 80) | estante, mesa, choza, **corral** |
-| Cueva del lago | Ruta 4, junto al lago helado | Herrajes de Oskar | estante, mesa; **la escarcha no se derrite** |
+| Sótano de las ruinas | Ruta 1, bosque del este pasando el río | Arreglarlo: 30 oro, fama 1 | estante, mesa, **catre ya puesto** |
+| Cueva del Paso Alto | Ruta 2, pinar del oeste de la meseta | Herrajes de Oskar (fama 2, 40) | estante, mesa |
+| Cueva del manantial | Ruta 2, pinar del este, tras un derrumbe con palanca | Herrajes de Oskar | estante, mesa; **manantial: bebes y te curas** |
+| Tierra escondida | Ruta 3, selva adentro al sur del camino | Aurelio (está junto a su reja) te la vende: fama 3, 80 | estante, mesa, choza, **corral** |
+| Choza del manglar | Ruta 3, estero al norte del camino | Arreglarla: 60 oro, fama 5 | estante, mesa; **cerrojo ya puesto: nunca hay redada** |
+| Cueva del lago | Ruta 4, pinar nevado al sur del lago helado | Herrajes de Oskar | estante, mesa; **la escarcha no se derrite** |
+| Grieta del cañón | Ruta 5, pared del oeste del cañón, tras un palmar | Herrajes de Oskar + fama 4 | estante, mesa; **redada sólo con calor ≥ 85** |
+
+- **Encontrarlo**: al tocar la puerta la primera vez sale "Encontraste un escondite". Los rumores
+  (posaderos y gente) a veces cuentan una **pista** de un refugio que no has encontrado ("Dicen que
+  detrás del derrumbe del Paso Alto se oye agua"); queda un "?" a medio camino de esa ruta en el mapa
+  de la pausa (12 días) y se pone verde cuando lo encuentras.
+- **Derrumbe del Paso Alto**: tapa la entrada de la Cueva del manantial. La palanca está escondida en
+  el pasto alto de al lado; al jalarla las peñas ruedan a un lado para siempre (en línea, para todos).
+- Lo que un refugio **ya trae** (catre del sótano, cerrojo de la choza, corral de Aurelio) no se vende
+  en su mesa.
 
 - **Estante**: guardar y sacar piedras (6; 12 con estantes). Lo guardado no se pierde en K.O.,
   robos ni revisiones.
 - **Mesa de trabajo**: mejoras — estantes (30), catre (20: dormir hasta las 7 y curarte; y si caes
   K.O. en esa ruta, despiertas aquí), corral (40),
   cerrojo reforzado (60: la Corona no lo encuentra).
-- **Redada**: al entrar a la ruta con calor ≥ 60, **cada** refugio sin cerrojo de esa ruta tiene
-  50 % de ser vaciado (se revisan todos). Si dejaste a alguien cuidando, espanta a la patrulla.
+- **Redada**: al entrar a la ruta con calor ≥ 60 (la Grieta del cañón: ≥ 85), **cada** refugio sin
+  cerrojo de esa ruta tiene 50 % de ser vaciado (se revisan todos). Si dejaste a alguien cuidando,
+  espanta a la patrulla.
+- **En línea**: el primero que se queda con un refugio es el dueño; en la puerta elige "Invitar a…" o
+  "Quitar la invitación". Sin invitación la puerta dice "Es de …". El estante y las mejoras son del
+  refugio (dueño e invitados). El derrumbe abierto es del mundo.
 
 ## Tu gente: se lleva y se deja caminando
 
@@ -254,8 +277,8 @@ Cuartitos privados, como las bases secretas de Pokémon. Se entra caminando.
 - **Recogerlos**: vuelve a donde los dejaste (háblales, o al posadero, o a Nella).
 - **Yegua espantada** (K.O.): se queda en la ruta donde caíste; al volver a entrar a esa ruta se
   te junta. **Embargada** (matones): Nella la devuelve por 60.
-- La yegua **espera afuera** de las cuevas sin corral y **no pisa el hielo**: para cruzar el lago
-  hay que dejarla (en la cueva del lago) o ir por el retén.
+- La yegua **espera afuera** de los refugios sin corral y **no pisa el hielo**: para cruzar el lago
+  hay que dejarla (en el establo o la posada) o ir por el retén.
 - Mientras más gente llevas, **los guardias te ven de más lejos** (+20 % por acompañante).
 - La barca cobra el doble si llevas la yegua.
 
@@ -279,17 +302,20 @@ Cuartitos privados, como las bases secretas de Pokémon. Se entra caminando.
 ## Rutas
 
 - **Ruta 1 · Calzada del Ámbar** (Ashfen ↔ Valkeep): retén en la calzada o sendero del bosque por
-  el campamento; reja con palanca (atajo para siempre); bordes de salto; cofre con corazón extra.
-- **Ruta 2 · Paso Alto** (Valkeep ↔ Verdelume): aduana; cornisa del oeste con la cueva-refugio;
-  vereda del este tapada; lobos; río.
-- **Ruta 3 · Selva del Tránsito** (Verdelume ↔ Duneshade): selva cerrada con campamento y la
-  tierra escondida de Aurelio; luego desierto abierto con escorpiones y oasis.
+  el campamento; reja con palanca (atajo para siempre); bordes de salto; cofre con corazón extra;
+  pasando el río, en el bosque del este, el Sótano de las ruinas (escondido).
+- **Ruta 2 · Paso Alto** (Valkeep ↔ Verdelume): aduana; cornisa del oeste; vereda del este tapada;
+  lobos; río. En la meseta, dos pinares: el del oeste esconde la Cueva del Paso Alto y el del este la
+  Cueva del manantial, tras un derrumbe con palanca.
+- **Ruta 3 · Selva del Tránsito** (Verdelume ↔ Duneshade): selva cerrada con campamento; selva
+  adentro, al sur, la tierra escondida de Aurelio; al norte, un estero con la Choza del manglar;
+  luego desierto abierto con escorpiones y oasis.
 - **Ruta 5 · Cañón del Musgo** (Duneshade ↔ Mossgrove): cañón del desierto con escorpiones y
-  emboscada; la arena se vuelve grava y musgo; bosque cerrado con jabalíes, un lobo, pasto alto y un
-  cofre escondido tras arbustos.
+  emboscada y la Grieta del cañón tras un palmar; la arena se vuelve grava y musgo; bosque cerrado
+  con jabalíes, un lobo, pasto alto y un cofre escondido tras arbustos.
 - **Ruta 4 · Paso del Hielo** (Mossgrove ↔ Frostholm): bosque con jabalíes que se vuelve nieve,
-  Puerta de la Escarcha (retén), lago helado para patinar (solución: ↓ → ↓ ← ↓ → ↓) y la cueva del
-  lago; bosque nevado con lobos. (Hasta el 23-sep empezaba en el desierto.)
+  Puerta de la Escarcha (retén), lago helado para patinar (solución: ↓ → ↓ ← ↓ → ↓); al salir del
+  lago, entre los pinos nevados del suroeste, la Cueva del lago (escondida); bosque nevado con lobos. (Hasta el 23-sep empezaba en el desierto.)
 - Con más calor hay más patrullas y ven más lejos. Las salidas funcionan en los 4 bordes.
 
 ## Pueblos

@@ -31,6 +31,7 @@ const STEP_BY_CELL = { "=": "stone", B: "wood", _: "sand", s: "snow", i: "snow",
 const STEP_BY_BIOME = { desert: "sand", snow: "snow" };
 import { sfx, tone, duckTheme, restoreTheme, footstep, stinger } from "../sfx.js";
 import { contracts as myContracts, contractBoard } from "../state.js"; // contratos del tablón de la posada
+import { foundRefuge } from "../state.js"; // refugios escondidos (26-sep)
 import {
   GOODS, TOWNS, UPGRADES, STONE, TRAVEL_DAYS, DEBT, AMBER_TAX, addHeartContainer, addHeat, ambushProtection, cargo, cargoOf,
   flag, gold, hasUpgrade, heal, heatLevel, hp, hurt, localHeat, loseStones, maxHp, pay, purchaseUpgrade, reputation,
@@ -47,6 +48,21 @@ const INTRO = [
   "Tu padre murió debiéndole 500 al Gremio de la Corona. La deuda ahora es tuya: el cobrador pasa cada siete días.",
   "Las piedras de hechizo se compran donde sobran y se venden donde las ocupan. Empecemos por la plaza.",
 ];
+
+/** Lo que ves al dar con un refugio que todavía no es de nadie, según su tipo. */
+const REFUGE_LOOK = {
+  cave: ["Una cueva seca y honda. Aquí adentro nadie te vería."],
+  cellar: ["Unas escaleras bajan bajo las ruinas. Abajo, un sótano seco con un catre viejo.", "Alguien vivió aquí hace mucho."],
+  hut: ["Una choza sobre pilotes, en medio del estero. La puerta está clavada con tablas.", "Nadie llega hasta aquí sin conocer los tablones."],
+  crevice: ["Una grieta entre las peñas. Adentro se abre una hondonada con sombra.", "Desde el camino nadie la ve."],
+};
+/** Cómo queda tuyo un refugio que se arregla con oro (sin herrajes). */
+const REFUGE_FIX = {
+  cellar: "Mandas hacer una trampilla nueva con candado. Un arriero trae las tablas.",
+  hut: "Arrancas las tablas, arreglas la puerta y le pones cerrojo.",
+  crevice: "Cuelgas una cortina de cuero y escondes la entrada con piedras.",
+  cave: "Pones puerta y cerrojo.",
+};
 
 export class WorldScene extends Phaser.Scene {
   constructor() {
@@ -73,6 +89,9 @@ export class WorldScene extends Phaser.Scene {
     this.wayNear = null;
     this.tutArrow = null;
     this.contractBoardImg = null;
+    // En línea: el NetWorld del mapa anterior ya no sirve (se crea otro en create).
+    this.net = null;
+    this.thugs = [];
   }
 
   create(data) {
@@ -224,8 +243,10 @@ export class WorldScene extends Phaser.Scene {
           const info = REFUGES[spec.id];
           const owned = online.on ? Boolean(ownerOf(spec.id)) : ownsRefuge(reg, spec.id);
           let img;
-          if (info.kind === "cave") {
-            img = this.add.sprite(px, py, spec.snow ? "cave-door-snow" : "cave-door", owned ? 1 : 0).setOrigin(0.5, 1).setDepth(py);
+          if (info.kind !== "plot") {
+            // Cueva, sótano, choza del manglar o grieta: una puerta con dos cuadros (sin forjar / tuya).
+            const art = info.kind === "cave" ? (spec.snow ? "cave-door-snow" : "cave-door") : `${info.kind}-door`;
+            img = this.add.sprite(px, py, art, owned ? 1 : 0).setOrigin(0.5, 1).setDepth(py);
             this.world.addSolid(px - 16, py - 26, 32, 22);
           } else {
             img = this.add.sprite(px, py, "gate", owned ? 1 : 0).setOrigin(0.5, 1).setDepth(py);
@@ -234,7 +255,10 @@ export class WorldScene extends Phaser.Scene {
             spec.bar = this.world.addSolid(px - 16, py - 14, 32, 12);
             if (owned) spec.bar.body.enable = false;
           }
-          this.interactables.push({ x: px, y: py + 6, r: 22, get label() { return ownsRefuge(reg, spec.id) ? "Entrar" : ownerOf(spec.id) ? "Tocar" : "Mirar"; }, act: () => this.useRefugeDoor(spec, img) });
+          // La reja de Aurelio se usa de frente; las demás puertas quedan al fondo de una vereda
+          // escondida y se llega de lado: el punto de uso va a media puerta.
+          const side = info.kind !== "plot";
+          this.interactables.push({ x: px, y: side ? py - 4 : py + 6, r: side ? 24 : 22, get label() { return ownsRefuge(reg, spec.id) ? "Entrar" : ownerOf(spec.id) ? "Tocar" : "Mirar"; }, act: () => this.useRefugeDoor(spec, img) });
           this.stashes.push({ spec, img, refuge: true });
           break;
         }
@@ -274,7 +298,7 @@ export class WorldScene extends Phaser.Scene {
         }
         case "gate": {
           const open = flag(reg, spec.id);
-          const img = this.add.sprite(px, py, "gate", open ? 1 : 0).setOrigin(0, 0).setDepth(py + 22);
+          const img = this.add.sprite(px, py, spec.art ?? "gate", open ? 1 : 0).setOrigin(0, 0).setDepth(py + 22);
           this.world.addSolid(px, py + 8, 8, 16);
           this.world.addSolid(px + 40, py + 8, 8, 16);
           const bar = this.world.addSolid(px + 8, py + 8, 32, 16);
@@ -295,6 +319,11 @@ export class WorldScene extends Phaser.Scene {
           const img = this.add.sprite(px, py, "barrier", 0).setOrigin(0, 0).setDepth(py + 20);
           const solid = this.world.addSolid(px - 8, py + 8, 80, 12);
           this.barrier = { id: spec.id, img, solid, raised: false, cx: px + 32, cy: py + 14, cooldown: 0 };
+          break;
+        }
+        case "spring": {
+          // Manantial de la Cueva del manantial: se bebe y te curas, como en el pozo.
+          this.interactables.push({ x: px, y: py, r: 24, label: "Beber", act: () => this.drink("Agua helada del manantial. Recuperas toda la vida.") });
           break;
         }
         case "well": {
@@ -354,7 +383,12 @@ export class WorldScene extends Phaser.Scene {
 
   /** A quién persigue un enemigo: solo, a ti; en línea, al jugador más cercano del mapa. */
   targetFor(enemy) {
-    if (!this.net || enemy.thug) return this.player; // los matones del Gremio vienen por ti
+    // Los matones del Gremio vienen por el deudor (en línea puede ser el jugador de otro aparato).
+    if (enemy.thug) {
+      if (!this.net || enemy.thugFor == null || enemy.thugFor === online.id) return this.player;
+      return this.net.ghostProxy(enemy.thugFor) ?? this.player;
+    }
+    if (!this.net) return this.player;
 
     let best = this.player;
     let bd = this.player.state === "ko" ? Infinity : Math.hypot(this.player.x - enemy.x, this.player.y - enemy.y);
@@ -694,7 +728,7 @@ export class WorldScene extends Phaser.Scene {
     img.setFrame(1);
     it.hidden = true;
     // En línea la reja es del mundo: si ya la abrió otro, sólo se ve abierta.
-    if (online.on && !(await request({ t: "claim", key: spec.id, news: "abrió la reja del farallón." })).ok) return;
+    if (online.on && !(await request({ t: "claim", key: spec.id, news: spec.news ?? "abrió la reja del farallón." })).ok) return;
     setFlag(this.registry, spec.id);
     sfx(this, "lever", { volume: 0.6 });
     const gate = this.gates?.[spec.id];
@@ -709,15 +743,15 @@ export class WorldScene extends Phaser.Scene {
       await new Promise((r) => this.time.delayedCall(600, r));
       await new Promise((r) => { cam.pan(this.player.x, this.player.y, 400, "Sine.easeInOut", false, (c, p) => { if (p === 1) r(); }); });
       cam.startFollow(this.player.sprite, true, 0.16, 0.16, 0, 12);
-      await this.ui.say(["La reja crujió y quedó abierta.", "La próxima vez, el camino corto está libre."]);
+      await this.ui.say(spec.say ?? ["La reja crujió y quedó abierta.", "La próxima vez, el camino corto está libre."]);
       saveGame(this.registry);
     }
   }
 
-  async drink() {
+  async drink(text = "Agua fría del pozo. Recuperas toda la vida.") {
     heal(this.registry);
     tone(this, "heart");
-    await this.ui.say(["Agua fría del pozo. Recuperas toda la vida."]);
+    await this.ui.say([text]);
   }
 
   // ---------------------------------------------------------------- combate
@@ -1199,7 +1233,7 @@ export class WorldScene extends Phaser.Scene {
     tone(this, res.ok ? "chest" : "deny");
     if (res.ok) sfx(this, "coins");
     const extra = choice.id === "stashKit" && res.ok
-      ? ["En el Paso Alto y junto al lago del paso hay cuevas secas. Con esto, cada una es tu refugio.", "Adentro guardas piedras y hasta gente. Pero si la Corona anda caliente en esa ruta, sin buen cerrojo la encuentra."]
+      ? ["Por los caminos hay cuevas y grietas escondidas. Con esto, cada una puede ser tu refugio.", "No están a la vista: pregunta en las posadas y fíjate en las piedras marcadas.", "Adentro guardas piedras y hasta gente. Pero si la Corona anda caliente en esa ruta, sin buen cerrojo la encuentra."]
       : [];
     await this.ui.say([res.reason, ...extra], { name });
     saveGame(reg);
@@ -1402,37 +1436,13 @@ export class WorldScene extends Phaser.Scene {
     const reg = this.registry;
     if (this.leaving || !this.sys.isActive() || this.def.kind !== "route" || !thugsPending(reg)) return;
     clearThugs(reg);
-    const w = this.world;
     const p = this.player;
-    const open = (c, r) => [":", "=", "s", ".", ",", "_"].includes(w.at(c, r)) && !w.solidAt(c * TILE + 8, r * TILE + 8);
-    const spots = [];
-    for (let r = 2; r < w.rows - 2; r += 1) {
-      for (let c = 2; c < w.cols - 2; c += 1) {
-        if (!open(c, r) || !open(c + 1, r) || !open(c, r + 1)) continue;
-        const d = Math.hypot(c * TILE + 8 - p.x, r * TILE + 12 - p.y) / TILE;
-        if (d >= 6 && d <= 11) spots.push({ c, r, d });
-      }
-    }
-    if (!spots.length) return;
-    // El primero de frente a donde vas; el segundo, a unos pasos de él.
-    spots.sort((a, b) => a.d - b.d);
-    const first = spots[Math.floor(spots.length / 2)];
-    const second = spots.find((s) => Math.hypot(s.c - first.c, s.r - first.r) >= 2 && Math.hypot(s.c - first.c, s.r - first.r) <= 4) ?? spots[0];
-    this.thugs = [];
-    for (const s of [first, second].slice(0, DEBT.thugs)) {
-      const e = new Bandit(this, { type: "enemy", kind: "bandit", x: s.c + 0.5, y: s.r + 0.8, dir: "down" });
-      e.thug = true;
-      e.hp = DEBT.thugHp;
-      e.cast = "thug";
-      e.sprite.setTexture("cast-thug", e.sprite.frame.name);
-      e.puppet = false; // en línea son sólo tuyos: no se sincronizan
-      e.faceToward(p.x, p.y);
-      e.setState("chase");
-      e.showBubble("bubble-alert", 900);
-      this.fx.poof(e.x, e.y - 6);
-      this.enemies.push(e);
-      this.enemyGroup.add(e.sprite);
-      this.thugs.push(e);
+    if (this.net) {
+      // En línea los saca el que manda este mapa (todos los ven y pueden pelear), pero vienen por ti.
+      this.net.requestThugs(p.x, p.y);
+    } else {
+      this.thugs = this.makeThugs(p.x, p.y).map((s, i) => this.makeThug(s, i));
+      if (!this.thugs.length) return;
     }
     duckTheme(this, 0.12);
     this.time.delayedCall(2200, () => restoreTheme(this));
@@ -1441,8 +1451,58 @@ export class WorldScene extends Phaser.Scene {
     saveGame(reg);
   }
 
+  /** Dónde salen los matones: a 6-11 celdas de (px, py), sobre el camino; el segundo a unos pasos del primero. */
+  makeThugs(px, py) {
+    const w = this.world;
+    const open = (c, r) => [":", "=", "s", ".", ",", "_"].includes(w.at(c, r)) && !w.solidAt(c * TILE + 8, r * TILE + 8);
+    const spots = [];
+    for (let r = 2; r < w.rows - 2; r += 1) {
+      for (let c = 2; c < w.cols - 2; c += 1) {
+        if (!open(c, r) || !open(c + 1, r) || !open(c, r + 1)) continue;
+        const d = Math.hypot(c * TILE + 8 - px, r * TILE + 12 - py) / TILE;
+        if (d >= 6 && d <= 11) spots.push({ c, r, d });
+      }
+    }
+    if (!spots.length) return [];
+    // El primero de frente a donde vas; el segundo, a unos pasos de él.
+    spots.sort((a, b) => a.d - b.d);
+    const first = spots[Math.floor(spots.length / 2)];
+    const second = spots.find((s) => Math.hypot(s.c - first.c, s.r - first.r) >= 2 && Math.hypot(s.c - first.c, s.r - first.r) <= 4) ?? spots[0];
+    return [first, second].slice(0, DEBT.thugs).map((s) => ({ x: s.c + 0.5, y: s.r + 0.8 }));
+  }
+
+  /**
+   * Un matón del Gremio en (x, y) celdas. `forId`: en línea, el id del deudor (null = el de este
+   * aparato). `quiet`: sin nube ni polvo (títere que llega por la red ya andando).
+   */
+  makeThug({ x, y }, i, { forId = null, netId = null, quiet = false } = {}) {
+    const e = new Bandit(this, { type: "enemy", kind: "bandit", x, y, dir: "down" });
+    e.thug = true;
+    e.thugFor = forId;
+    e.hp = DEBT.thugHp;
+    e.cast = "thug";
+    e.sprite.setTexture("cast-thug", e.sprite.frame.name);
+    e.puppet = false;
+    e.netId = netId;
+    e.bornAt = this.time.now;
+    const t = this.targetFor(e);
+    e.faceToward(t.x, t.y);
+    e.setState("chase");
+    e.spawnState = "chase";
+    if (!quiet) {
+      e.showBubble("bubble-alert", 900);
+      this.fx.poof(e.x, e.y - 6);
+    }
+    this.enemies.push(e);
+    this.enemyGroup.add(e.sprite);
+    void i;
+    return e;
+  }
+
   /** Tumbaste a un matón. Si caen todos, se van de vacío (la deuda sigue ahí). */
   onThugDown(e) {
+    // En línea el aviso es sólo para el deudor.
+    if (online.on && e.thugFor != null && e.thugFor !== online.id) return;
     this.thugs = (this.thugs ?? []).filter((t) => t !== e && !t.dead);
     if (!this.thugs.length) this.ui.toast("Los matones se van de vacío. La deuda sigue", "font-gold");
   }
@@ -1455,6 +1515,7 @@ export class WorldScene extends Phaser.Scene {
       t.destroy();
     }
     this.thugs = [];
+    this.net?.thugsGone();
   }
 
   // ---------------------------------------------------------------- buhonero de camino
@@ -1686,6 +1747,8 @@ export class WorldScene extends Phaser.Scene {
     if (h < STASH_RAID_HEAT) return;
     for (const { spec } of this.stashes) {
       if (!stashCount(reg, spec.id)) continue;
+      // Hay refugios donde la Corona casi no llega (la Grieta del cañón): piden más calor.
+      if (h < (REFUGES[spec.id]?.raidHeat ?? STASH_RAID_HEAT)) continue;
       if (refugeHas(reg, spec.id, "lock")) continue;
       if (Math.random() >= 0.5) continue;
       // Quien se quedó cuidando el refugio espanta a la patrulla.
@@ -2014,6 +2077,7 @@ export class WorldScene extends Phaser.Scene {
       await this.ui.say([`Ya se lo vendí a ${ownerOf("refugio-r3")}.`, "Si te invita, te dejo pasar."], { name });
       return;
     }
+    if (foundRefuge(reg, "refugio-r3")) saveGame(reg);
     await this.ui.say(npc.spec.talk, { name });
     if (reputation(reg) < info.fame) {
       await this.ui.say(["Pero no se lo vendo a cualquiera.", `(Necesitas fama ${info.fame}. Tienes ${reputation(reg)}. Sube vendiendo lo que un pueblo ocupa.)`], { name });
@@ -2043,6 +2107,8 @@ export class WorldScene extends Phaser.Scene {
   async useRefugeDoor(spec, img) {
     const reg = this.registry;
     const info = REFUGES[spec.id];
+    // Lo encontraste: ya no se oyen rumores de él y el "?" del mapa queda como cierto.
+    if (foundRefuge(reg, spec.id)) { tone(this, "confirm"); this.ui.toast(`Encontraste un escondite: ${info.name}`, "font-gold"); saveGame(reg); }
     if (online.on && ownerOf(spec.id)) {
       if (!ownsRefuge(reg, spec.id)) {
         await this.ui.say([`${info.name}: la puerta está cerrada.`, `Es de ${ownerOf(spec.id)}. Si te invita, puedes entrar.`]);
@@ -2057,20 +2123,34 @@ export class WorldScene extends Phaser.Scene {
         await this.ui.say(["Una reja entre la selva. Del otro lado se ve un claro.", "Es de Aurelio, el campesino de aquí al lado."]);
         return;
       }
-      if (!hasUpgrade(reg, "stashKit")) {
-        await this.ui.say(["Una cueva seca y honda. Aquí adentro nadie te vería.", "Con puerta y cerrojo sería tu refugio. Oskar, el herrero de Ashfen, hace herrajes."]);
+      const look = REFUGE_LOOK[info.kind] ?? REFUGE_LOOK.cave;
+      if (info.kit && !hasUpgrade(reg, "stashKit")) {
+        await this.ui.say([...look, "Con puerta y cerrojo sería tu refugio. Oskar, el herrero de Ashfen, hace herrajes."]);
         return;
       }
+      if (info.fame && reputation(reg) < info.fame) {
+        await this.ui.say([...look, `(Para quedártelo necesitas fama ${info.fame}. Tienes ${reputation(reg)}.)`]);
+        return;
+      }
+      if (info.price) {
+        await this.ui.say(look);
+        const pick = await this.ui.choose(`${info.name} · ${info.price} oro`, [
+          { label: "Arreglarlo y quedártelo", disabled: gold(reg) < info.price, note: info.perk ?? "" },
+          { label: "Ahora no" },
+        ]);
+        if (pick !== 0) return;
+      }
       if (online.on) {
-        const r = await request({ t: "own", id: spec.id, news: `se quedó con la ${info.name}.` });
+        const r = await request({ t: "own", id: spec.id, news: `se quedó con ${info.name}.` });
         if (!r.ok) { await this.ui.say([`Alguien se te adelantó: ${info.name} ya es de ${r.owner ?? "otro"}.`]); return; }
       }
+      if (info.price) pay(reg, info.price);
       setFlag(reg, `refuge-${spec.id}`);
       if (info.cold) reg.set("stashes", { ...(reg.get("stashes") ?? {}), [spec.id]: { cold: true } });
       img.setFrame(1);
       tone(this, "chest");
       sfx(this, "latch", { volume: 0.5 });
-      await this.ui.say(["Clavas los herrajes de Oskar: puerta, bisagras y un cerrojo.", `${info.name}: ahora es tuya.`]);
+      await this.ui.say([info.kit ? "Clavas los herrajes de Oskar: puerta, bisagras y un cerrojo." : REFUGE_FIX[info.kind], `${info.name}: ya es tu refugio. ${info.perk ?? ""}`.trim()]);
       saveGame(reg);
     }
     this.enterMap(spec.id, "door");
@@ -2118,7 +2198,8 @@ export class WorldScene extends Phaser.Scene {
   async useBench(spec) {
     const reg = this.registry;
     const info = REFUGES[spec.id];
-    const ids = Object.keys(REFUGE_UPGRADES).filter((u) => !(u === "corral" && info.corral));
+    // Lo que el refugio ya trae (el corral de Aurelio, el catre del sótano…) no se vende.
+    const ids = Object.keys(REFUGE_UPGRADES).filter((u) => !(u === "corral" && info.corral) && !info.includes?.includes(u));
     const options = ids.map((u) => {
       const up = REFUGE_UPGRADES[u];
       const owned = refugeHas(reg, spec.id, u);

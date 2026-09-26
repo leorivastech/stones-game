@@ -3,6 +3,9 @@
  *
  *  1. Selva (x 0-44): cerrada; río con puente; pasto alto con emboscadas; campamento de bandidos
  *     detrás de arbustos (cofre); alijo en tronco hueco.
+ *     Dos refugios escondidos (26-sep): la tierra de Aurelio, selva adentro al sur del camino (arbusto
+ *     junto a unas flores de luna → vereda que da vueltas → claro con la reja), y la choza del manglar,
+ *     en un estero al norte (arbusto junto a una piedra marcada → vereda → tablones hasta el islote).
  *  2. Borde (44-52): la selva se abre y aparece la arena.
  *  3. Desierto (52-95): abierto. Las patrullas ven lejos: hay que ir de roca en roca.
  *     Escorpiones escondidos en la arena. Oasis con palmeras y un alijo en roca partida.
@@ -50,6 +53,24 @@ function build() {
   g.ellipse(40, 13, 3, 2, '"', ".", 6);
   g.scatter(1, 4, 44, 28, "e", 0.05, 7);
 
+  // ---- Refugios escondidos (26-sep) ----
+  // Tierra de Aurelio: selva adentro, al sur del camino. Se entra cortando un arbusto en el pasto
+  // alto (junto a unas flores de luna) y se sigue una vereda de una celda que da vueltas entre los
+  // árboles hasta un claro con la reja y el campesino.
+  g.rect(0, 22, 19, 11, "T", '.e"');
+  g.trail([[15, 22], [15, 25], [11, 25], [11, 27], [13, 27], [13, 30]]);
+  g.rect(4, 29, 9, 3, ".");
+  g.set(15, 22, "b");
+  g.rect(14, 21, 3, 1, ".");
+  // Choza del manglar: un estero escondido en la selva del norte. Otro arbusto en el pasto alto,
+  // una vereda y unos tablones sobre el agua hasta el islote.
+  g.rect(0, 0, 19, 12, "T", '.e"');
+  g.ellipse(11.5, 4, 4.6, 3, "~", "T");
+  g.rect(10, 2, 4, 3, ".");
+  g.rect(12, 5, 1, 3, "B");
+  g.trail([[12, 8], [12, 9], [7, 9], [7, 11]]);
+  g.set(7, 11, "b");
+
   // ---- 2-3. Borde y desierto ----
   g.road([[46, 16], [58, 18], [70, 17], [82, 19], [96, 17.5]], 3, ":");
   // Rocas de cubierta a lo largo de la calzada.
@@ -79,11 +100,15 @@ export default {
   objects: [
     { type: "sign", x: 4, y: 15.6, text: ["RUTA 3 · SELVA DEL TRÁNSITO", "← Verdelume   → Duneshade"] },
     { type: "sign", x: 49, y: 13.8, text: ["FIN DE LA SELVA", "La Corona patrulla el desierto: a pleno sol se ve todo."] },
-    { type: "refuge", id: "refugio-r3", x: 8, y: 23.3 },
+    // Refugios escondidos: sin letrero. Pistas: flores de luna y una piedra marcada junto a cada arbusto.
+    { type: "refuge", id: "refugio-r3", x: 8, y: 29.3 },
     {
-      type: "npc", cast: "villager3", name: "Aurelio", x: 10.6, y: 20.6, dir: "down", role: "landseller",
-      talk: ["Detrás de esa reja tengo un claro que nadie conoce.", "Ni la Corona. Ni los bandidos."],
+      type: "npc", cast: "villager3", name: "Aurelio", x: 10.8, y: 30.4, dir: "left", role: "landseller",
+      talk: ["¡Me encontraste! Pocos llegan hasta aquí.", "Detrás de esa reja tengo un claro que nadie conoce.", "Ni la Corona. Ni los bandidos."],
     },
+    { type: "prop", art: "rare-flowers", x: 14.8, y: 19.55 },
+    { type: "refuge", id: "refugio-r3b", x: 12.5, y: 4.7 },
+    { type: "prop", art: "marked-stone", x: 5.5, y: 12.1 },
     { type: "prop", art: "tent", x: 31.5, y: 5.2, solid: [2, 12, 30, 12] },
     { type: "prop", art: "campfire", x: 34.5, y: 8, anim: "campfire", solid: [2, 10, 12, 6] },
     { type: "chest", id: "r3-camp", x: 37.4, y: 8.4, loot: { gold: 35 } },
@@ -92,7 +117,7 @@ export default {
     { type: "enemy", kind: "bandit", x: 29, y: 19.5, ambush: true },
     { type: "enemy", kind: "bandit", x: 33, y: 9 },
     { type: "enemy", kind: "bandit", x: 36, y: 10 },
-    { type: "enemy", kind: "boar", x: 14, y: 22 },
+    { type: "enemy", kind: "boar", x: 12, y: 20.4 },
     // Desierto
     { type: "enemy", kind: "guard", x: 60, y: 18, patrol: [[56, 18], [66, 17.5]], minHeat: 0 },
     { type: "enemy", kind: "guard", x: 80, y: 18, patrol: [[76, 18], [88, 19]], minHeat: 0 },
@@ -108,6 +133,7 @@ export default {
   entries: {
     west: { x: 1.4, y: 17.8, dir: "right" },
     east: { x: 94.4, y: 17.8, dir: "left" },
-    refugio: { x: 8, y: 21.8, dir: "up" },
+    refugio: { x: 8, y: 30.4, dir: "down" },
+    "refugio-r3b": { x: 12.5, y: 5.7, dir: "down" },
   },
 };

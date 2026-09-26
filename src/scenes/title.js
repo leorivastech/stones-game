@@ -1,4 +1,10 @@
-/** Pantalla de título: Ashfen de fondo, cámara que pasea, logo y menú. */
+/**
+ * Pantalla de título: Ashfen de fondo, cámara que pasea, logo y menú.
+ *
+ * Un solo enlace para todo: "Solo" (la partida de siempre, guardada en este aparato) o "En línea"
+ * (pide el nombre, revisa que el servidor conteste y recarga la página con ?online=1&nombre=…).
+ * Con esos parámetros en el enlace se entra directo al modo en línea; desde ahí "Jugar solo" regresa.
+ */
 
 import Phaser from "phaser";
 import { MAPS } from "../maps/index.js";
@@ -7,8 +13,9 @@ import { Controls, keyName } from "../engine/input.js";
 import { VIEW_H, VIEW_W } from "../config.js";
 import { startMusic } from "../music.js";
 import { tone } from "../sfx.js";
-import { hasSave, loadGame, resetRun } from "../state.js";
-import { online } from "../net/online.js";
+import { hasSave, loadGame, resetRun, eraseSave } from "../state.js";
+import { online, probeServer, modeUrl } from "../net/online.js";
+import { askName } from "../net/hud.js";
 import { centerX } from "../art/font.js";
 
 export class TitleScene extends Phaser.Scene {
@@ -44,18 +51,11 @@ export class TitleScene extends Phaser.Scene {
     this.options = [];
     this.rows = [];
     this.top = top;
+    this.headText = null;
     top.add(centerX(this.add.bitmapText(VIEW_W / 2, VIEW_H - 16, "font-dim", `${keyName("confirm")} elegir · ↑↓ mover`)));
-    // En línea hay que esperar al servidor: de ahí salen el nombre, el mercado y dónde empiezas.
-    if (online.on && !online.connected) {
-      const wait = centerX(this.add.bitmapText(VIEW_W / 2, 190, "font-dim", "Conectando al mundo…"));
-      top.add(wait);
-      const tick = this.time.addEvent({ delay: 150, loop: true, callback: () => {
-        if (!online.connected) return;
-        tick.remove();
-        wait.destroy();
-        this.buildMenu();
-      } });
-    } else this.buildMenu();
+    // En línea hay que esperar al servidor: de ahí salen el nombre, el mercado, tu avance y dónde empiezas.
+    if (online.on) this.waitServer();
+    else this.modeMenu();
 
     // La cámara del mundo no dibuja la interfaz y viceversa.
     cam.ignore(top);
@@ -67,21 +67,115 @@ export class TitleScene extends Phaser.Scene {
     this.busy = false;
   }
 
-  buildMenu() {
+  /** Cambia el menú: un letrero arriba (opcional) y las opciones [{ label, act }]. */
+  setMenu(head, options, { font = "font-gold" } = {}) {
     const top = this.top;
-    if (hasSave()) this.options.push({ label: "Continuar", act: () => this.go(true) });
-    this.options.push({ label: "Nueva partida", act: () => this.go(false) });
-    this.rows = this.options.map((o, i) => {
-      const t = centerX(this.add.bitmapText(VIEW_W / 2, 190 + i * 16, "font", o.label));
+    for (const r of this.rows) r.destroy();
+    this.cursor?.destroy();
+    this.cursor = null;
+    this.headText?.destroy();
+    this.headText = head ? centerX(this.add.bitmapText(VIEW_W / 2, 172, font, head)) : null;
+    if (this.headText) top.add(this.headText);
+    this.options = options;
+    const y0 = 190 + Math.max(0, 3 - options.length) * 4;
+    this.rows = options.map((o, i) => {
+      const t = centerX(this.add.bitmapText(VIEW_W / 2, y0 + i * 14, "font", o.label));
       top.add(t);
       return t;
     });
-    this.cursor = this.add.bitmapText(0, 190, "font-gold", "▶");
-    top.add(this.cursor);
-    if (online.on) top.add(centerX(this.add.bitmapText(VIEW_W / 2, 176, "font-gold", `En línea como ${online.name}`)));
+    if (options.length) {
+      this.cursor = this.add.bitmapText(0, y0, "font-gold", "▶");
+      top.add(this.cursor);
+    }
     this.cameras.cameras[0].ignore(top);
     this.index = 0;
     this.moveCursor(0);
+  }
+
+  /** Sin ?online=1: elegir cómo jugar. */
+  modeMenu() {
+    this.setMenu(null, [
+      { label: "Solo", act: () => this.soloMenu() },
+      { label: "En línea", act: () => this.goOnline() },
+    ]);
+  }
+
+  soloMenu() {
+    const opts = [];
+    if (hasSave()) opts.push({ label: "Continuar", act: () => this.go(true) });
+    opts.push({ label: "Nueva partida", act: () => this.go(false) });
+    opts.push({ label: "‹ Volver", act: () => this.modeMenu() });
+    this.setMenu("Solo", opts);
+  }
+
+  /** "En línea": nombre, ¿contesta el servidor?, y a recargar en modo en línea. */
+  async goOnline() {
+    this.busy = true;
+    const name = await askName({ force: true, cancel: true });
+    this.controls.lock(8);
+    if (!name) { this.busy = false; this.modeMenu(); return; }
+    this.setMenu("Buscando el mundo…", [], { font: "font-dim" });
+    const ok = await probeServer(4000);
+    if (ok) {
+      this.setMenu(`Entrando como ${name}…`, [], { font: "font-dim" });
+      location.href = modeUrl(true, name);
+      return;
+    }
+    this.busy = false;
+    this.setMenu("El servidor no responde", [
+      { label: "Reintentar", act: () => this.goOnline() },
+      { label: "Jugar solo", act: () => this.soloMenu() },
+    ], { font: "font-red" });
+  }
+
+  /** Con ?online=1: esperar la bienvenida del servidor; si en 4 s no llega, avisar y ofrecer jugar solo. */
+  waitServer() {
+    this.setMenu(online.name ? "Conectando al mundo…" : "Escribe tu nombre", [], { font: "font-dim" });
+    let since = null;
+    let warned = false;
+    const tick = this.time.addEvent({ delay: 150, loop: true, callback: () => {
+      if (online.connected) {
+        tick.remove();
+        this.onlineMenu();
+        return;
+      }
+      if (!online.name) return;
+      since ??= this.time.now;
+      if (!warned && this.time.now - since > 4000) {
+        warned = true;
+        this.setMenu("El servidor no responde", [
+          { label: "Seguir intentando", act: () => { tick.remove(); this.waitServer(); } },
+          { label: "Jugar solo", act: () => { location.href = modeUrl(false); } },
+        ], { font: "font-red" });
+      }
+    } });
+  }
+
+  onlineMenu() {
+    const opts = [];
+    if (hasSave()) {
+      opts.push({ label: "Continuar", act: () => this.go(true) });
+      opts.push({ label: "Empezar de cero", act: () => this.confirmReset() });
+    } else opts.push({ label: "Entrar al mundo", act: () => this.go(false) });
+    opts.push({ label: "Cambiar nombre", act: () => this.rename() });
+    opts.push({ label: "Jugar solo", act: () => { location.href = modeUrl(false); } });
+    this.setMenu(`En línea como ${online.name}`, opts);
+  }
+
+  confirmReset() {
+    this.setMenu("¿Borrar tu avance en línea?", [
+      { label: "No, volver", act: () => this.onlineMenu() },
+      { label: "Sí, empezar de cero", act: () => { eraseSave(); this.go(false); } },
+    ], { font: "font-red" });
+  }
+
+  async rename() {
+    this.busy = true;
+    const name = await askName({ force: true, cancel: true });
+    this.controls.lock(8);
+    this.busy = false;
+    if (name && name !== online.name) location.href = modeUrl(true, name);
+    else if (name) this.onlineMenu();
   }
 
   moveCursor(d) {

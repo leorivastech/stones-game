@@ -14,7 +14,7 @@ Abre http://127.0.0.1:5181/
 
 Ramas: el trabajo más nuevo está en `online` (incluye todo lo de `pixel-remake`); nada está en `master` todavía.
 
-En línea (varias personas): `npm run online` → http://127.0.0.1:5190/?online=1&nombre=Leo, y `cloudflared tunnel --url http://127.0.0.1:5190` para el enlace. Detalle en `studio/online.md`.
+En línea (varias personas): `npm run online` → http://127.0.0.1:5190/ y en el título "En línea" (o directo `/?online=1&nombre=Leo`); `cloudflared tunnel --url http://127.0.0.1:5190` para el enlace. Detalle en `studio/online.md`.
 
 ## Dónde está cada cosa
 
@@ -31,7 +31,7 @@ En línea (varias personas): `npm run online` → http://127.0.0.1:5190/?online=
 | Economía: mercado vivo, días, piedras (lógica pura) | `src/economy.js` — simulación: `node studio/sim/mercado.mjs` |
 | Sucesos y rumores (lógica pura) | `src/director.js` |
 | Estado de la partida (guardar, deuda, fama, refugios, tu gente) | `src/state.js` + `src/world.js` |
-| Refugios (mapas chicos) | `src/maps/refugios.js` |
+| Refugios (mapas chicos) y dónde está escondido cada uno | `src/maps/refugios.js` · hoja para encontrarlos: `studio/refugios.md` |
 | Qué está decidido / construido / pendiente | `studio/panorama.md` |
 | Música, ambientes y efectos (hechos con IA local) | `public/assets/music-ia/` y `public/assets/sfx-ia/` — cuál suena dónde y qué variante: `src/audio-ia.js` (lo leen `src/music.js` y `src/sfx.js`); cómo se generaron y el catálogo: `studio/musica/ia/`. Quedan unos pocos efectos viejos en `public/assets/sfx/` (créditos: `public/assets/CREDITS.md`) |
 | Escuchar y elegir música | http://127.0.0.1:5181/escuchar.html — guía en `studio/musica/README.md` |

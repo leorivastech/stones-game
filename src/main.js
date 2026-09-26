@@ -5,7 +5,8 @@ import { WorldScene } from "./scenes/world.js";
 import { UIScene } from "./scenes/ui.js";
 import { VIEW_H, VIEW_W } from "./config.js";
 import { SIDE, setupTouch, touch } from "./engine/touch.js";
-import { online, connect } from "./net/online.js";
+import { online, connect, flushSave } from "./net/online.js";
+import { saveGame } from "./state.js";
 import { setupHud, askName } from "./net/hud.js";
 import { setupVoice, voice } from "./net/voice.js";
 
@@ -54,11 +55,19 @@ globalThis.__stonesGame = game;
 globalThis.__online = online;
 globalThis.__voice = voice;
 
-// En línea (?online=1): nombre, conexión al servidor, chat y voz.
+// En línea (?online=1, lo pone el título al elegir "En línea"): nombre, conexión al servidor, chat y voz.
 if (online.on) {
   setupHud();
   setupVoice();
   askName().then(() => connect(game.registry));
+  // Al cerrar o esconder la página (celular que se bloquea), el avance sale ya al servidor.
+  const flush = () => {
+    if (!game.scene.isActive("world")) return;
+    saveGame(game.registry);
+    flushSave();
+  };
+  window.addEventListener("pagehide", flush);
+  document.addEventListener("visibilitychange", () => { if (document.hidden) flush(); });
 }
 
 // Si los botones se prenden después (primer toque en una compu con pantalla táctil), se hace lugar.

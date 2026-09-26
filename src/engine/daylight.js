@@ -11,7 +11,10 @@ import Phaser from "phaser";
 import { DEPTH, VIEW_W, VIEW_H } from "../config.js";
 import { online, dayProgress } from "../net/online.js";
 
-/** Segundos reales que dura un día del juego (Leo: 4 minutos). */
+/**
+ * Segundos reales que dura un día del juego (Leo: 4 minutos). Igual en línea: el servidor usa el
+ * mismo número (DAY_SECONDS de server/index.mjs, 240 por defecto) y manda la hora.
+ */
 export const DAY_SECONDS = 240;
 /** Hora de arranque de una partida nueva (ya no se pone al llegar a un pueblo: el reloj sigue). */
 export const ARRIVAL_HOUR = 8;
@@ -21,9 +24,12 @@ export const WAKE_HOUR = 7;
 
 const wrap = (h) => ((h % 24) + 24) % 24;
 
-/** Hora del juego (0-24, con decimales). En línea sale del día del servidor: cada día amanece a las 6. */
+/**
+ * Hora del juego (0-24, con decimales). En línea sale del reloj del servidor, igual para todos: el
+ * día del mundo empieza a medianoche (ahí cambia el día, como jugando solo).
+ */
 export function hourOf(reg) {
-  if (online.on && online.dayMs) return wrap(6 + dayProgress() * 24);
+  if (online.on && online.dayMs) return wrap(dayProgress() * 24);
   return wrap(reg.get("hour") ?? ARRIVAL_HOUR);
 }
 
@@ -187,7 +193,13 @@ export class Daylight {
   /** Corre el reloj y repinta. Llamar en cada update de la escena, también con diálogos abiertos. */
   update(delta) {
     const reg = this.reg;
-    if (!online.on && delta > 0) {
+    if (online.on) {
+      // En línea el reloj es del servidor: sólo se avisa cada hora entera (la escarcha que llevas se
+      // derrite hora por hora, igual que solo). El día nuevo llega del servidor a medianoche.
+      const hr = Math.floor(hourOf(reg));
+      if (this.lastHour != null && hr !== this.lastHour) this.scene.onClockHour?.();
+      this.lastHour = hr;
+    } else if (delta > 0) {
       // Sin evento changedata en cada cuadro (la interfaz se repinta con cada set): se escribe directo
       // y sólo se avisa al cruzar la hora entera (el HUD cambia sol/luna).
       const before = hourOf(reg);

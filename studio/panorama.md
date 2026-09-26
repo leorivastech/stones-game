@@ -14,7 +14,7 @@ Lo interesante es **prepararse**: qué llevas, a quién llevas, dónde dejas qu�
 
 | Tema | Qué hay |
 |---|---|
-| Mundo | 6 pueblos, 5 rutas, barca, 3 refugios. Mossgrove (bosque) entre el desierto y la nieve. |
+| Mundo | 6 pueblos, 5 rutas, barca, 7 refugios escondidos. Mossgrove (bosque) entre el desierto y la nieve. |
 | Animación | Paso con rebote y brazos, respirar; yegua con vistas de lado, frente y espalda; Sahra con arco, carcaj y pose de disparo. |
 | Días | **El reloj corre en todos los mapas** (26-sep): 4 min reales = 1 día; a medianoche pasa el día aunque estés en la ruta ("Amanece el día N"). Barca: 3 días. Dormir: hasta las 7 del día siguiente. Letreros con "~3 h a pie". |
 | Mercado tipo bolsa | Todos los pueblos con las 5 piedras; precio por oferta y demanda; tope de la Corona a la vista; precios "vistos hace N días". |
@@ -29,7 +29,7 @@ Lo interesante es **prepararse**: qué llevas, a quién llevas, dónde dejas qu�
 | **Gráfica de precio** (26-sep) | En el mercado, el renglón elegido muestra lo que pagaban los últimos 7 días vistos y una flecha de tendencia. |
 | **Opciones** (26-sep) | Pausa > OPCIONES: volumen de música, ambiente y efectos (10 %), salir al título. Stingers de llegada, cobrador, redada y K.O. conectados; campana al llegar, tienda, pergamino, sello y ráfagas de viento en la montaña. |
 | Buhonero de camino | A veces (35 %) anda uno por la ruta: compra caro y vende barato, pocas piezas. |
-| Refugios secretos | Cueva del Paso Alto, tierra escondida de Aurelio (con corral), cueva del lago (fría). Estante, mesa de mejoras, catre, cerrojo; redadas. |
+| **Refugios escondidos** (26-sep) | 7, ninguno a la vista ni con letrero: vereda de una celda tras un arbusto (o un derrumbe con palanca), árboles que tapan la puerta, pista chica (flores de luna, piedra marcada, ruinas). Sótano de las ruinas (R1, trae catre), Cueva del Paso Alto y Cueva del manantial (R2, cura), tierra de Aurelio selva adentro (R3, corral) y Choza del manglar (R3, sin redadas), Cueva del lago (R4, fría), Grieta del cañón (R5, casi sin redadas). Rumores con pistas y "?" en la ruta del mapa. Estante, mesa, catre, cerrojo; redadas; en línea con dueño que invita. Hoja para encontrarlos: `refugios.md`. |
 | Gente física | Yegua y Sahra te siguen; se dejan en refugio, posada o establo y se recogen ahí. Yegua sin hielo ni cuevas sin corral. Más gente = te ven de más lejos. |
 | Precios revueltos | Sin orden fijo: las ganas de comprar y lo que llega de cada piedra se mueven al azar en todos los pueblos, día con día. |
 | Qué vender, claro | Cartel "HOY EN …" al llegar, burbuja con la gema sobre el comerciante, mercado con OCUPAN / SOBRA. |
@@ -47,6 +47,8 @@ Lo interesante es **prepararse**: qué llevas, a quién llevas, dónde dejas qu�
 - Deuda como motivo para empezar (por ahora).
 - Refugios tipo base secreta (cueva forjada, tierra escondida), con mejoras; la Corona los
   encuentra sin cerrojo si la ruta está muy caliente.
+- **Refugios muy escondidos y más** (26-sep, Leo: "están muy a la vista… el del campesino hay que
+  buscarlo, adentrito"): 4 nuevos (7 en total), sin letrero, la entrada tapada; rumores que insinúan dónde.
 - Gente que se lleva y se deja caminando; máximo 2 personas y un caballo; caballo en la barca
   pagando más; caminos donde el caballo no pasa.
 - La escarcha **no** se rompe con hielo: se derrite con los días (hielera y refugio frío la cuidan).

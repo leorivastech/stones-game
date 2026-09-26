@@ -3,6 +3,10 @@
  * se paran unos segundos y miran alrededor; de noche la mitad se mete a su casa y vuelve de día.
  * El herrero martilla en el yunque; el comerciante acomoda su puesto de vez en cuando.
  * Si te acercas (<28 px) o les hablas, se detienen y te miran.
+ *
+ * En línea los aldeanos caminan con el reloj del mundo (la hora del servidor): su recorrido sale de
+ * una cuenta fija (puntos, esperas y paso), así todos los ven en el mismo lugar sin mandar nada por
+ * la red. Si se detuvieron a mirarte, alcanzan su lugar apurando el paso.
  */
 
 import { SHEET_INDEX } from "../art/actors.js";
@@ -11,6 +15,7 @@ import { isNight } from "../engine/daylight.js";
 import { hash } from "../art/pixel.js";
 import { getVolume } from "../sfx.js";
 import { viewOf } from "./player.js";
+import { online, worldNow } from "../net/online.js";
 
 const SPEED = 28;
 const NEAR = 28;
@@ -302,7 +307,61 @@ export class Npc {
     this.choreLeft = 1300;
   }
 
+  /**
+   * En línea: dónde toca estar a la hora `t` (ms del servidor). Recorre sus puntos en orden; en cada
+   * uno espera 2-5 s (sale del nombre) y camina al siguiente a paso normal. Igual en todos los aparatos.
+   */
+  scheduleAt(t) {
+    if (!this.legs) {
+      this.legs = [];
+      let total = 0;
+      const pts = this.points;
+      for (let i = 0; i < pts.length; i += 1) {
+        const a = pts[i];
+        const b = pts[(i + 1) % pts.length];
+        const wait = 2000 + hash(this.seed, i, 11) * 3000;
+        const walk = (Math.hypot(b.x - a.x, b.y - a.y) / SPEED) * 1000;
+        this.legs.push({ a, b, wait, walk, start: total });
+        total += wait + walk;
+      }
+      this.period = Math.max(1, total);
+    }
+    const m = ((t % this.period) + this.period) % this.period;
+    let leg = this.legs[0];
+    for (const l of this.legs) if (l.start <= m) leg = l;
+    const k = m - leg.start;
+    if (k < leg.wait) {
+      // Esperando: mira alrededor (también igual para todos).
+      const look = ["left", "right", "down", "up"][Math.floor(hash(this.seed, Math.floor(t / 1500), 13) * 4)];
+      return { x: leg.a.x, y: leg.a.y, moving: false, facing: look };
+    }
+    const f = Math.min(1, (k - leg.wait) / Math.max(1, leg.walk));
+    return { x: leg.a.x + (leg.b.x - leg.a.x) * f, y: leg.a.y + (leg.b.y - leg.a.y) * f, moving: true, facing: dirTo(leg.b.x - leg.a.x, leg.b.y - leg.a.y) };
+  }
+
+  updateSchedule() {
+    const body = this.sprite.body;
+    const at = this.scheduleAt(worldNow());
+    const dx = at.x - this.x;
+    const dy = at.y - this.y;
+    const len = Math.hypot(dx, dy);
+    // Muy lejos (recién llegado, atorado): se pone ahí.
+    if (len > 120) {
+      body.reset(at.x, at.y);
+      body.setVelocity(0, 0);
+    } else if (len > 1.5) {
+      const speed = Math.min(SPEED * 2.2, Math.max(SPEED * 0.6, len * 5));
+      body.setVelocity((dx / len) * speed, (dy / len) * speed);
+      this.facing = at.moving || len > 6 ? dirTo(dx, dy) : this.facing;
+      this.pose(true);
+      return;
+    } else body.setVelocity(0, 0);
+    this.facing = at.facing;
+    this.pose(false);
+  }
+
   updateWander(dt) {
+    if (online.on && this.points.length > 1) { this.updateSchedule(); return; }
     const body = this.sprite.body;
     if (!this.target) {
       body.setVelocity(0, 0);

@@ -6,7 +6,8 @@
  *  2. Tierras rotas (28-39): grava, rocas; el bosque se vuelve nieve.
  *  3. Campo nevado (40-58): PUERTA DE LA ESCARCHA (retén) en la fila 58.
  *     Lago helado al oeste (x 3-14, filas 44-65): acertijo de deslizarse; rodea el retén.
- *  4. Bosque nevado (59-89): lobos, alijo en grieta de nieve.
+ *  4. Bosque nevado (59-89): lobos, cofre. Cueva del lago (refugio frío), escondida entre los pinos
+ *     del suroeste: arbusto junto a una piedra marcada (7,73) → vereda → cueva (4,77).
  *
  * Solución del lago (entrando por arriba en x=8): ↓ → ↓ ← ↓ → ↓  (sale por abajo en x=9).
  */
@@ -86,6 +87,13 @@ function build() {
   g.rect(24, 62, 8, 8, "T");
   [[22, 76], [12, 68], [26, 84], [6, 85]].forEach(([x, y]) => g.set(x, y, "y"));
   [[14, 80], [24, 72]].forEach(([x, y]) => g.set(x, y, "o"));
+  // Refugio escondido (26-sep): la Cueva del lago ya no está a la vista junto al hielo. Al salir del
+  // lago, donde los pinos se juntan, un arbusto junto a una piedra marcada tapa una vereda que da
+  // vuelta entre los pinos nevados hasta la cueva.
+  g.trail([[7, 73], [7, 74], [10, 74], [10, 77], [3, 77]]);
+  // Pinos (no árboles pelados) justo enfrente: tapan la boca de la cueva.
+  g.rect(2, 78, 9, 1, "P");
+  g.set(7, 73, "b");
   return g.rows();
 }
 
@@ -108,7 +116,10 @@ export default {
     // Faroles del paso: de noche, bajo su luz los guardias ven como de día.
     { type: "prop", art: "lamp", x: 14.1, y: 57.9, solid: [2, 22, 6, 5] },
     { type: "prop", art: "lamp", x: 22.6, y: 57.9, solid: [2, 22, 6, 5] },
-    { type: "refuge", id: "refugio-r4", x: 4.4, y: 42.2, snow: true },
+    { type: "refuge", id: "refugio-r4", x: 4.5, y: 77.95, snow: true },
+    { type: "prop", art: "marked-stone", x: 8.2, y: 72.1 },
+    // Un pino alto justo delante de la boca: desde el camino no se ve la cueva.
+    { type: "prop", art: "pine-snow-tall", x: 3.65, y: 75.95 },
     { type: "chest", id: "r4-lago", x: 12.5, y: 67.4, loot: { gold: 40 } },
     { type: "enemy", kind: "boar", x: 12, y: 12 },
     { type: "enemy", kind: "boar", x: 23, y: 22 },
@@ -129,6 +140,6 @@ export default {
   entries: {
     north: { x: 18.5, y: 1.4, dir: "down" },
     south: { x: 18.5, y: 88.2, dir: "up" },
-    refugio: { x: 4.6, y: 43.8, dir: "down" },
+    refugio: { x: 6.4, y: 77.8, dir: "right" },
   },
 };

@@ -7,8 +7,8 @@ import { GOODS, TOWNS, TOWN_IDS } from "./world.js";
 import {
   GOOD_IDS, STONE, TRAVEL_DAYS, freshEconomy, freshDrift, quote, takeFromMarket, giveToMarket, stepDay, meltAfter, mixChill,
 } from "./economy.js";
-import { rollDay, rumor as makeRumor, activeEvents, eventCountdown, contractOffers, CONTRACT } from "./director.js";
-import { online, send, request, isWorldFlag, canUse } from "./net/online.js";
+import { rollDay, rumor as makeRumor, activeEvents, eventCountdown, contractOffers, CONTRACT, REFUGE_HINTS } from "./director.js";
+import { online, send, request, isWorldFlag, canUse, pushSave } from "./net/online.js";
 
 export { GOODS, TOWNS } from "./world.js";
 export { STONE, TRAVEL_DAYS, BOAT_COLD, GOOD_IDS, FROST } from "./economy.js";
@@ -38,13 +38,37 @@ export const FAME_TITLES = [
 export const STASH_CAPACITY = 6;
 
 /**
- * Refugios secretos (tipo base secreta de Pokémon). Cada uno es un mapa chico al que se entra.
- * Cueva: la abre el herrero (herrajes). Tierra escondida: se le compra a un campesino.
+ * Refugios secretos (tipo base secreta de Pokémon). Cada uno es un mapa chico al que se entra, y la
+ * entrada está ESCONDIDA en su ruta (26-sep, Leo: "que tengas que meterte adentrito, buscándolo"):
+ * una vereda de una celda entre el bosque o las peñas, tapada por un arbusto o un derrumbe, sin
+ * letrero, con una pista chica (flores de luna, piedra marcada, ruinas). Los rumores los insinúan.
+ *
+ * `kind`: cómo se ve la puerta (cave, plot, cellar, hut, crevice). `kit`: hacen falta los herrajes de
+ * Oskar (las cuevas sí). `price`/`fame`: lo que cuesta arreglarlo o comprarlo y la fama que pide.
+ * `includes`: mejoras que ya trae (no se venden en la mesa). `raidHeat`: calor de la ruta desde el que
+ * hay redadas (si no, STASH_RAID_HEAT). `spring`: manantial adentro para curarte. `perk`: la ventaja,
+ * dicha como la cuenta la gente. Dónde está cada uno y cómo se llega: studio/refugios.md.
  */
 export const REFUGES = {
-  "refugio-r2": { route: "ruta2", kind: "cave", name: "Cueva del Paso Alto", corral: false, cold: false },
-  "refugio-r3": { route: "ruta3", kind: "plot", name: "Tierra escondida", corral: true, cold: false, price: 80, fame: 3 },
-  "refugio-r4": { route: "ruta4", kind: "cave", name: "Cueva del lago", corral: false, cold: true },
+  "refugio-r1": {
+    route: "ruta1", kind: "cellar", name: "Sótano de las ruinas", corral: false, cold: false, price: 30, fame: 1,
+    includes: ["cot"], perk: "Ya trae el catre del viejo que vivía aquí.",
+  },
+  "refugio-r2": { route: "ruta2", kind: "cave", name: "Cueva del Paso Alto", corral: false, cold: false, kit: true, perk: "Seca y honda, a un paso de la aduana." },
+  "refugio-r2b": {
+    route: "ruta2", kind: "cave", name: "Cueva del manantial", corral: false, cold: false, kit: true, spring: true,
+    perk: "Un manantial adentro: bebes y te curas.",
+  },
+  "refugio-r3": { route: "ruta3", kind: "plot", name: "Tierra escondida", corral: true, cold: false, price: 80, fame: 3, perk: "Choza, corral y reja: cabe la yegua." },
+  "refugio-r3b": {
+    route: "ruta3", kind: "hut", name: "Choza del manglar", corral: false, cold: false, price: 60, fame: 5,
+    includes: ["lock"], perk: "Rodeada de agua: la Corona nunca da con ella.",
+  },
+  "refugio-r4": { route: "ruta4", kind: "cave", name: "Cueva del lago", corral: false, cold: true, kit: true, perk: "Fría: aquí la escarcha no se derrite." },
+  "refugio-r5": {
+    route: "ruta5", kind: "crevice", name: "Grieta del cañón", corral: false, cold: false, kit: true, fame: 4, raidHeat: 85,
+    perk: "La Corona casi no baja al cañón: sólo hay redada si la ruta arde.",
+  },
 };
 
 export const REFUGE_UPGRADES = {
@@ -290,6 +314,7 @@ export function ownsRefuge(registry, id) {
 
 export function refugeHas(registry, id, upgrade) {
   if (upgrade === "corral" && REFUGES[id]?.corral) return true;
+  if (REFUGES[id]?.includes?.includes(upgrade)) return true;
   if (online.on) return Boolean(online.world.owners[id]?.ups?.[upgrade]);
   return flag(registry, `${id}-${upgrade}`);
 }
@@ -795,7 +820,9 @@ export const RUMOR_DAYS = 4;
  */
 export function hearRumor(registry, honest) {
   const st = econ(registry);
-  let r = makeRumor(st, { honest });
+  // Pistas de refugios: sólo de los que no has encontrado.
+  const hints = REFUGE_HINTS.filter((h) => !flag(registry, `found-${h.refuge}`) && !ownsRefuge(registry, h.refuge));
+  let r = makeRumor(st, { honest, hints });
   if (online.on && Math.random() < 0.5) {
     const others = online.world.news.filter((n) => !n.text.startsWith(online.name));
     if (others.length) r = { text: `Dicen por ahí: ${others[Math.floor(Math.random() * Math.min(4, others.length))].text}`, true: true };
@@ -803,6 +830,8 @@ export function hearRumor(registry, honest) {
   const today = day(registry);
   const left = r.event ? eventCountdown(st).find((e) => e.id === r.event)?.days : null;
   const item = { day: today, text: r.text, town: r.town ?? null, true: r.true !== false, until: today + (left ?? RUMOR_DAYS) };
+  // Un rumor de refugio se marca en la ruta (no en un pueblo) y dura más: el lugar no se va.
+  if (r.refuge) Object.assign(item, { route: r.route, refuge: r.refuge, until: today + RUMOR_DAYS * 3 });
   // El mismo rumor otra vez no ocupa otro lugar: se renueva.
   const old = getRecord(registry, "rumors", []).filter((x) => x.text !== r.text);
   registry.set("rumors", [item, ...old].slice(0, 8));
@@ -813,10 +842,24 @@ export function rumors(registry) {
   return getRecord(registry, "rumors", []);
 }
 
-/** Rumores que siguen marcados en el mapa (de un pueblo y sin caducar), el más nuevo primero. */
+/** Rumores que siguen marcados en el mapa (de un pueblo o una ruta, sin caducar), el más nuevo primero. */
 export function rumorMarks(registry) {
   const today = day(registry);
-  return rumors(registry).filter((r) => r.town && (r.until ?? r.day + RUMOR_DAYS) >= today);
+  return rumors(registry).filter((r) => (r.town || r.route) && (r.until ?? r.day + RUMOR_DAYS) >= today);
+}
+
+/**
+ * Diste con un refugio escondido: queda anotado (ya no se oyen rumores de él) y el rumor que lo
+ * insinuaba se marca como cierto en el mapa.
+ */
+export function foundRefuge(registry, id) {
+  if (flag(registry, `found-${id}`)) return false;
+  setFlag(registry, `found-${id}`);
+  const list = rumors(registry);
+  if (list.some((r) => r.refuge === id && !r.checked)) {
+    registry.set("rumors", list.map((r) => (r.refuge === id && !r.checked ? { ...r, checked: "true" } : r)));
+  }
+  return true;
 }
 
 /**
@@ -1100,9 +1143,19 @@ const SAVED = [
 /** Lo que en línea es del mundo (lo manda el servidor, no el guardado). */
 const WORLD_KEYS = ["day", "market", "drift", "mods", "heat", "caravans"];
 
+/**
+ * Guarda la partida. En línea, además, el avance se manda al servidor (por nombre): así se sigue
+ * desde cualquier aparato y el navegador queda como caché. Ver pushSave en src/net/online.js.
+ */
 export function saveGame(registry) {
+  const data = Object.fromEntries(SAVED.map((k) => [k, registry.get(k)]));
+  data.savedAt = Date.now();
+  if (online.on) {
+    const mine = { ...data };
+    for (const k of WORLD_KEYS) delete mine[k];
+    pushSave(mine);
+  }
   try {
-    const data = Object.fromEntries(SAVED.map((k) => [k, registry.get(k)]));
     localStorage.setItem(saveKey(), JSON.stringify(data));
     return true;
   } catch {
@@ -1110,26 +1163,51 @@ export function saveGame(registry) {
   }
 }
 
-export function hasSave() {
+function localSave() {
   try {
-    return Boolean(localStorage.getItem(saveKey()));
+    return JSON.parse(localStorage.getItem(saveKey()));
   } catch {
-    return false;
+    return null;
   }
+}
+
+/** El guardado que vale: fuera de línea, el del navegador; en línea, el más nuevo entre servidor y navegador. */
+function bestSave() {
+  const local = localSave();
+  if (!online.on) return local;
+  const server = online.save;
+  if (server && (!local || (online.savedAt ?? 0) >= (local.savedAt ?? 0))) return server;
+  return local;
+}
+
+export function hasSave() {
+  return Boolean(bestSave());
 }
 
 export function loadGame(registry) {
   try {
-    const data = JSON.parse(localStorage.getItem(saveKey()));
-    if (!data) return false;
+    const data = { ...bestSave() };
+    if (!bestSave()) return false;
     // En línea el mercado y el día vienen del servidor, no del guardado (el buhonero guardado sólo
     // sirve de respaldo si el servidor tarda: ver peddlerOnline).
     if (online.on) for (const k of WORLD_KEYS) delete data[k];
     const keep = online.on ? Object.fromEntries(WORLD_KEYS.map((k) => [k, registry.get(k)])) : {};
     registry.set({ ...freshRun(), ...data, ...keep });
+    // Si el del navegador era más nuevo (se jugó sin conexión), el servidor se pone al día.
+    if (online.on) saveGame(registry);
     return true;
   } catch {
     return false;
+  }
+}
+
+/** Empezar de cero: se borra el guardado (en línea, también el del servidor). */
+export function eraseSave() {
+  try { localStorage.removeItem(saveKey()); } catch { /* sin almacenamiento */ }
+  if (online.on) {
+    online.save = null;
+    online.savedAt = 0;
+    send({ t: "resetSave" });
   }
 }
 

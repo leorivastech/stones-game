@@ -70,6 +70,21 @@ export class Grid {
     return this;
   }
 
+  /**
+   * Vereda escondida de 1 celda por puntos [x, y]: de cada punto al siguiente va primero en horizontal
+   * y luego en vertical. Para los pasos entre el bosque que llevan a un refugio.
+   */
+  trail(points, ch = ".", only) {
+    for (let k = 0; k < points.length - 1; k += 1) {
+      let [x, y] = points[k];
+      const [x1, y1] = points[k + 1];
+      this.set(x, y, ch, only);
+      while (x !== x1) { x += Math.sign(x1 - x); this.set(x, y, ch, only); }
+      while (y !== y1) { y += Math.sign(y1 - y); this.set(x, y, ch, only); }
+    }
+    return this;
+  }
+
   /** Salpica una letra sobre celdas permitidas. */
   scatter(x, y, w, h, ch, density, seed, only = ".") {
     for (let j = y; j < y + h; j += 1) for (let i = x; i < x + w; i += 1) {

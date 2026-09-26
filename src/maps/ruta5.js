@@ -1,7 +1,8 @@
 /**
  * Ruta 5 · Cañón del Musgo (Duneshade ↔ Mossgrove). 36×64 celdas, de norte (Duneshade) a sur (Mossgrove).
  *
- *  1. Cañón del desierto (filas 0-27): escorpiones, emboscada.
+ *  1. Cañón del desierto (filas 0-27): escorpiones, emboscada. Grieta del cañón (refugio escondido) en
+ *     la pared del oeste, detrás de un palmar: piedra marcada (11,13) → hueco entre palmas → grieta (5,13).
  *  2. Tierra que se vuelve musgo (28-35): grava y rocas; la arena da paso al pasto.
  *  3. Bosque cerrado (36-63): jabalíes, un lobo, pasto alto para esconderse, un cofre entre los árboles.
  */
@@ -40,6 +41,14 @@ function build() {
   g.ellipse(26, 13, 2.5, 2, '"', ".d", 17);
   g.ellipse(9, 21, 2.5, 2, '"', ".d", 18);
   [[11, 6], [25, 22], [27, 4]].forEach(([x, y]) => g.set(x, y, "O"));
+  // Refugio escondido (26-sep): la Grieta del cañón, en la pared del oeste, detrás de un palmar
+  // (un ojo de agua viejo). Se entra de lado, por un hueco entre las palmas y una peña.
+  g.rect(3, 10, 6, 3, "#");
+  g.rect(3, 14, 6, 1, "p");
+  [[4, 15], [7, 15], [2, 13], [9, 12]].forEach(([x, y]) => g.set(x, y, "p"));
+  g.rect(4, 13, 6, 1, ".");
+  g.set(10, 14, "O");
+  [[8, 16], [10, 12], [5, 16]].forEach(([x, y]) => g.set(x, y, "d"));
 
   // ---- 2. Tierra que se vuelve musgo ----
   g.road([[18, 28], [16.5, 33], [18.5, 37]], 3, ":");
@@ -80,6 +89,9 @@ export default {
     { type: "sign", x: 21.4, y: 3.4, text: ["RUTA 5 · CAÑÓN DEL MUSGO", "↑ Duneshade   ↓ Mossgrove"] },
     { type: "sign", x: 21.6, y: 35.4, text: ["BOSQUE DE MUSGO", "Los jabalíes no perdonan. En el pasto alto, agachado, nadie te ve."] },
     { type: "chest", id: "r5-claro", x: 29, y: 52, loot: { gold: 25 } },
+    // Refugio escondido: sin letrero. Pista: una piedra marcada en la boca del pedregal.
+    { type: "refuge", id: "refugio-r5", x: 5.5, y: 13.95 },
+    { type: "prop", art: "marked-stone", x: 11.1, y: 13.2 },
     { type: "enemy", kind: "scorpion", x: 12, y: 13 },
     { type: "enemy", kind: "scorpion", x: 24, y: 20 },
     { type: "enemy", kind: "bandit", x: 26, y: 14, ambush: true },
@@ -96,5 +108,6 @@ export default {
   entries: {
     north: { x: 18.5, y: 1.4, dir: "down" },
     south: { x: 18.5, y: 62.2, dir: "up" },
+    refugio: { x: 7.6, y: 13.8, dir: "right" },
   },
 };

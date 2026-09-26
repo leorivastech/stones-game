@@ -18,9 +18,11 @@ import { DEPTH, ENEMY, ENEMY_JITTER, FAME_CURVE, NIGHT, STEALTH, TILE } from "..
 import { tone, sfx } from "../sfx.js";
 import { DIRS, viewOf } from "./player.js";
 import { frozen, hitstop, release, shake, squash } from "../engine/juice.js";
-import { isNight } from "../engine/daylight.js";
+import { isNight, hourOf } from "../engine/daylight.js";
+
+const hourOfScene = (scene) => hourOf(scene.registry);
 import { online } from "../net/online.js";
-import { FAME_TITLES, reputation } from "../state.js";
+import { FAME_TITLES, reputation, day } from "../state.js";
 
 // Parpadeo al recibir un golpe: blanco/normal 3 veces.
 const BLINK_STEP = 45;
@@ -1152,8 +1154,15 @@ export class Guard extends Humanoid {
     this.clearMark();
     const t = this.lastSeen;
     if (!t || !STEALTH.lastSeenMark) return;
-    this.mark = this.scene.add.image(Math.round(t.x), Math.round(t.y - 10), "bubble-ask").setOrigin(0.5, 1).setDepth(DEPTH.fx).setAlpha(0.85);
-    this.scene.tweens.add({ targets: this.mark, y: this.mark.y - 2, duration: 400, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+    this.placeMark(Math.round(t.x), Math.round(t.y - 10));
+  }
+
+  /** El "?" donde te vio por última vez (en línea, el títere lo pone donde dice el que manda). */
+  placeMark(x, y) {
+    this.clearMark();
+    this.mark = this.scene.add.image(x, y, "bubble-ask").setOrigin(0.5, 1).setDepth(DEPTH.fx).setAlpha(0.85);
+    this.markAt = { x, y };
+    this.scene.tweens.add({ targets: this.mark, y: y - 2, duration: 400, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
   }
 
   clearMark() {
@@ -1343,12 +1352,25 @@ export function makeEnemy(scene, spec) {
 }
 
 // ---------------------------------------------------------------------------
-// Noche: salen más enemigos (solo jugando solo; en línea cada mapa es igual para todos).
+// Noche: salen más enemigos. En línea los saca el que manda el mapa (con ids "n:0", "n:1"…) y viajan
+// en sus fotos como los demás: todos ven los mismos, en el mismo lugar.
 
 const CALM = new Set(["idle", "hidden", "wander", "return", "buried", "patrol", "post", "pause"]);
 
+/** Números al azar que salen iguales en todos los aparatos (mismo mapa → misma semilla). */
+function seeded(text) {
+  let a = [...text].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 16777619), 2166136261) >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 /** Un lugar libre (no sólido, no agua) cerca de (x, y) en celdas, lejos de otros enemigos. */
-function freeSpotNear(scene, x, y, taken) {
+function freeSpotNear(scene, x, y, taken, rand = Math.random) {
   const w = scene.world;
   const ok = (px, py) => {
     for (const [ox, oy] of [[-6, -2], [6, -2], [-6, -8], [6, -8], [0, -4]]) {
@@ -1357,7 +1379,7 @@ function freeSpotNear(scene, x, y, taken) {
     return taken.every((t) => Math.hypot(t.x - px, t.y - py) > 14);
   };
   for (const r of [1.6, 2.2, 3, 3.8]) {
-    const a0 = Math.random() * Math.PI * 2;
+    const a0 = rand() * Math.PI * 2;
     for (let k = 0; k < 10; k += 1) {
       const a = a0 + (k / 10) * Math.PI * 2;
       const px = (x + Math.cos(a) * r) * TILE;
@@ -1372,11 +1394,15 @@ function freeSpotNear(scene, x, y, taken) {
 function planNight(scene) {
   const def = scene.def;
   const list = def.objects.filter((o) => o.type === "enemy");
-  const taken = scene.enemies.map((e) => ({ x: e.home.x, y: e.home.y }));
+  // En línea el plan sale igual en todos los aparatos: semilla del mapa y todos los enemigos del mapa.
+  const rand = online.on ? seeded(`noche-${def.id ?? scene.mapId}`) : Math.random;
+  const taken = online.on
+    ? list.map((o) => ({ x: o.x * TILE, y: o.y * TILE }))
+    : scene.enemies.map((e) => ({ x: e.home.x, y: e.home.y }));
   const plan = [];
   const add = (spec, n) => {
     for (let i = 0; i < n; i += 1) {
-      const at = freeSpotNear(scene, spec.x, spec.y, taken);
+      const at = freeSpotNear(scene, spec.x, spec.y, taken, rand);
       if (!at) continue;
       taken.push({ x: at.x * TILE, y: at.y * TILE });
       plan.push({ ...spec, ...at, night: true, lastNight: -1 });
@@ -1408,23 +1434,33 @@ export function updateNightSpawns(scene, initial = false) {
     scene.wasNight = undefined;
     scene._nightAt = null;
   }
-  if (online.on || scene.def.kind !== "route" || scene.def.dark) return 0;
+  if (scene.def.kind !== "route" || scene.def.dark) return 0;
   scene.nightPlan ??= planNight(scene);
+  // En línea sólo el que manda el mapa los saca y los guarda; los demás los reciben en las fotos.
+  if (online.on && !scene.net?.auth) return 0;
   const night = isNight(scene.registry);
-  if (night && !scene.wasNight) scene.nightCount = (scene.nightCount ?? 0) + 1;
+  if (online.on) {
+    // La noche es del mundo: la de hoy (desde las 20) o la de ayer (pasada la medianoche).
+    const h = scene.daylight ? hourOfScene(scene) : 12;
+    scene.nightCount = h >= 20 ? day(scene.registry) : day(scene.registry) - 1;
+  } else if (night && !scene.wasNight) scene.nightCount = (scene.nightCount ?? 0) + 1;
   scene.wasNight = night;
   const view = scene.cameras.main.worldView;
   const p = scene.player;
   const near = (x, y) => Math.hypot(p.x - x, p.y - y) < (initial ? 100 : 150);
   const inSight = (x, y) => near(x, y) || (!initial && x > view.x - 24 && x < view.right + 24 && y > view.y - 24 && y < view.bottom + 40);
   let alive = 0;
-  for (const spec of scene.nightPlan) {
+  for (const [i, spec] of scene.nightPlan.entries()) {
     const e = scene.enemies.find((x) => x.spec === spec && !x.dead);
-    if (night && !e && spec.lastNight !== scene.nightCount && !inSight(spec.x * TILE, spec.y * TILE)) {
+    const id = `n:${i}`;
+    // En línea: si alguien ya lo tumbó esta noche (lo sabe el servidor), no vuelve.
+    const gone = online.on && scene.net?.deadIds?.has(id);
+    if (night && !e && !gone && spec.lastNight !== scene.nightCount && !inSight(spec.x * TILE, spec.y * TILE)) {
       spec.lastNight = scene.nightCount; // si lo tumbas, no vuelve hasta la noche siguiente
       const n = makeEnemy(scene, spec);
       if (!n) continue;
-      n.netId = null;
+      n.netId = online.on ? id : null;
+      if (online.on) n.dynSpec = { k: spec.kind, x: spec.x, y: spec.y, am: spec.ambush ? 1 : 0, mc: spec.minCargo ?? 0 };
       n.spawnState = n.state;
       scene.enemies.push(n);
       scene.enemyGroup.add(n.sprite);

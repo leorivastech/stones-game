@@ -7,7 +7,10 @@
  * Sirve el juego compilado (dist/) y, en /net, la conexión en vivo (WebSocket) por el mismo puerto:
  * así basta un túnel. La voz también pasa por aquí (audio en pedacitos), así llega en cualquier red. Guarda el mundo en server/data/world.json.
  *
- * Variables: PORT (5190), DAY_SECONDS (180: un día del mundo cada 3 minutos), WORLD_FILE, DIST (carpeta del juego compilado).
+ * Variables: PORT (5190), DAY_SECONDS (240: un día del mundo cada 4 minutos, igual que jugando solo), WORLD_FILE, DIST (carpeta del juego compilado).
+ *
+ * El avance de cada jugador (oro, carga, fama, deuda, mejoras, contratos…) también se guarda aquí, por
+ * nombre, dentro del mismo world.json: se sigue desde cualquier aparato.
  */
 
 import { createServer } from "node:http";
@@ -20,7 +23,11 @@ import { World } from "./world.mjs";
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 const DIST = resolve(process.env.DIST ?? join(HERE, "../dist"));
 const PORT = Number(process.env.PORT ?? 5190);
-const DAY_MS = Number(process.env.DAY_SECONDS ?? 180) * 1000;
+const DAY_MS = Number(process.env.DAY_SECONDS ?? 240) * 1000;
+/** Sin respuesta en este tiempo, la conexión se da por muerta y el jugador desaparece para los demás. */
+const DEAD_MS = 8000;
+/** Si el que manda un mapa deja de moverse (pestaña escondida, celular bloqueado), manda otro. */
+const STALE_MS = 3000;
 const world = new World(process.env.WORLD_FILE ?? join(HERE, "data/world.json"), { dayMs: DAY_MS });
 
 // ---------------------------------------------------------------------- archivos del juego
@@ -40,7 +47,7 @@ const http = createServer(async (req, res) => {
         name: c.name, map: c.map, audioSent: c.audioBytes ?? 0, voz: c.vstat ?? null,
       }));
       res.writeHead(200, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
-      res.end(JSON.stringify({ day: world.s.econ.day, players: list }, null, 1));
+      res.end(JSON.stringify({ day: world.s.econ.day, hour: Math.round(world.hour() * 10) / 10, players: list, mandan: Object.fromEntries(authority) }, null, 1));
       return;
     }
     let file = normalize(join(DIST, decodeURIComponent(url.pathname)));
@@ -79,14 +86,23 @@ function players() {
   return [...clients.values()].filter((c) => c.name).map((c) => ({ id: c.id, name: c.name, map: c.map, pos: c.pos }));
 }
 
-/** El primero que llega a un mapa manda a sus enemigos; si se va, pasa al siguiente. */
-function pickAuthority(map) {
+/**
+ * El primero que llega a un mapa manda a sus enemigos; si se va (o deja de moverse), pasa al que
+ * siga ahí. Al que deja de mandar se le avisa (`yes: false`): sus enemigos vuelven a ser títeres.
+ */
+function pickAuthority(map, { skip = null } = {}) {
   if (!map) return;
   const cur = authority.get(map);
-  if (cur && clients.get(cur)?.map === map) return;
-  const next = [...clients.values()].find((c) => c.map === map);
-  if (next) authority.set(map, next.id); else authority.delete(map);
-  if (next) send(next, { t: "auth", map, yes: true });
+  if (cur && cur !== skip && clients.get(cur)?.map === map) return;
+  const here = [...clients.values()].filter((c) => c.map === map && c.name && c.id !== skip);
+  // Mejor uno que se esté moviendo (que mande posiciones) que uno con la pestaña escondida.
+  const now = Date.now();
+  const next = here.find((c) => now - (c.posAt ?? 0) < STALE_MS) ?? (skip ? null : here[0]);
+  if (!next) { if (!skip) authority.delete(map); return; }
+  if (cur && cur !== next.id) send(clients.get(cur), { t: "auth", map, yes: false });
+  authority.set(map, next.id);
+  send(next, { t: "auth", map, yes: true });
+  if (process.env.STONES_TEST) console.log(`[mando] ${map}: ${next.name} (${next.id})${cur ? ` en lugar de ${cur}` : ""}`);
 }
 
 function leaveMap(c) {
@@ -100,29 +116,51 @@ const econMsg = () => ({ t: "econ", econ: world.s.econ });
 const HANDLERS = {
   hello(c, m) {
     const name = String(m.name ?? "").trim().slice(0, 16) || `Viajero${c.id}`;
-    // Mismo nombre otra vez (recargó la página): se reemplaza la conexión vieja.
+    // Mismo nombre otra vez (recargó la página o volvió la conexión): se reemplaza la conexión vieja.
     const old = byName(name);
-    if (old && old !== c) { leaveMap(old); old.ws.close(); clients.delete(old.id); all({ t: "leave", id: old.id }); }
+    const back = Boolean(old && old !== c) || Boolean(m.again);
+    if (old && old !== c) { old.replaced = true; leaveMap(old); old.ws.terminate(); clients.delete(old.id); all({ t: "leave", id: old.id }); }
     c.name = name;
     const me = world.join(name);
-    send(c, { t: "welcome", id: c.id, name, start: me.start, world: world.snapshot(), players: players().filter((p) => p.id !== c.id) });
-    all({ t: "join", id: c.id, name }, c);
-    news(`${name} llegó al golfo.`);
+    send(c, {
+      t: "welcome", id: c.id, name, start: me.start, world: world.snapshot(), players: players().filter((p) => p.id !== c.id),
+      save: me.save ?? null, savedAt: me.savedAt ?? 0,
+    });
+    all({ t: "join", id: c.id, name, back }, c);
+    if (!back) news(`${name} llegó al golfo.`);
   },
 
   map(c, m) {
-    if (c.map === m.map) return;
+    if (c.map === m.map) {
+      // Volvió a avisar (reconexión): se le repite lo del mapa y quién manda.
+      send(c, { t: "mapState", ...world.mapState(m.map) });
+      send(c, { t: "auth", map: m.map, yes: authority.get(m.map) === c.id });
+      return;
+    }
     leaveMap(c);
     c.map = m.map;
+    c.posAt = Date.now();
     send(c, { t: "mapState", ...world.mapState(m.map) });
     pickAuthority(m.map);
+    if (authority.get(m.map) !== c.id) send(c, { t: "auth", map: m.map, yes: false });
     all({ t: "where", id: c.id, map: m.map }, c);
     if (m.town) news(`${c.name} llegó a ${m.town}.`);
   },
 
   pos(c, m) {
     c.pos = m;
+    c.posAt = Date.now();
     all({ t: "pos", id: c.id, ...m }, c);
+  },
+
+  // --- Avance del jugador: se guarda por nombre; al entrar vuelve en la bienvenida.
+  save(c, m) {
+    const ok = world.savePlayer(c.name, m.data, m.at);
+    if (m.req) send(c, { t: "res", req: m.req, ok });
+  },
+  resetSave(c, m) {
+    world.resetPlayer(c.name);
+    send(c, { t: "res", req: m.req, ok: true });
   },
 
   trade(c, m) {
@@ -211,6 +249,13 @@ const HANDLERS = {
     world.enemyDead(m.map, m.id);
     inMap(m.map, { t: "edie", map: m.map, id: m.id }, c);
   },
+  // Matones del Gremio: los pide el deudor; los crea y los mueve el que manda el mapa (todos los ven).
+  thugs(c, m) {
+    send(clients.get(authority.get(m.map)), { ...m, t: "thugs", for: c.id, name: c.name });
+  },
+  thugsGone(c, m) {
+    send(clients.get(authority.get(m.map)), { t: "thugsGone", map: m.map, for: c.id });
+  },
   pdmg(c, m) {
     send(clients.get(m.to), { ...m, t: "pdmg", from: c.id });
   },
@@ -250,12 +295,21 @@ const HANDLERS = {
   news(c, m) {
     news(String(m.text ?? "").slice(0, 160));
   },
+  // Sólo para pruebas (STONES_TEST=1): poner la hora del mundo.
+  testHour(c, m) {
+    if (!process.env.STONES_TEST || !Number.isFinite(m.h)) return;
+    world.s.dayStartedAt = Date.now() - (Math.min(23.99, Math.max(0, m.h)) / 24) * DAY_MS;
+    lastHour = world.hour();
+    all(clockMsg());
+  },
 };
 
 wss.on("connection", (ws) => {
-  const c = { ws, id: nextId++, name: null, map: null, pos: null };
+  const c = { ws, id: nextId++, name: null, map: null, pos: null, seen: Date.now() };
   clients.set(c.id, c);
+  ws.on("pong", () => { c.seen = Date.now(); });
   ws.on("message", (raw, isBinary) => {
+    c.seen = Date.now();
     // Voz: pedacitos de audio del que habla; se reparten a los demás con su número adelante.
     if (isBinary) {
       if (!c.name || raw.length > 32000) return;
@@ -281,16 +335,40 @@ wss.on("connection", (ws) => {
 
 // ---------------------------------------------------------------------- reloj del mundo
 
+const clockMsg = () => ({ t: "clock", now: Date.now(), dayStartedAt: world.s.dayStartedAt, dayMs: DAY_MS, day: world.s.econ.day });
+let lastHour = world.hour();
+
+// Cada segundo: medianoche (día nuevo), mediodía (vuelven los de la noche), conexiones muertas y
+// quién manda cada mapa. Cada 2 s, la hora del servidor a todos (sirve también de "sigo aquí").
+let tick = 0;
 setInterval(() => {
-  const r = world.nextDay();
-  all({ t: "day", econ: world.s.econ, dayStartedAt: world.s.dayStartedAt, started: r.started });
-  for (const item of r.news) all({ t: "news", item });
-}, DAY_MS);
+  tick += 1;
+  if (Date.now() - world.s.dayStartedAt >= DAY_MS) {
+    const r = world.nextDay();
+    all({ t: "day", econ: world.s.econ, dayStartedAt: world.s.dayStartedAt, started: r.started, now: Date.now() });
+    for (const item of r.news) all({ t: "news", item });
+    lastHour = 0;
+  }
+  const h = world.hour();
+  if (lastHour < 12 && h >= 12) world.clearNightDead();
+  lastHour = h;
+  const now = Date.now();
+  for (const c of clients.values()) {
+    // Sin respuesta (ni mensajes ni pong) en 8 s: se cierra y los demás dejan de verlo.
+    if (now - c.seen > DEAD_MS) { c.ws.terminate(); continue; }
+    if (c.ws.readyState === 1) c.ws.ping();
+  }
+  for (const [map, id] of authority) {
+    const c = clients.get(id);
+    if (c && now - (c.posAt ?? 0) > STALE_MS) pickAuthority(map, { skip: id });
+  }
+  if (tick % 2 === 0) all(clockMsg());
+}, 1000);
 
 // Guardado del mundo cada pocos segundos (sólo si cambió).
 setInterval(() => world.save(), 4000);
 for (const sig of ["SIGINT", "SIGTERM"]) process.on(sig, () => { world.save(); process.exit(0); });
 
 http.listen(PORT, "127.0.0.1", () => {
-  console.log(`Stones en línea: http://127.0.0.1:${PORT}/?online=1  ·  un día cada ${DAY_MS / 1000} s  ·  mundo en ${world.file}`);
+  console.log(`Stones en línea: http://127.0.0.1:${PORT}/ (en el título: "En línea")  ·  un día cada ${DAY_MS / 1000} s  ·  mundo en ${world.file}`);
 });

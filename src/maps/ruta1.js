@@ -3,7 +3,8 @@
  *
  * De sur a norte:
  *  1. Pradera: sendero en curva, pasto alto con jabalíes, bordes que sólo se bajan de un salto.
- *  2. Río: un solo puente.
+ *  2. Río: un solo puente. Pasando el puente, en el bosque del este, el Sótano de las ruinas (refugio
+ *     escondido): arbusto junto a unas piedras de ruina (30,71) → vereda → sótano (32,65).
  *  3. Bifurcación: la calzada pasa por el retén de la Corona; el sendero del bosque
  *     (tapado por arbustos que hay que cortar) rodea por el campamento de bandidos.
  *  4. Farallón: la reja del camino está cerrada desde el norte. La primera vez se rodea
@@ -74,6 +75,12 @@ function build() {
   g.rect(18, 60, 6, 1, "f");
   g.rect(28, 60, 1, 1, "f");
 
+  // Refugio escondido (26-sep): el Sótano de las ruinas, en el bosque del este junto al río. Un
+  // arbusto al lado de unas piedras de ruina tapa una vereda que sube entre los árboles.
+  g.rect(29, 60, 7, 12, "T", '."');
+  g.trail([[30, 71], [30, 69], [33, 69], [33, 65], [30, 65]]);
+  g.set(30, 71, "b");
+
   // ---- 2. Río (filas 74-77) ----
   g.rect(0, 74, W, 4, "~");
   g.rect(0, 73, W, 1, "_", ".T");
@@ -123,6 +130,10 @@ export default {
     { type: "chest", id: "r1-cliff", x: 9.5, y: 10.8, loot: { heart: 1 } },
     { type: "chest", id: "r1-detour", x: 31, y: 41.4, loot: { gold: 15 } },
     { type: "prop", art: "barrel", x: 27.4, y: 62.8, solid: [0, 8, 12, 7] },
+    // Refugio escondido: sin letrero. Pista: bloques de una ruina vieja y flores de luna en la orilla.
+    { type: "refuge", id: "refugio-r1", x: 30.5, y: 65.95 },
+    { type: "prop", art: "ruin-blocks", x: 26.6, y: 70.9 },
+    { type: "prop", art: "rare-flowers", x: 30.7, y: 72.2 },
     { type: "prop", art: "banner", x: 20.8, y: 57.4, solid: [0, 26, 4, 5] },
     { type: "prop", art: "banner", x: 29, y: 57.4, solid: [0, 26, 4, 5] },
     // Enemigos
@@ -149,5 +160,6 @@ export default {
   entries: {
     south: { x: 18, y: 98.2, dir: "up" },
     north: { x: 17.5, y: 1.4, dir: "down" },
+    refugio: { x: 32.6, y: 65.8, dir: "left" },
   },
 };

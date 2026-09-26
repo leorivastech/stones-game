@@ -4,8 +4,13 @@
  * invitados, mejoras y estante), la arquera, el buhonero de cada ruta, enemigos muertos del día,
  * arbustos cortados y piedras tiradas.
  *
- * Lo personal (oro, carga, vida, deuda, fama, yegua) se queda en el aparato de cada jugador.
+ * Lo personal (oro, carga, vida, deuda, fama, mejoras, contratos, yegua, tutorial) es de cada jugador:
+ * su aparato lo juega y lo manda aquí al guardar (players[nombre].save); al entrar desde cualquier
+ * aparato se lo devolvemos. El navegador queda como caché.
  * La lógica del mercado es la misma del juego (src/economy.js, src/director.js).
+ *
+ * Reloj: un día dura `dayMs` y empieza a medianoche (hora = fracción del día × 24). Un mundo nuevo
+ * arranca a las 8 de la mañana; al reiniciar el servidor sigue a la misma hora en que se guardó.
  */
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
@@ -18,21 +23,52 @@ import { PEDDLER, REFUGES, STASH_CAPACITY } from "../src/state.js";
 /** Dónde empieza cada jugador nuevo, por turnos: lejos uno del otro. */
 export const STARTS = ["ashfen", "duneshade"];
 
+/** Hora a la que arranca un mundo nuevo. */
+const FIRST_HOUR = 8;
+/** Tope del guardado de un jugador (en caracteres de JSON): de sobra para una partida larga. */
+const SAVE_MAX = 200_000;
+/** Lo que en línea es del mundo: no se guarda con el jugador. */
+const WORLD_KEYS = ["day", "market", "drift", "mods", "heat", "caravans"];
+
+const num = (v, lo, hi) => typeof v === "number" && Number.isFinite(v) && v >= lo && v <= hi;
+const isObj = (v) => v != null && typeof v === "object" && !Array.isArray(v);
+
+/**
+ * Revisión mínima del guardado que manda un jugador: que sea un objeto de tamaño razonable y que lo
+ * básico tenga el tipo correcto. No es antitrampa: es para que un error no rompa el archivo.
+ */
+export function cleanSave(data) {
+  if (!isObj(data)) return null;
+  const out = {};
+  for (const [k, v] of Object.entries(data)) {
+    if (WORLD_KEYS.includes(k) || k.length > 40) continue;
+    out[k] = v;
+  }
+  if (out.gold != null && !num(out.gold, -1e6, 1e8)) return null;
+  if (out.cargo != null && (!isObj(out.cargo) || !Object.values(out.cargo).every((n) => num(n, 0, 1000)))) return null;
+  for (const k of ["hp", "maxHp", "tonics", "reputation", "chill", "baseCapacity"]) if (out[k] != null && !num(out[k], -1000, 1e6)) return null;
+  for (const k of ["upgrades", "debt", "flags", "crew"]) if (out[k] != null && !isObj(out[k])) return null;
+  if (out.contracts != null && !Array.isArray(out.contracts)) return null;
+  if (JSON.stringify(out).length > SAVE_MAX) return null;
+  return out;
+}
+
 const plural = (n, g) => `${n} ${GOODS[g].short.toLowerCase()}`;
 
 export class World {
   constructor(file, { dayMs }) {
     this.file = file;
     this.dayMs = dayMs;
-    this.s = this.load() ?? World.fresh();
+    this.s = this.load() ?? World.fresh(dayMs);
     this.dirty = false;
   }
 
-  static fresh() {
+  static fresh(dayMs = 240000) {
     return {
       version: 1,
       econ: freshEconomy(),
-      dayStartedAt: Date.now(),
+      // Medianoche del día en curso: un mundo nuevo empieza a las 8.
+      dayStartedAt: Date.now() - (FIRST_HOUR / 24) * dayMs,
       flags: {},
       owners: {},
       stashes: {},
@@ -56,17 +92,30 @@ export class World {
       s.econ.drift = { ...fresh.drift, ...s.econ.drift };
       s.econ.heat = { ...fresh.heat, ...s.econ.heat };
       s.econ.caravans ??= [];
-      return { ...World.fresh(), ...s, dayStartedAt: Date.now() };
+      // Sigue a la misma hora en que se guardó (antes el día volvía a empezar con cada reinicio).
+      const frac = Number.isFinite(s.dayFrac) ? Math.min(0.999, Math.max(0, s.dayFrac)) : FIRST_HOUR / 24;
+      return { ...World.fresh(this.dayMs), ...s, dayStartedAt: Date.now() - frac * this.dayMs };
     } catch {
       return null;
     }
   }
 
-  save() {
-    if (!this.dirty) return;
+  save(force = false) {
+    if (!this.dirty && !force) return;
     mkdirSync(dirname(this.file), { recursive: true });
+    this.s.dayFrac = this.dayProgress();
     writeFileSync(this.file, JSON.stringify(this.s));
     this.dirty = false;
+  }
+
+  /** Qué tanto va del día (0-1). */
+  dayProgress() {
+    return Math.min(0.999, Math.max(0, (Date.now() - this.s.dayStartedAt) / this.dayMs));
+  }
+
+  /** Hora del mundo (0-24). */
+  hour() {
+    return this.dayProgress() * 24;
   }
 
   touch() {
@@ -85,9 +134,29 @@ export class World {
     return this.s.players[name];
   }
 
+  /** Guarda el avance de un jugador (oro, carga, fama, deuda, mejoras, contratos, yegua…). */
+  savePlayer(name, data, at) {
+    const clean = cleanSave(data);
+    const p = this.s.players[name];
+    if (!clean || !p) return false;
+    p.save = clean;
+    p.savedAt = num(at, 0, 1e14) ? at : Date.now();
+    this.touch();
+    return true;
+  }
+
+  /** Empezar de cero: se borra el avance guardado del jugador (el pueblo de arranque se queda). */
+  resetPlayer(name) {
+    const p = this.s.players[name];
+    if (!p) return;
+    delete p.save;
+    delete p.savedAt;
+    this.touch();
+  }
+
   snapshot() {
     const { econ, flags, owners, stashes, hires, peddlers, news } = this.s;
-    return { econ, flags, owners, stashes, hires, peddlers, news: news.slice(0, 12), dayMs: this.dayMs, dayStartedAt: this.s.dayStartedAt };
+    return { econ, flags, owners, stashes, hires, peddlers, news: news.slice(0, 12), dayMs: this.dayMs, dayStartedAt: this.s.dayStartedAt, now: Date.now() };
   }
 
   mapState(map) {
@@ -112,9 +181,15 @@ export class World {
     const ended = stepDay(e);
     const caravans = (e.caravans ?? []).filter((c) => c.day === e.day);
     const started = rollDay(e);
-    this.s.dayStartedAt = Date.now();
+    // Medianoche: el día siguiente empieza donde terminó éste (sin brincos si el servidor se atrasa).
+    this.s.dayStartedAt += this.dayMs;
+    if (Date.now() - this.s.dayStartedAt > this.dayMs) this.s.dayStartedAt = Date.now();
     // Enemigos, arbustos, monedas y corazones sueltos vuelven con el día. Las piedras tiradas se quedan.
-    this.s.dead = {};
+    // Los de la noche ("n:…") siguen muertos hasta el mediodía: la noche cruza la medianoche.
+    for (const [map, list] of Object.entries(this.s.dead)) {
+      const night = list.filter((id) => String(id).startsWith("n:"));
+      if (night.length) this.s.dead[map] = night; else delete this.s.dead[map];
+    }
     this.s.cut = {};
     for (const [map, list] of Object.entries(this.s.pickups)) {
       for (const [id, p] of Object.entries(list)) if (p.kind !== "stone") delete list[id];
@@ -281,7 +356,21 @@ export class World {
 
   // ------------------------------------------------------------------ enemigos, arbustos, piedras tiradas
 
+  /** Mediodía: los de la noche pueden volver a salir la noche que sigue. */
+  clearNightDead() {
+    let any = false;
+    for (const [map, list] of Object.entries(this.s.dead)) {
+      const keep = list.filter((id) => !String(id).startsWith("n:"));
+      if (keep.length === list.length) continue;
+      any = true;
+      if (keep.length) this.s.dead[map] = keep; else delete this.s.dead[map];
+    }
+    if (any) this.touch();
+  }
+
   enemyDead(map, id) {
+    // Los matones del Gremio no vuelven: no hace falta recordarlos.
+    if (String(id).startsWith("t:")) return;
     const list = (this.s.dead[map] ??= []);
     if (!list.includes(id)) list.push(id);
     this.touch();
