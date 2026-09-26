@@ -97,6 +97,9 @@ export default {
     { type: "sign", x: 21, y: 66.6, text: ["ADUANA DEL PASO", "Toda carga que baje a la selva paga a la Corona."] },
     { type: "sign", x: 25.6, y: 69.2, text: ["(Una marca de pastor en la roca.)", "\"Por el pasto se sube sin aduana. Cuidado con los lobos.\""] },
     { type: "barrier", id: "aduana2", x: 16.5, y: 59.3 },
+    // Faroles de la aduana: de noche, bajo su luz los guardias ven como de día.
+    { type: "prop", art: "lamp", x: 14.1, y: 59.9, solid: [2, 22, 6, 5] },
+    { type: "prop", art: "lamp", x: 22.6, y: 59.9, solid: [2, 22, 6, 5] },
     { type: "refuge", id: "refugio-r2", x: 11, y: 47.2 },
     { type: "sign", x: 13.4, y: 48.6, text: ["Una cueva seca en la cornisa.", "Con puerta y cerrojo sería un buen escondite."] },
     { type: "bridge-rails", x0: 16, x1: 19, y0: 34, y1: 35 },

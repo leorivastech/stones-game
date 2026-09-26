@@ -376,6 +376,16 @@ export const CASTS = {
       P: "d1", p: "d0", F: "o0", f: "ink", M: "e2", m: "e1",
     },
   },
+  // Matón del Gremio (deuda con dientes, 26-sep): el mismo embozado del bandido, de morado del
+  // Gremio con ribetes de oro del sello.
+  thug: {
+    head: "bandit", body: "cloak",
+    map: {
+      o: "ink", H: "v1", h: "v0", J: "v2", A: "ink2", S: "k2", s: "k1", e: "y4",
+      Y: "y3", y: "y2", C: "v1", c: "v0", L: "v2", W: "s2", w: "s1", B: "y1", b: "o3",
+      P: "s1", p: "s0", F: "o0", f: "ink", M: "y2", m: "y1",
+    },
+  },
   villager: {
     head: "hair", body: "tunic",
     map: {

@@ -13,8 +13,10 @@ import { online, dayProgress } from "../net/online.js";
 
 /** Segundos reales que dura un día del juego (Leo: 4 minutos). */
 export const DAY_SECONDS = 240;
-/** Hora al llegar a un pueblo tras un viaje y al despertar en el catre. */
+/** Hora de arranque de una partida nueva (ya no se pone al llegar a un pueblo: el reloj sigue). */
 export const ARRIVAL_HOUR = 8;
+/** Horas del juego por segundo real (fuera de línea). */
+export const HOURS_PER_SECOND = 24 / DAY_SECONDS;
 export const WAKE_HOUR = 7;
 
 const wrap = (h) => ((h % 24) + 24) % 24;
@@ -190,8 +192,13 @@ export class Daylight {
       // y sólo se avisa al cruzar la hora entera (el HUD cambia sol/luna).
       const before = hourOf(reg);
       const now = wrap(before + (delta / 1000) * (24 / DAY_SECONDS));
-      if (Math.floor(now) !== Math.floor(before)) reg.set("hour", now);
-      else reg.list.hour = now;
+      if (Math.floor(now) !== Math.floor(before)) {
+        reg.set("hour", now);
+        // El tiempo corre en todos los mapas (26-sep): cada hora y cada medianoche le avisan al mundo
+        // (derretir escarcha, pasar el día).
+        this.scene.onClockHour?.();
+        if (now < before) this.scene.onMidnight?.();
+      } else reg.list.hour = now;
     }
     const h = hourOf(reg);
     // El HUD (sol / luna) sólo se repinta con cambios del registro: se le avisa al cambiar.

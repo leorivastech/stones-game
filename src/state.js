@@ -7,11 +7,11 @@ import { GOODS, TOWNS, TOWN_IDS } from "./world.js";
 import {
   GOOD_IDS, STONE, TRAVEL_DAYS, freshEconomy, freshDrift, quote, takeFromMarket, giveToMarket, stepDay, meltAfter, mixChill,
 } from "./economy.js";
-import { rollDay, rumor as makeRumor, activeEvents } from "./director.js";
+import { rollDay, rumor as makeRumor, activeEvents, eventCountdown } from "./director.js";
 import { online, send, request, isWorldFlag, canUse } from "./net/online.js";
 
 export { GOODS, TOWNS } from "./world.js";
-export { STONE, TRAVEL_DAYS, GOOD_IDS } from "./economy.js";
+export { STONE, TRAVEL_DAYS, BOAT_COLD, GOOD_IDS, FROST } from "./economy.js";
 
 export const UPGRADES = {
   stashKit: { id: "stashKit", name: "Herrajes de cueva", cost: 40, reputation: 2, effect: "puerta y cerrojo para las cuevas de los caminos" },
@@ -44,7 +44,7 @@ export const REFUGES = {
 
 export const REFUGE_UPGRADES = {
   shelves: { name: "Estantes", cost: 30, effect: "+6 lugares para piedras" },
-  cot: { name: "Catre", cost: 20, effect: "descansar un día y curarte" },
+  cot: { name: "Catre", cost: 20, effect: "dormir hasta mañana y curarte" },
   corral: { name: "Corral", cost: 40, effect: "aquí se puede quedar el caballo" },
   lock: { name: "Cerrojo reforzado", cost: 60, effect: "la Corona no lo encuentra" },
 };
@@ -56,13 +56,22 @@ export const CREW = {
 };
 /** Lo que cobran por día la posada (gente) y el establo (caballo). */
 export const LODGING = { inn: 3, stable: 2 };
-/** Dormir una noche en la posada: pasa un día, curas y despiertas temprano. */
+/** Dormir una noche en la posada: te curas y despiertas a las 7 del día siguiente. */
 export const INN_SLEEP = 8;
 export const STASH_RAID_HEAT = 60;
 export const TONIC = { cost: 12, max: 3, heal: 4 };
 export const BOAT_FARE = 15;
-/** La deuda con el Gremio: el motivo para empezar. Un cobrador pasa cada `every` días. */
-export const DEBT = { start: 500, cuota: 40, every: 10, interest: 25 };
+/**
+ * La deuda con el Gremio: el motivo para empezar. Un cobrador pasa cada `every` días (26-sep: 7 días
+ * de 4 min, ~28 min reales). Faltas seguidas (`missed`, vuelve a 0 al pagar la cuota completa):
+ * 1ª sube `interest` y avisa; 2ª sube `rate` (10 %) de lo que debes; 3ª y siguientes, además, en la
+ * siguiente ruta te esperan 2 matones (`thugs`): si te tumban se cobran `thugCut` del oro, o embargan
+ * la yegua (vuelve pagando `horseFine` en el establo de Valkeep). Pagar todo: "Mercader libre" (+`freeFame`).
+ */
+export const DEBT = {
+  start: 500, cuota: 40, every: 7, interest: 25, rate: 0.1,
+  thugsAt: 3, thugs: 2, thugHp: 4, thugCut: 0.3, horseFine: 60, freeFame: 2,
+};
 /** El ámbar con sello: la Corona no lo confisca, cobra impuesto. */
 export const AMBER_TAX = 2;
 /** Probabilidad de que un golpe rompa un vidrio rúnico. */
@@ -221,7 +230,9 @@ export function ambushProtection(registry) {
 
 /**
  * Dónde está cada quien: "party" (contigo), "stable:<pueblo>", "inn:<pueblo>", "refuge:<id>",
- * "wait:<mapa>" (el caballo esperando afuera de una cueva). Si lo tienes y no hay registro, va contigo.
+ * "wait:<mapa>" (el caballo esperando afuera de una cueva), "scared:<ruta>" (la yegua se espantó
+ * cuando caíste: te espera en esa ruta) o "seized" (embargada por el Gremio: se recupera en el establo
+ * de Valkeep). Si lo tienes y no hay registro, va contigo.
  */
 export function crewAt(registry, who) {
   const rec = getRecord(registry, "crew", {})[who];
@@ -347,26 +358,40 @@ export function moveStash(registry, id, good, dir) {
 function moveStashOnline(registry, id, good, dir) {
   const st = { ...stashOf(registry, id) };
   const c = { ...cargo(registry) };
+  // Lo de antes de mover, para mezclar el frío bien y para deshacer si el servidor dice que no.
+  const frostBefore = c.frost ?? 0;
+  const chillBefore = chill(registry);
+  const stashChillBefore = st.chill ?? 100;
   if (dir > 0) {
     if (!(c[good] > 0) || stashCount(registry, id) >= stashCapacity(registry, id)) return false;
+    if (good === "frost") st.chill = mixChill(st.frost ?? 0, stashChillBefore, 1, chillBefore);
     c[good] -= 1;
     st[good] = (st[good] ?? 0) + 1;
   } else {
     if (!(st[good] > 0) || !fits(registry, good)) return false;
+    if (good === "frost") registry.set("chill", mixChill(frostBefore, chillBefore, 1, stashChillBefore));
     st[good] -= 1;
     c[good] = (c[good] ?? 0) + 1;
   }
-  const chillBefore = chill(registry);
   registry.set("cargo", c);
   online.world.stashes = { ...online.world.stashes, [id]: st };
   request({ t: "stash", id, good, dir, chill: chillBefore }).then((r) => {
     if (!r.ok) {
+      // Otro jugador se ganó la piedra (o el lugar): se deshace en la carga Y en el estante.
       const back = { ...cargo(registry) };
       back[good] = Math.max(0, (back[good] ?? 0) + (dir > 0 ? 1 : -1));
       registry.set("cargo", back);
+      if (good === "frost" && dir < 0) registry.set("chill", back.frost ? chillBefore : 100);
+      // Si mientras tanto llegó el estante del servidor, ese manda; si no, se revierte lo local.
+      if (online.world.stashes[id] === st) {
+        const now = { ...st, [good]: Math.max(0, (st[good] ?? 0) - dir) };
+        if (good === "frost") now.chill = stashChillBefore;
+        online.world.stashes = { ...online.world.stashes, [id]: now };
+      }
       return;
     }
-    if (good === "frost" && dir < 0) registry.set("chill", mixChill((cargo(registry).frost ?? 1) - 1, chillBefore, 1, r.chill ?? 100));
+    // El frío real del estante lo sabe el servidor: se vuelve a mezclar con lo que había antes.
+    if (good === "frost" && dir < 0) registry.set("chill", mixChill(frostBefore, chillBefore, 1, r.chill ?? stashChillBefore));
   });
   return true;
 }
@@ -531,12 +556,23 @@ export const PEDDLER = {
   names: ["Ruperto", "Casilda", "Anselmo", "Brígida", "Tadeo", "Remedios"],
 };
 
-/** En línea: el buhonero de la ruta lo decide el servidor, igual para todos. */
+/**
+ * En línea: el buhonero de la ruta lo decide el servidor, igual para todos. Si el servidor no
+ * contesta (recién recargaste y aún no conecta), se usa el que ya mandó en la bienvenida o el que
+ * tenías guardado de hoy: no se vuelve a tirar el dado ni se da por hecho que no hay.
+ */
 export async function peddlerOnline(registry, routeId) {
   const r = await request({ t: "peddler", route: routeId, op: "get" });
-  const p = r.ok && !r.p.none ? r.p : null;
-  registry.set("peddler", p ?? { route: routeId, day: day(registry), none: true });
-  return p;
+  const today = day(registry);
+  let p;
+  if (r.ok) p = r.p;
+  else {
+    const known = [online.world.peddlers?.[routeId], registry.get("peddler")].find((x) => x && x.route === routeId && x.day === today);
+    if (!known) return null;
+    p = known;
+  }
+  registry.set("peddler", p.none ? { route: routeId, day: p.day ?? today, none: true } : p);
+  return p.none ? null : p;
 }
 
 /** El buhonero de esta ruta hoy (o null). La primera vez del día se tira el dado. */
@@ -652,8 +688,9 @@ export function bestLead(registry, hereTown = null) {
 /**
  * Pasan `n` días: el mercado se mueve, el calor baja, caducan sucesos y la escarcha se derrite
  * (en la carga y en los alijos que no están en tierra fría). `cold` (0-1): qué tanto del viaje fue frío.
+ * `meltCargo: false` cuando la carga ya se derritió hora por hora (el reloj que corre, ver meltHours).
  */
-export function passDays(registry, n, { cold = 0 } = {}) {
+export function passDays(registry, n, { cold = 0, meltCargo = true } = {}) {
   const st = econ(registry);
   const ended = [];
   const started = [];
@@ -664,17 +701,7 @@ export function passDays(registry, n, { cold = 0 } = {}) {
     }
     commit(registry, st);
   }
-  const icebox = hasUpgrade(registry, "icebox");
-  let melted = 0;
-  if (cargoOf(registry, "frost")) {
-    const next = meltAfter(chill(registry), n, { icebox, cold });
-    registry.set("chill", next);
-    if (next <= 0) {
-      melted = cargoOf(registry, "frost");
-      setRecordValue(registry, "cargo", "frost", 0, cargoRecord());
-      registry.set("chill", 100);
-    }
-  }
+  const melted = meltCargo ? meltCargoFor(registry, n, cold) : 0;
   // En línea los estantes son del mundo: el servidor derrite su escarcha.
   const stashes = online.on ? {} : { ...getRecord(registry, "stashes", {}) };
   for (const [id, s] of Object.entries(stashes)) {
@@ -686,17 +713,59 @@ export function passDays(registry, n, { cold = 0 } = {}) {
   return { ended, started, melted };
 }
 
+/** La escarcha que llevas pierde el frío de `days` días (con decimales). Devuelve cuántas se hicieron agua. */
+function meltCargoFor(registry, days, cold) {
+  if (!cargoOf(registry, "frost")) return 0;
+  const next = meltAfter(chill(registry), days, { icebox: hasUpgrade(registry, "icebox"), cold });
+  if (next > 0) {
+    registry.set("chill", Math.round(next * 10) / 10);
+    return 0;
+  }
+  const melted = cargoOf(registry, "frost");
+  setRecordValue(registry, "cargo", "frost", 0, cargoRecord());
+  registry.set("chill", 100);
+  return melted;
+}
+
+/** El reloj corrió `hours` horas: la escarcha de la carga se derrite en proporción. */
+export function meltHours(registry, hours, cold = 0) {
+  return meltCargoFor(registry, hours / 24, cold);
+}
+
+/**
+ * Qué tan frío es un lugar para la escarcha (0-1): el refugio frío la guarda entera; la Ruta 4 y
+ * Frostholm, a medias; lo demás, nada.
+ */
+export function coldAt(def) {
+  if (!def) return 0;
+  if (def.cold) return 1;
+  if (def.id === "ruta4" || def.town === "frostholm") return 0.5;
+  return 0;
+}
+
 // ---------- Rumores ----------
 
-/** Un rumor de la gente. Se guardan los últimos que oíste. */
+/** Días que un rumor sin suceso sigue marcado en el mapa. */
+export const RUMOR_DAYS = 4;
+
+/**
+ * Un rumor de la gente. Se guardan los últimos que oíste. Si habla de un pueblo, queda marcado en el
+ * mapa de la pausa con "?" hasta `until` (lo que le queda al suceso, o RUMOR_DAYS); al llegar a ese
+ * pueblo se comprueba (`checked`: "true" o "false") y el falso se tacha.
+ */
 export function hearRumor(registry, honest) {
-  let r = makeRumor(econ(registry), { honest });
+  const st = econ(registry);
+  let r = makeRumor(st, { honest });
   if (online.on && Math.random() < 0.5) {
     const others = online.world.news.filter((n) => !n.text.startsWith(online.name));
     if (others.length) r = { text: `Dicen por ahí: ${others[Math.floor(Math.random() * Math.min(4, others.length))].text}`, true: true };
   }
-  const list = [{ day: day(registry), text: r.text }, ...getRecord(registry, "rumors", [])].slice(0, 5);
-  registry.set("rumors", list);
+  const today = day(registry);
+  const left = r.event ? eventCountdown(st).find((e) => e.id === r.event)?.days : null;
+  const item = { day: today, text: r.text, town: r.town ?? null, true: r.true !== false, until: today + (left ?? RUMOR_DAYS) };
+  // El mismo rumor otra vez no ocupa otro lugar: se renueva.
+  const old = getRecord(registry, "rumors", []).filter((x) => x.text !== r.text);
+  registry.set("rumors", [item, ...old].slice(0, 8));
   return r;
 }
 
@@ -704,8 +773,37 @@ export function rumors(registry) {
   return getRecord(registry, "rumors", []);
 }
 
+/** Rumores que siguen marcados en el mapa (de un pueblo y sin caducar), el más nuevo primero. */
+export function rumorMarks(registry) {
+  const today = day(registry);
+  return rumors(registry).filter((r) => r.town && (r.until ?? r.day + RUMOR_DAYS) >= today);
+}
+
+/**
+ * Llegas a un pueblo: los rumores de aquí se comprueban. Devuelve los que resultaron falsos (se
+ * tachan en el mapa) y los verdaderos, para avisarlo.
+ */
+export function checkRumors(registry, townId) {
+  const list = rumors(registry);
+  const falses = [];
+  const trues = [];
+  const today = day(registry);
+  const next = list.map((r) => {
+    if (r.town !== townId || r.checked || (r.until ?? 0) < today) return r;
+    (r.true === false ? falses : trues).push(r);
+    return { ...r, checked: r.true === false ? "false" : "true" };
+  });
+  if (falses.length || trues.length) registry.set("rumors", next);
+  return { falses, trues };
+}
+
 export function worldEvents(registry) {
   return activeEvents(econ(registry));
+}
+
+/** Sucesos activos con cuántos días les quedan y a qué pueblo le pegan. */
+export function eventList(registry) {
+  return eventCountdown({ mods: registry.get("mods") ?? [] });
 }
 
 // ---------- Deuda con el Gremio ----------
@@ -719,26 +817,83 @@ export function debtDue(registry) {
   return d.owed > 0 && day(registry) >= d.due;
 }
 
-/** Abona a la deuda. Si cubre la cuota, el cobrador vuelve en `every` días. */
-export function payDebt(registry, amount) {
-  const d = { ...debt(registry) };
-  const paid = Math.min(amount, d.owed, gold(registry));
-  if (paid <= 0) return 0;
-  registry.inc("gold", -paid);
-  d.owed -= paid;
-  if (paid >= Math.min(DEBT.cuota, d.owed + paid)) d.due = day(registry) + DEBT.every;
-  registry.set("debt", d);
-  return paid;
+/** La cuota que toca hoy (o lo que quede, si es menos). */
+export function debtCuota(registry) {
+  return Math.min(DEBT.cuota, debt(registry).owed);
 }
 
-/** No pagaste: la deuda crece y el cobrador vuelve pronto. */
+/**
+ * Abona a la deuda. Si cubre la cuota, el cobrador vuelve en `every` días y se borran las faltas.
+ * Si no la cubre (pagaste lo que traías), cuenta como falta sin intereses: vuelve pronto.
+ * Devuelve { paid, free, missed } (`free`: con esto quedó saldada).
+ */
+export function payDebt(registry, amount) {
+  const d = { ...debt(registry) };
+  const cuota = Math.min(DEBT.cuota, d.owed);
+  const paid = Math.min(amount, d.owed, gold(registry));
+  if (paid <= 0) return { paid: 0, free: false, missed: d.missed };
+  registry.inc("gold", -paid);
+  d.owed -= paid;
+  if (d.owed <= 0) {
+    d.owed = 0;
+    d.missed = 0;
+    d.thugs = false;
+  } else if (paid >= cuota) {
+    d.due = day(registry) + DEBT.every;
+    d.missed = 0;
+  } else {
+    d.missed += 1;
+    d.due = day(registry) + Math.ceil(DEBT.every / 2);
+    if (d.missed >= DEBT.thugsAt) d.thugs = true;
+  }
+  registry.set("debt", d);
+  return { paid, free: d.owed <= 0, missed: d.missed };
+}
+
+/**
+ * No pagaste: la deuda crece y el cobrador vuelve pronto. 1ª falta: +interest; 2ª en adelante:
+ * +10 % de lo que debes (al menos `interest`); desde la 3ª, además, matones en la siguiente ruta.
+ * Devuelve la deuda nueva con `added` (lo que subió).
+ */
 export function missDebt(registry) {
   const d = { ...debt(registry) };
-  d.owed += DEBT.interest;
-  d.missed += 1;
+  d.missed = (d.missed ?? 0) + 1;
+  const added = d.missed >= 2 ? Math.max(DEBT.interest, Math.round(d.owed * DEBT.rate)) : DEBT.interest;
+  d.owed += added;
   d.due = day(registry) + Math.ceil(DEBT.every / 2);
+  if (d.missed >= DEBT.thugsAt) d.thugs = true;
   registry.set("debt", d);
-  return d;
+  return { ...d, added };
+}
+
+/** ¿Te esperan matones del Gremio en esta ruta? (se gastan al salir a su encuentro). */
+export function thugsPending(registry) {
+  return Boolean(debt(registry).thugs) && debt(registry).owed > 0;
+}
+
+export function clearThugs(registry) {
+  registry.set("debt", { ...debt(registry), thugs: false });
+}
+
+/**
+ * Los matones te tumbaron: se cobran el 30 % del oro (va a la deuda) o, sin oro, se llevan la yegua.
+ * Devuelve { gold, horse } con lo que se llevaron.
+ */
+export function thugsCollect(registry) {
+  const g = gold(registry);
+  if (g > 0) {
+    const take = Math.max(1, Math.ceil(g * DEBT.thugCut));
+    registry.inc("gold", -take);
+    const d = { ...debt(registry) };
+    d.owed = Math.max(0, d.owed - take);
+    registry.set("debt", d);
+    return { gold: take, horse: false };
+  }
+  if (hasUpgrade(registry, "horse") && crewAt(registry, "horse") !== "seized") {
+    setCrewAt(registry, "horse", "seized");
+    return { gold: 0, horse: true };
+  }
+  return { gold: 0, horse: false };
 }
 
 /**
@@ -847,8 +1002,9 @@ export function loadGame(registry) {
   try {
     const data = JSON.parse(localStorage.getItem(saveKey()));
     if (!data) return false;
-    // En línea el mercado y el día vienen del servidor, no del guardado.
-    if (online.on) for (const k of ["day", "market", "drift", "mods", "heat", "peddler"]) delete data[k];
+    // En línea el mercado y el día vienen del servidor, no del guardado (el buhonero guardado sólo
+    // sirve de respaldo si el servidor tarda: ver peddlerOnline).
+    if (online.on) for (const k of ["day", "market", "drift", "mods", "heat"]) delete data[k];
     const keep = online.on ? Object.fromEntries(["day", "market", "drift", "mods", "heat"].map((k) => [k, registry.get(k)])) : {};
     registry.set({ ...freshRun(), ...data, ...keep });
     return true;

@@ -1,4 +1,4 @@
-# Panorama — Stones (actualizado 2026-09-24, cierre de la sesión larga)
+# Panorama — Stones (actualizado 2026-09-26, tanda 4: tensión)
 
 La fuente de verdad de **qué se decidió, qué está construido, qué se descartó y qué falta decidir**.
 El historial fechado vive en `decisions.md`; cómo se juega hoy, en `mechanics.md`.
@@ -16,11 +16,12 @@ Lo interesante es **prepararse**: qué llevas, a quién llevas, dónde dejas qu�
 |---|---|
 | Mundo | 6 pueblos, 5 rutas, barca, 3 refugios. Mossgrove (bosque) entre el desierto y la nieve. |
 | Animación | Paso con rebote y brazos, respirar; yegua con vistas de lado, frente y espalda; Sahra con arco, carcaj y pose de disparo. |
-| Días | Ruta 2 días, barca 3, volver 1, catre 1. El mundo cambia mientras caminas. |
+| Días | **El reloj corre en todos los mapas** (26-sep): 4 min reales = 1 día; a medianoche pasa el día aunque estés en la ruta ("Amanece el día N"). Barca: 3 días. Dormir: hasta las 7 del día siguiente. Letreros con "~3 h a pie". |
 | Mercado tipo bolsa | Todos los pueblos con las 5 piedras; precio por oferta y demanda; tope de la Corona a la vista; precios "vistos hace N días". |
 | Carácter de las piedras | Ámbar con sello (impuesto), vidrio frágil, perla pesada, solar vigilada, escarcha que se derrite (hielera en Frostholm). |
-| Mundo vivo | Director chico de 9 sucesos; rumores con fuente (posaderos casi siempre aciertan). |
-| Deuda | 500 con el Gremio, cobrador cada 10 días. |
+| Mundo vivo | Director chico de 9 sucesos (barajados cada día) con **cuenta atrás** en la pausa, "!" en el mapa y línea en el HUD si le pega a tu pueblo; rumores con fuente (posaderos casi siempre aciertan) marcados con "?" en el mapa; al llegar se comprueban y los falsos se tachan. |
+| Deuda | 500 con el Gremio, cuota 40 cada **7 días**. **Con dientes** (26-sep): 1ª falta aviso, 2ª +10 %, 3ª+ dos **matones del Gremio** en la siguiente ruta (30 % del oro o embargan la yegua, 60 para sacarla). Pagar todo: **Mercader libre** (+2 fama, ceremonia). |
+| K.O. | Pierdes la mitad de la carga y 20 % del oro, **pasan 12 h**, la yegua se espanta y te espera en esa ruta; despiertas en tu refugio con catre de la ruta, si tienes. |
 | Fama = medallas | Vendiendo lo que un pueblo ocupa (+1 por pueblo y día); 5 títulos que abren mejoras. |
 | Comercio simple | Llegas, compras y vendes según oferta y demanda. Sin misiones ni pedidos (quitados 23-sep). |
 | Buhonero de camino | A veces (35 %) anda uno por la ruta: compra caro y vende barato, pocas piezas. |
@@ -98,5 +99,8 @@ Lo interesante es **prepararse**: qué llevas, a quién llevas, dónde dejas qu�
 
 1. Tono del lore y el resto de la historia (por qué cada pueblo tiene su piedra, quién manda en los caminos).
 2. Las propuestas de la sección 3.
-3. Si los números se sienten bien jugando (días por ruta, precio de la deuda, fama por vender, día de 3 min en línea).
+3. Si los números se sienten bien jugando (día de 4 min fuera de línea y 3 en línea, cuota 40 cada 7
+   días, escarcha 20 %/día, fama por vender). Con el tiempo corriendo en la ruta un tramo cuesta
+   ~0,4 días en vez de 2: el mercado se recupera menos entre visitas (la simulación da menos oro
+   por tramo que antes). Si se siente lento, subir producción/consumo en `economy.js`.
 4. Llevar la skill del trailer al molde `~/Development/framework-ia-videojuegos`.

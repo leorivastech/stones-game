@@ -109,6 +109,9 @@ export default {
     { type: "sign", x: 19.6, y: 68, text: ["(Alguien rayó una flecha hacia el bosque.)", "Abajo dice: \"por aquí no revisan\"."] },
     { type: "sign", x: 20.2, y: 45.5, text: ["FARALLÓN", "La reja se abre desde arriba."] },
     { type: "barrier", id: "reten1", x: 24, y: 59.3 },
+    // Faroles del retén: de noche, bajo su luz los guardias ven como de día.
+    { type: "prop", art: "lamp", x: 22.2, y: 59.9, solid: [2, 22, 6, 5] },
+    { type: "prop", art: "lamp", x: 29.4, y: 59.9, solid: [2, 22, 6, 5] },
     { type: "gate", id: "gate-r1", x: 16, y: 37 },
     { type: "lever", id: "gate-r1", x: 20.5, y: 35.5 },
     { type: "bridge-rails", x0: 21, x1: 23, y0: 74, y1: 77 },

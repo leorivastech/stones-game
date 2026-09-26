@@ -6,18 +6,64 @@
  *            Si te pega con piedras encima, se te cae una; él corre a levantarla y huye.
  *  Guardia — patrulla con cono de visión. Si te ve con piedras a la vista, sospecha (?),
  *            se alarma (!) y te persigue. Si te alcanza: revisión. Si le pegas, pelea.
+ *            Lleva escudo al frente: hay que rodearlo o pegarle tras su estocada.
+ *
+ *  De noche los guardias ven menos (salvo junto a un farol) y los bandidos más; salen más bandidos
+ *  y lobos. La fama sube la vida de los bandidos y la vista de los guardias.
  */
 
 import Phaser from "phaser";
 import { SHEET_INDEX, POSE } from "../art/actors.js";
-import { DEPTH, ENEMY, TILE } from "../config.js";
+import { DEPTH, ENEMY, ENEMY_JITTER, FAME_CURVE, NIGHT, STEALTH, TILE } from "../config.js";
 import { tone, sfx } from "../sfx.js";
 import { DIRS, viewOf } from "./player.js";
-import { frozen, release, shake, squash } from "../engine/juice.js";
+import { frozen, hitstop, release, shake, squash } from "../engine/juice.js";
+import { isNight } from "../engine/daylight.js";
+import { online } from "../net/online.js";
+import { FAME_TITLES, reputation } from "../state.js";
 
 // Parpadeo al recibir un golpe: blanco/normal 3 veces.
 const BLINK_STEP = 45;
 const BLINK_TIME = BLINK_STEP * 6;
+
+/** Un tiempo de ataque con ±25 % al azar: cada ataque se siente un poco distinto. */
+const jit = (ms) => ms * (1 - ENEMY_JITTER + Math.random() * ENEMY_JITTER * 2);
+
+/** Título de fama como número: 0 Desconocido, 1 Mensajero … 4 Leyenda del golfo. */
+export function fameTier(reg) {
+  const v = reputation(reg);
+  let tier = 0;
+  FAME_TITLES.forEach((t, i) => { if (v >= t.min) tier = i; });
+  return tier;
+}
+
+/** ¿Es de noche en este mapa? (Las cuevas no cuentan.) Se revisa cada medio segundo. */
+export function nightIn(scene) {
+  const now = scene.time.now;
+  if (scene._nightAt == null || now - scene._nightAt > 500) {
+    scene._nightAt = now;
+    scene._night = !scene.def?.dark && isNight(scene.registry);
+  }
+  return scene._night;
+}
+
+/** ¿Hay una luz prendida (farol, fogata, ventana) sobre este punto? */
+function litAt(scene, x, y) {
+  for (const l of scene.daylight?.lights ?? []) {
+    const img = l.img;
+    if (!img.visible || img.alpha < 0.2) continue;
+    const r = img.width * 0.55;
+    if (Math.abs(img.x - x) < r && Math.abs(img.y - y) < r && Math.hypot(img.x - x, img.y - y) < r) return true;
+  }
+  return false;
+}
+
+/** Cuánto se deja ver un blanco (multiplica la vista): 0 escondido … 1 a la vista. */
+function stealthOf(p) {
+  if (p.hidden) return 0;
+  if (typeof p.stealth === "number") return p.stealth;
+  return p.crouching ? STEALTH.crouch : 1; // jugadores de otro aparato
+}
 
 function dirFromVec(x, y) {
   if (Math.abs(x) > Math.abs(y)) return x < 0 ? "left" : "right";
@@ -97,8 +143,19 @@ class Enemy {
     if (ms) this.scene.time.delayedCall(ms, () => { if (this.bubble === b) { b.destroy(); this.bubble = null; } });
   }
 
-  hit(damage, fromX, fromY) {
+  /**
+   * `remote`: el golpe viene de otro aparato (lo manda WorldNet a quien corre la IA). Si el enemigo
+   * acaba de recibir otro golpe se ignora: dos jugadores pegando a la vez no hacen daño doble.
+   */
+  hit(damage, fromX, fromY, { remote = false } = {}) {
     if (this.dead || this.invuln > 0) return false;
+    if (remote && this.scene.time.now - (this.lastHitAt ?? -1e9) < 360) return false;
+    // Escudo (guardia): de frente no entra. En un títere se decide aquí y el golpe se manda igual.
+    if (this.blocks?.(fromX, fromY)) {
+      this.block(fromX, fromY);
+      if (this.puppet) this.scene.net?.hitPuppet(this, damage, fromX, fromY);
+      return false;
+    }
     // En línea, si este enemigo lo mueve otro jugador, el golpe se le manda a él.
     if (this.puppet) {
       this.invuln = 260;
@@ -112,6 +169,7 @@ class Enemy {
     }
     this.hp -= damage;
     this.invuln = 260;
+    this.lastHitAt = this.scene.time.now;
     this.hitBlink = BLINK_TIME;
     const c = this.center();
     const dx = c.x - fromX;
@@ -160,9 +218,16 @@ class Enemy {
     this.shadow.destroy();
     this.bubble?.destroy();
     this.cone?.destroy();
+    this.mark?.destroy();
   }
 
   preUpdate(dt) {
+    // Títere en línea: sus cambios de estado llegan por la red; algunos tienen algo que ver (el cuchillo).
+    if (this.puppet && this.state !== this.netState) {
+      const prev = this.netState;
+      this.netState = this.state;
+      if (prev !== undefined) this.onNetState?.(this.state, prev);
+    }
     // Congelado del golpe: blanco y quieto; el empujón sale al soltarse. (Los títeres no se congelan.)
     if (!this.puppet && frozen(this, this.hitstopUntil ?? 0, this.scene.time.now)) {
       this.whiten(true);
@@ -213,6 +278,27 @@ export class Boar extends Enemy {
     this.setState("wander");
   }
 
+  /** ¿Te ve? Agachado o entre el pasto te ve de más cerca; escondido, no. */
+  spots(p, d) {
+    const k = stealthOf(p);
+    return k > 0 && d < ENEMY[this.kind].sight * k && p.state !== "ko" && this.lineOfSight(p.x, p.y - 8);
+  }
+
+  /** Lobos: al ver presa avisa a la manada; los que estén cerca la rodean por el costado. */
+  alertPack(p) {
+    if (this.kind !== "wolf") return;
+    for (const e of this.scene.enemies) {
+      if (e === this || e.dead || e.puppet || e.kind !== "wolf" || e.state !== "wander") continue;
+      if (Phaser.Math.Distance.Between(this.x, this.y, e.x, e.y) > 150) continue;
+      // Rodea por el lado contrario al del que avisó, para llegar de costado.
+      const cross = (this.x - p.x) * (e.y - p.y) - (this.y - p.y) * (e.x - p.x);
+      e.flankSide = cross === 0 ? (Math.random() < 0.5 ? 1 : -1) : Math.sign(cross);
+      e.setState("flank");
+      e.showBubble("bubble-alert", 400);
+      break; // uno rodea; los demás siguen a lo suyo
+    }
+  }
+
   update(dt) {
     if (this.dead) return;
     if (this.preUpdate(dt)) return;
@@ -228,12 +314,28 @@ export class Boar extends Enemy {
         const arrived = this.moveToward(this.wanderTarget.x, this.wanderTarget.y, cfg.speed);
         if (arrived) this.body.setVelocity(0, 0);
         this.anim(arrived ? null : `${this.kind}-walk`);
-        if (d < cfg.sight && !p.hidden && p.state !== "ko" && this.lineOfSight(p.x, p.y - 8)) {
+        if (this.spots(p, d)) {
           this.setState("windup");
           this.body.setVelocity(0, 0);
           this.showBubble("bubble-alert", 500);
           tone(this.scene, "charge");
           sfx(this.scene, this.kind === "wolf" ? "growl" : "boar", { volume: 0.4, detune: (Math.random() - 0.5) * 200 });
+          this.alertPack(p);
+        }
+        break;
+      }
+      case "flank": {
+        // Da la vuelta alrededor de la presa (a ~60 px, 90° hacia su lado) y de ahí embiste.
+        const a = Math.atan2(this.y - p.y, this.x - p.x) + this.flankSide * (Math.PI / 2);
+        const tx = p.x + Math.cos(a) * 60;
+        const ty = p.y + Math.sin(a) * 60;
+        const arrived = this.moveToward(tx, ty, cfg.speed * 2.2);
+        this.anim(`${this.kind}-run`);
+        if (Math.abs(this.body.velocity.x) > 1) this.sprite.setFlipX(this.body.velocity.x < 0);
+        if (arrived || this.stateTime > 1500 || Phaser.Math.Distance.Between(this.x, this.y, tx, ty) < 10) {
+          this.body.setVelocity(0, 0);
+          this.windupMs = jit((cfg.windup ?? 560) * 0.6);
+          this.setState("windup");
         }
         break;
       }
@@ -243,11 +345,15 @@ export class Boar extends Enemy {
         this.sprite.setFlipX(p.x < this.x);
         this.sprite.x += Math.sin(this.stateTime * 0.08) * 0.6;
         if (Math.floor(this.stateTime / 120) % 2 === 0) this.scene.fx.dust(this.x - (this.sprite.flipX ? -8 : 8), this.y, 0.6);
-        if (this.stateTime > (cfg.windup ?? 560)) {
+        this.windupMs ??= jit(cfg.windup ?? 560);
+        if (this.stateTime > this.windupMs) {
+          this.windupMs = null;
           const dx = p.x - this.x;
           const dy = p.y - this.y;
           const len = Math.hypot(dx, dy) || 1;
           this.chargeDir = { x: dx / len, y: dy / len };
+          // Jabalí: a veces (30 %) embiste dos veces seguidas.
+          if (this.kind === "boar" && !this.second) this.double = Math.random() < 0.3;
           this.setState("charge");
         }
         break;
@@ -258,15 +364,29 @@ export class Boar extends Enemy {
         this.sprite.setFlipX(this.chargeDir.x < 0);
         if (Math.floor(this.stateTime / 90) !== Math.floor((this.stateTime - dt) / 90)) this.scene.fx.dust(this.x, this.y, 0.8);
         if (this.touching()) this.scene.damageTarget(this.player(), cfg.damage, this, { steal: false });
-        const b = this.body.blocked;
-        if (this.stateTime > 120 && (b.left || b.right || b.up || b.down)) {
+        const b = this.body;
+        const blocked = b.blocked.left || b.blocked.right || b.blocked.up || b.blocked.down;
+        if (this.stateTime > 120 && blocked) {
           this.setState("stunned");
+          this.double = false;
+          this.second = false;
           this.body.setVelocity(0, 0);
           shake(this.scene, "bump");
           tone(this.scene, "bump");
           this.showBubble("bubble-ask", 900);
-        } else if (this.stateTime > 950) {
-          this.setState("rest");
+        } else if (this.stateTime > (this.second ? 650 : 950)) {
+          if (this.double) {
+            // Segunda embestida: frena, se voltea rápido y vuelve a cargar.
+            this.double = false;
+            this.second = true;
+            this.body.setVelocity(0, 0);
+            this.windupMs = jit(260);
+            this.showBubble("bubble-alert", 300);
+            this.setState("windup");
+          } else {
+            this.second = false;
+            this.setState("rest");
+          }
         }
         break;
       }
@@ -278,7 +398,8 @@ export class Boar extends Enemy {
       case "rest":
         this.body.setVelocity(this.body.velocity.x * 0.85, this.body.velocity.y * 0.85);
         this.anim(null, 0);
-        if (this.stateTime > 700) this.setState("wander");
+        this.restMs ??= jit(700);
+        if (this.stateTime > this.restMs) { this.restMs = null; this.setState("wander"); }
         break;
       default:
         this.setState("wander");
@@ -302,6 +423,7 @@ export class Boar extends Enemy {
 
   onHurt() {
     if (this.state === "stunned") return;
+    this.windupMs = null;
     this.setState("windup");
   }
 }
@@ -361,15 +483,31 @@ class Humanoid extends Enemy {
 export class Bandit extends Humanoid {
   constructor(scene, spec) {
     super(scene, spec, "bandit");
-    this.hp = ENEMY.bandit.hp;
+    // Curva por fama: desde el título 3, los bandidos aguantan un golpe más.
+    this.hp = ENEMY.bandit.hp + (fameTier(scene.registry) >= FAME_CURVE.banditHpFrom ? 1 : 0);
     this.carrying = null;
+    this.knifeCd = 1200;
+    this.knifeRoll = 0;
     this.ambush = Boolean(spec.ambush);
-    if (this.ambush) {
-      this.sprite.setVisible(false);
-      this.shadow.setVisible(false);
-      this.body.enable = false;
-      this.setState("hidden");
-    } else this.setState("idle");
+    if (this.ambush) this.hide();
+    else this.setState("idle");
+  }
+
+  /** Emboscada: invisible y sin cuerpo hasta que pasas cerca. */
+  hide() {
+    this.sprite.setVisible(false);
+    this.shadow.setVisible(false);
+    this.body.setVelocity(0, 0);
+    this.body.enable = false;
+    this.bubble?.destroy();
+    this.bubble = null;
+    this.setState("hidden");
+  }
+
+  sightRange(p) {
+    // Escondido en el pasto te ve solo si casi lo pisas. De noche ven más lejos.
+    if (p.hidden) return 20;
+    return ENEMY.bandit.sight * (nightIn(this.scene) ? NIGHT.banditSight : 1) * stealthOf(p);
   }
 
   wantsPlayer() {
@@ -377,8 +515,62 @@ export class Bandit extends Humanoid {
     if (p.state === "ko" || this.scene.targetBusy(p)) return false;
     if ((this.spec.minCargo ?? 0) > this.scene.cargoOfTarget(p)) return false;
     const d = this.distToPlayer();
-    const sight = p.hidden ? 20 : p.crouching ? ENEMY.bandit.sight * 0.6 : ENEMY.bandit.sight;
-    return d < sight && this.lineOfSight(p.x, p.y - 8);
+    return d < this.sightRange(p) && this.lineOfSight(p.x, p.y - 8);
+  }
+
+  /** Cuchillo recto hacia el blanco. `visual`: en un títere solo se ve (el daño lo cuenta quien manda). */
+  throwKnife(visual = false) {
+    const cfg = ENEMY.bandit.knife;
+    const p = this.player();
+    const c = this.center();
+    const a = Math.atan2(p.y - 9 - c.y, p.x - c.x);
+    const scene = this.scene;
+    const img = scene.add.image(c.x, c.y, "knife").setRotation(a).setDepth(DEPTH.fx);
+    const k = { x: c.x, y: c.y, vx: Math.cos(a) * cfg.speed, vy: Math.sin(a) * cfg.speed, left: cfg.range, img };
+    tone(scene, "swing");
+    sfx(scene, "knife", { volume: 0.3, detune: (Math.random() - 0.5) * 300 });
+    const done = () => {
+      scene.events.off("update", step);
+      scene.events.off("shutdown", done);
+      if (img.active) img.destroy();
+    };
+    const step = (_t, delta) => {
+      if (!img.active) { done(); return; }
+      const dt = Math.min(delta, 50);
+      const mx = (k.vx * dt) / 1000;
+      const my = (k.vy * dt) / 1000;
+      k.x += mx;
+      k.y += my;
+      k.left -= Math.hypot(mx, my);
+      img.setPosition(Math.round(k.x), Math.round(k.y)).setDepth(k.y + 9);
+      const w = scene.world;
+      if (k.left <= 0 || (w.solidAt(k.x, k.y + 8) && w.cellAt(k.x, k.y + 8) !== "~")) {
+        if (k.left > 0) scene.fx.spark(k.x, k.y);
+        done();
+        return;
+      }
+      if (visual) return;
+      const targets = scene.net ? scene.net.targets() : [scene.player];
+      for (const t of targets) {
+        if (!t || t.state === "ko") continue;
+        const b = t.body;
+        if (k.x < b.x - 2 || k.x > b.x + b.width + 2 || k.y < b.y - 16 || k.y > b.y + b.height + 1) continue;
+        // Rodando (o recién golpeado) el cuchillo pasa de largo: se puede esquivar.
+        if (!t.remote && (t.invuln > 0 || t.state === "jump")) continue;
+        scene.damageTarget(t, cfg.damage, { kind: "knife", x: k.x, y: k.y, center: () => ({ x: k.x - k.vx * 0.05, y: k.y - k.vy * 0.05 }) }, { steal: false });
+        done();
+        return;
+      }
+    };
+    scene.events.on("update", step);
+    scene.events.once("shutdown", done);
+  }
+
+  onNetState(st, prev) {
+    if (st === "thrown") this.throwKnife(true);
+    // Emboscada en un títere: sin cuerpo mientras está escondido, con cuerpo al salir (para poder pegarle).
+    if (st === "hidden") this.body.enable = false;
+    else if (prev === "hidden") this.body.enable = true;
   }
 
   update(dt) {
@@ -386,6 +578,7 @@ export class Bandit extends Humanoid {
     if (this.preUpdate(dt)) return;
     const cfg = ENEMY.bandit;
     const p = this.player();
+    this.knifeCd -= dt;
     switch (this.state) {
       case "hidden": {
         if (this.wantsPlayer() && this.distToPlayer() < 60) {
@@ -432,19 +625,74 @@ export class Bandit extends Humanoid {
         if (d < 26) {
           this.body.setVelocity(0, 0);
           this.faceToward(p.x, p.y - 4);
-          this.setState("windup");
+          // Patrón: estocada normal o finta (amaga, se para y ataca después).
+          this.setState(Math.random() < cfg.feint ? "feint" : "windup");
           break;
+        }
+        // A media distancia, a veces lanza un cuchillo (cada 3 s como mucho).
+        this.knifeRoll -= dt;
+        if (this.knifeCd <= 0 && this.knifeRoll <= 0 && d > cfg.knife.min && d < cfg.knife.max) {
+          this.knifeRoll = 500;
+          if (Math.random() < cfg.knife.chance && this.lineOfSight(p.x, p.y - 8)) {
+            this.body.setVelocity(0, 0);
+            this.faceToward(p.x, p.y - 4);
+            this.setState("aim");
+            break;
+          }
         }
         this.moveToward(p.x, p.y, cfg.speed);
         this.walkAnim(true, true);
         break;
       }
+      case "aim":
+        // Brazo arriba y un destello lento: el aviso de que viene un cuchillo.
+        this.body.setVelocity(0, 0);
+        this.faceToward(p.x, p.y - 4);
+        this.sprite.anims.stop();
+        this.sprite.setFrame(SHEET_INDEX[viewOf(this.facing)] + POSE.act);
+        this.sprite.setFlipX(this.facing === "left");
+        this.flash = this.stateTime % 200 < 60 ? 40 : 0;
+        this.aimMs ??= jit(cfg.knife.aim);
+        if (this.stateTime > this.aimMs) {
+          this.aimMs = null;
+          this.knifeCd = cfg.knife.cooldown;
+          this.throwKnife();
+          this.setState("thrown");
+        }
+        break;
+      case "thrown":
+        this.body.setVelocity(0, 0);
+        if (this.stateTime > 360) this.setState("chase");
+        break;
+      case "feint":
+        // Amaga (se agacha y da medio paso) y se detiene; ataca ~250 ms después.
+        this.feintA ??= jit(cfg.feintFake);
+        this.feintB ??= jit(cfg.feintWait);
+        if (this.stateTime < this.feintA) {
+          const f = DIRS[this.facing];
+          this.body.setVelocity(f.x * 45, f.y * 45);
+          this.crouchPose();
+          this.flash = this.stateTime % 160 < 60 ? 40 : 0;
+        } else {
+          this.body.setVelocity(0, 0);
+          this.walkAnim(false);
+          this.faceToward(p.x, p.y - 4);
+        }
+        if (this.stateTime > this.feintA + this.feintB) {
+          this.feintA = this.feintB = null;
+          this.faceToward(p.x, p.y - 4);
+          this.setState("lunge");
+          this.lunge(cfg.lunge, cfg.damage, { steal: true });
+        }
+        break;
       case "windup":
         this.body.setVelocity(0, 0);
         this.faceToward(p.x, p.y - 4);
         this.crouchPose();
         this.flash = this.stateTime % 160 < 60 ? 40 : 0;
-        if (this.stateTime > 380) {
+        this.windupMs ??= jit(cfg.windup);
+        if (this.stateTime > this.windupMs) {
+          this.windupMs = null;
           this.setState("lunge");
           this.lunge(cfg.lunge, cfg.damage, { steal: true });
         }
@@ -460,7 +708,8 @@ export class Bandit extends Humanoid {
       case "recover":
         this.body.setVelocity(0, 0);
         this.walkAnim(false);
-        if (this.stateTime > 520) this.setState("chase");
+        this.recoverMs ??= jit(cfg.recover);
+        if (this.stateTime > this.recoverMs) { this.recoverMs = null; this.setState("chase"); }
         break;
       case "grab": {
         const loot = this.scene.nearestLoose(this.x, this.y, 200);
@@ -511,8 +760,11 @@ export class Bandit extends Humanoid {
       case "return": {
         const arrived = this.moveToward(this.home.x, this.home.y, cfg.speed * 0.7);
         this.walkAnim(!arrived);
-        if (arrived) this.setState(this.ambush ? "idle" : "idle");
-        if (this.wantsPlayer() && this.stateTime > 600) this.setState("chase");
+        // El de emboscada se vuelve a esconder en su pasto: la emboscada sirve otra vez.
+        if (arrived) {
+          if (this.ambush) this.hide();
+          else this.setState("idle");
+        } else if (this.wantsPlayer() && this.stateTime > 600) this.setState("chase");
         break;
       }
       default:
@@ -546,16 +798,58 @@ export class Guard extends Humanoid {
     this.suspicion = 0;
     this.hostile = false;
     this.lastSeen = null;
+    this.dashCd = 1200;
+    // Curva por fama: cada título, +10 % de vista.
+    this.fameSight = 1 + FAME_CURVE.guardSightPerTier * fameTier(scene.registry);
     this.cone = scene.add.graphics().setDepth(DEPTH.cone);
     this.setState(spec.post ? "post" : "patrol");
   }
 
+  /**
+   * Hasta dónde ve (sin contar cómo vas tú). Una caravana grande se ve de más lejos, con calor alto
+   * más, con fama más. De noche ×0.7, salvo que el blanco esté bajo la luz de un farol o fogata.
+   */
+  baseSight(p = this.player()) {
+    let r = ENEMY.guard.sight * (this.scene.heatLevel() >= 2 ? 1.2 : 1) * (this.scene.groupSight?.() ?? 1) * this.fameSight;
+    if (nightIn(this.scene) && !litAt(this.scene, p.x, p.y - 8)) r *= NIGHT.guardSight;
+    return r;
+  }
+
   sightRange() {
     const p = this.player();
-    // Una caravana grande se ve de más lejos.
-    const base = ENEMY.guard.sight * (this.scene.heatLevel() >= 2 ? 1.2 : 1) * (this.scene.groupSight?.() ?? 1);
-    if (p.hidden) return 0;
-    return p.crouching ? base * 0.55 : base;
+    return this.baseSight(p) * stealthOf(p);
+  }
+
+  /** Escudo: de frente (±57°) no le entra nada, salvo tras su estocada (recover) o aturdido. */
+  blocks(fx, fy) {
+    if (this.dead || this.state === "recover" || this.state === "stunned") return false;
+    const f = DIRS[this.facing];
+    const dx = fx - this.x;
+    const dy = fy - (this.y - 8);
+    const len = Math.hypot(dx, dy) || 1;
+    return (dx * f.x + dy * f.y) / len > Math.cos(ENEMY.guard.shieldArc);
+  }
+
+  /** Golpe al escudo: chispa, "tonk", sin daño y el jugador rebota un poco. */
+  block(fx, fy) {
+    const scene = this.scene;
+    const f = DIRS[this.facing];
+    const sx = this.x + f.x * 7;
+    const sy = this.y - 9 + f.y * 5;
+    scene.fx.spark(sx, sy);
+    tone(scene, "bump");
+    sfx(scene, "armor", { volume: 0.3, detune: 300 });
+    shake(scene, "bump");
+    this.invuln = 180;
+    // Solo rebota el jugador de este aparato si el golpe fue suyo (no una flecha de Sahra).
+    const p = scene.player;
+    const c = p.center();
+    if (Math.hypot(c.x - fx, c.y - fy) < 6) {
+      hitstop(scene, 50);
+      p.recoil?.(this.x, this.y - 8);
+    }
+    // Pegarle al escudo de la Corona también cuenta como ataque.
+    if (!this.puppet && !this.hostile) this.onHurt();
   }
 
   /** ¿Ve al jugador? Distancia, ángulo del cono y línea de vista. */
@@ -580,7 +874,7 @@ export class Guard extends Humanoid {
     const g = this.cone;
     g.clear();
     if (this.dead || this.state === "down") return;
-    const range = ENEMY.guard.sight * (this.scene.heatLevel() >= 2 ? 1.2 : 1) * (this.scene.groupSight?.() ?? 1);
+    const range = this.baseSight();
     const f = DIRS[this.facing];
     const a0 = Math.atan2(f.y, f.x);
     const alert = this.state === "chase" || this.hostile;
@@ -612,6 +906,8 @@ export class Guard extends Humanoid {
     const p = this.player();
     const sees = this.sees();
     if (sees) this.lastSeen = { x: p.x, y: p.y };
+    this.dashCd -= dt;
+    if (this.state !== "search") this.clearMark();
 
     // Sospecha: sube mientras te ve con carga; baja si no.
     if (["patrol", "post", "search", "return", "suspect"].includes(this.state)) {
@@ -666,7 +962,8 @@ export class Guard extends Humanoid {
         if (!sees && this.stateTime > 900) {
           this.bubble?.destroy();
           this.bubble = null;
-          this.setState(this.suspicion > 0.3 ? "search" : this.spec.post ? "post" : "patrol");
+          if (this.suspicion > 0.3) this.startSearch();
+          else this.setState(this.spec.post ? "post" : "patrol");
         }
         break;
       case "chase": {
@@ -675,12 +972,20 @@ export class Guard extends Humanoid {
         const target = sees ? p : this.lastSeen;
         if (this.lostTime > 2400 || !target) {
           this.showBubble("bubble-ask", 900);
-          this.setState("search");
+          this.startSearch();
           break;
         }
-        if (this.hostile && this.distToPlayer() < 26) {
+        const d = this.distToPlayer();
+        if (this.hostile && d < 26) {
           this.faceToward(p.x, p.y - 4);
           this.setState("windup");
+          break;
+        }
+        // Embestida corta con el escudo si estás a 40-70 px.
+        if (this.hostile && sees && this.dashCd <= 0 && d > cfg.dash.min && d < cfg.dash.max) {
+          this.body.setVelocity(0, 0);
+          this.faceToward(p.x, p.y - 4);
+          this.setState("dwindup");
           break;
         }
         this.moveToward(target.x, target.y, cfg.chase);
@@ -692,10 +997,37 @@ export class Guard extends Humanoid {
         this.body.setVelocity(0, 0);
         this.crouchPose();
         this.flash = this.stateTime % 160 < 60 ? 40 : 0;
-        if (this.stateTime > 420) {
+        this.windupMs ??= jit(cfg.windup);
+        if (this.stateTime > this.windupMs) {
+          this.windupMs = null;
           this.setState("lunge");
           this.lunge(150, cfg.damage, { steal: false });
         }
+        break;
+      case "dwindup":
+        // Aviso corto (se agacha tras el escudo) y embiste en línea recta hacia ti.
+        this.body.setVelocity(0, 0);
+        this.faceToward(p.x, p.y - 4);
+        this.crouchPose();
+        this.flash = this.stateTime % 120 < 50 ? 40 : 0;
+        this.windupMs ??= jit(cfg.dash.windup);
+        if (this.stateTime > this.windupMs) {
+          this.windupMs = null;
+          this.dashCd = cfg.dash.cooldown;
+          const dx = p.x - this.x;
+          const dy = p.y - this.y;
+          const len = Math.hypot(dx, dy) || 1;
+          this.setState("dash");
+          this.lunge(cfg.dash.speed, cfg.damage, { steal: false });
+          this.body.setVelocity((dx / len) * cfg.dash.speed, (dy / len) * cfg.dash.speed);
+          sfx(this.scene, "armor", { volume: 0.3 });
+        }
+        break;
+      case "dash":
+        this.walkAnim(true, true);
+        if (Math.floor(this.stateTime / 70) !== Math.floor((this.stateTime - dt) / 70)) this.scene.fx.dust(this.x, this.y, 0.7);
+        this.checkLungeHit();
+        if (this.stateTime > cfg.dash.time) { this.body.setVelocity(0, 0); this.setState("recover"); }
         break;
       case "lunge":
         this.walkAnim(true, true);
@@ -703,19 +1035,29 @@ export class Guard extends Humanoid {
         if (this.stateTime > 180) { this.body.setVelocity(0, 0); this.setState("recover"); }
         break;
       case "recover":
+        // La ventana para pegarle de frente: baja el escudo un momento.
         this.body.setVelocity(0, 0);
         this.walkAnim(false);
-        if (this.stateTime > 600) this.setState("chase");
+        this.recoverMs ??= jit(cfg.recover);
+        if (this.stateTime > this.recoverMs) { this.recoverMs = null; this.setState("chase"); }
         break;
       case "search": {
+        // Va a donde te vio por última vez (marcado con "?") y mira alrededor unos 3 s.
         const t = this.lastSeen ?? this.home;
-        const arrived = this.moveToward(t.x, t.y, cfg.speed);
+        const arrived = this.moveToward(t.x, t.y, cfg.speed * 1.15) || this.stateTime > 6000;
+        if (arrived && this.lookFrom == null) {
+          this.lookFrom = this.stateTime;
+          this.body.setVelocity(0, 0);
+          this.clearMark();
+        }
         this.walkAnim(!arrived);
-        if (arrived && this.stateTime > 600) {
-          if (Math.floor(this.stateTime / 600) % 2) this.facing = ["left", "right", "up", "down"][Math.floor(this.stateTime / 600) % 4];
+        if (this.lookFrom != null) {
+          this.body.setVelocity(0, 0);
+          const look = this.stateTime - this.lookFrom;
+          this.facing = ["left", "right", "up", "down"][Math.floor(look / 700) % 4];
         }
         if (sees && this.suspicious()) { this.alarm(); break; }
-        if (this.stateTime > 3200) {
+        if (this.lookFrom != null && this.stateTime - this.lookFrom > cfg.searchLook) {
           this.suspicion = 0;
           this.hostile = false;
           this.setState("return");
@@ -742,6 +1084,24 @@ export class Guard extends Humanoid {
         this.setState("patrol");
     }
     this.drawCone();
+  }
+
+  /** Te perdió: marca con "?" dónde te vio y va a revisar. */
+  startSearch() {
+    this.setState("search");
+    this.lookFrom = null;
+    this.clearMark();
+    const t = this.lastSeen;
+    if (!t || !STEALTH.lastSeenMark) return;
+    this.mark = this.scene.add.image(Math.round(t.x), Math.round(t.y - 10), "bubble-ask").setOrigin(0.5, 1).setDepth(DEPTH.fx).setAlpha(0.85);
+    this.scene.tweens.add({ targets: this.mark, y: this.mark.y - 2, duration: 400, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+  }
+
+  clearMark() {
+    if (!this.mark) return;
+    this.scene.tweens.killTweensOf(this.mark);
+    this.mark.destroy();
+    this.mark = null;
   }
 
   alarm() {
@@ -771,6 +1131,7 @@ export class Guard extends Humanoid {
     release(this);
     this.body.enable = false;
     this.bubble?.destroy();
+    this.clearMark();
     this.cone.clear();
     this.sprite.anims.stop();
     this.sprite.setTexture("ko-guard");
@@ -824,7 +1185,7 @@ export class Scorpion extends Enemy {
         s.setFrame(3);
         // La arena tiembla un poco para que el jugador atento lo note.
         s.x = this.home.x + (Math.floor(this.stateTime / 90) % 2 ? 0.5 : -0.5);
-        if (d < cfg.sight && p.state !== "ko" && !this.scene.targetBusy(p)) {
+        if (d < cfg.sight * Math.max(stealthOf(p), 0.5) && p.state !== "ko" && !this.scene.targetBusy(p)) {
           this.setState("emerge");
           this.scene.fx.dust(this.x, this.y, 0.8);
           tone(this.scene, "suspect");
@@ -838,11 +1199,15 @@ export class Scorpion extends Enemy {
         if (this.stateTime > 300) this.setState("chase");
         break;
       case "chase": {
-        this.moveToward(p.x, p.y, cfg.speed);
+        // Si te pierde de vista 3 s (lejos, escondido o tras una roca), se vuelve a enterrar ahí mismo.
+        const sees = !p.hidden && p.state !== "ko" && d < cfg.sight * 3 && this.lineOfSight(p.x, p.y - 6);
+        this.lostTime = sees ? 0 : (this.lostTime ?? 0) + dt;
+        if (this.lostTime > cfg.lose) { this.burrow(); break; }
+        if (sees) this.moveToward(p.x, p.y, cfg.speed);
+        else this.body.setVelocity(this.body.velocity.x * 0.9, this.body.velocity.y * 0.9);
         s.setFlipX(p.x < this.x);
         if (s.anims.currentAnim?.key !== "scorpion-walk") s.play("scorpion-walk");
-        if (d < 22) this.setState("windup");
-        if (d > cfg.sight * 1.8) this.setState("return");
+        if (d < 22 && sees) this.setState("windup");
         break;
       }
       case "windup":
@@ -851,7 +1216,9 @@ export class Scorpion extends Enemy {
         s.setFrame(2);
         s.setFlipX(p.x < this.x);
         this.flash = this.stateTime % 140 < 50 ? 40 : 0;
-        if (this.stateTime > 320) {
+        this.windupMs ??= jit(320);
+        if (this.stateTime > this.windupMs) {
+          this.windupMs = null;
           const dx = p.x - this.x;
           const dy = p.y - this.y;
           const len = Math.hypot(dx, dy) || 1;
@@ -869,7 +1236,8 @@ export class Scorpion extends Enemy {
       case "recover":
         this.body.setVelocity(0, 0);
         s.setFrame(0);
-        if (this.stateTime > 700) this.setState(d > cfg.sight ? "return" : "chase");
+        this.recoverMs ??= jit(700);
+        if (this.stateTime > this.recoverMs) { this.recoverMs = null; this.lostTime = 0; this.setState("chase"); }
         break;
       case "return": {
         const arrived = this.moveToward(this.home.x, this.home.y, cfg.speed);
@@ -885,6 +1253,17 @@ export class Scorpion extends Enemy {
     }
   }
 
+  /** Se mete en la arena donde está: queda enterrado otra vez, esperando. */
+  burrow() {
+    this.body.setVelocity(0, 0);
+    this.home = { x: this.x, y: this.y };
+    this.lostTime = 0;
+    this.scene.fx.dust(this.x, this.y, 0.8);
+    this.shadow.setVisible(false);
+    this.sprite.anims.stop();
+    this.setState("buried");
+  }
+
   onHurt() {
     if (this.state === "buried") this.setState("chase");
   }
@@ -897,4 +1276,99 @@ export function makeEnemy(scene, spec) {
   if (spec.kind === "bandit") return new Bandit(scene, spec);
   if (spec.kind === "guard") return new Guard(scene, spec);
   return null;
+}
+
+// ---------------------------------------------------------------------------
+// Noche: salen más enemigos (solo jugando solo; en línea cada mapa es igual para todos).
+
+const CALM = new Set(["idle", "hidden", "wander", "return", "buried", "patrol", "post", "pause"]);
+
+/** Un lugar libre (no sólido, no agua) cerca de (x, y) en celdas, lejos de otros enemigos. */
+function freeSpotNear(scene, x, y, taken) {
+  const w = scene.world;
+  const ok = (px, py) => {
+    for (const [ox, oy] of [[-6, -2], [6, -2], [-6, -8], [6, -8], [0, -4]]) {
+      if (w.solidAt(px + ox, py + oy) || w.cellAt(px + ox, py + oy) === "~") return false;
+    }
+    return taken.every((t) => Math.hypot(t.x - px, t.y - py) > 14);
+  };
+  for (const r of [1.6, 2.2, 3, 3.8]) {
+    const a0 = Math.random() * Math.PI * 2;
+    for (let k = 0; k < 10; k += 1) {
+      const a = a0 + (k / 10) * Math.PI * 2;
+      const px = (x + Math.cos(a) * r) * TILE;
+      const py = (y + Math.sin(a) * r * 0.8) * TILE;
+      if (ok(px, py)) return { x: px / TILE, y: py / TILE };
+    }
+  }
+  return null;
+}
+
+/** Qué sale de más de noche en este mapa: un bandido por campamento, uno por emboscada, un lobo en montaña o nieve. */
+function planNight(scene) {
+  const def = scene.def;
+  const list = def.objects.filter((o) => o.type === "enemy");
+  const taken = scene.enemies.map((e) => ({ x: e.home.x, y: e.home.y }));
+  const plan = [];
+  const add = (spec, n) => {
+    for (let i = 0; i < n; i += 1) {
+      const at = freeSpotNear(scene, spec.x, spec.y, taken);
+      if (!at) continue;
+      taken.push({ x: at.x * TILE, y: at.y * TILE });
+      plan.push({ ...spec, ...at, night: true, lastNight: -1 });
+    }
+  };
+  // Campamentos: bandidos a la vista a menos de 6 celdas uno de otro.
+  const camps = [];
+  for (const b of list.filter((o) => o.kind === "bandit" && !o.ambush)) {
+    const c = camps.find((k) => Math.hypot(k.x - b.x, k.y - b.y) < 6);
+    if (!c) camps.push({ x: b.x, y: b.y });
+  }
+  for (const c of camps) add({ type: "enemy", kind: "bandit", x: c.x, y: c.y }, NIGHT.extraPerCamp);
+  for (const b of list.filter((o) => o.kind === "bandit" && o.ambush)) add({ type: "enemy", kind: "bandit", ambush: true, minCargo: b.minCargo, x: b.x, y: b.y }, NIGHT.extraPerAmbush);
+  const cold = (o) => ["mountain", "snow"].includes(def.biomeAt ? def.biomeAt(Math.floor(o.x), Math.floor(o.y)) : def.biome);
+  const wolf = list.find((o) => o.kind === "wolf" && cold(o));
+  if (wolf) add({ type: "enemy", kind: "wolf", x: wolf.x, y: wolf.y }, NIGHT.extraWolves);
+  return plan;
+}
+
+/**
+ * Llamar al crear el mapa (`initial`) y cada segundo. Al caer la noche aparecen los de más (fuera de
+ * la pantalla); al amanecer se van los que sigan tranquilos y lejos de la vista.
+ * Devuelve cuántos enemigos de noche hay vivos.
+ */
+export function updateNightSpawns(scene, initial = false) {
+  // La escena se reusa entre mapas: lo de la noche anterior se olvida al crear el mapa.
+  if (initial) {
+    scene.nightPlan = null;
+    scene.wasNight = undefined;
+    scene._nightAt = null;
+  }
+  if (online.on || scene.def.kind !== "route" || scene.def.dark) return 0;
+  scene.nightPlan ??= planNight(scene);
+  const night = isNight(scene.registry);
+  if (night && !scene.wasNight) scene.nightCount = (scene.nightCount ?? 0) + 1;
+  scene.wasNight = night;
+  const view = scene.cameras.main.worldView;
+  const p = scene.player;
+  const near = (x, y) => Math.hypot(p.x - x, p.y - y) < (initial ? 100 : 150);
+  const inSight = (x, y) => near(x, y) || (!initial && x > view.x - 24 && x < view.right + 24 && y > view.y - 24 && y < view.bottom + 40);
+  let alive = 0;
+  for (const spec of scene.nightPlan) {
+    const e = scene.enemies.find((x) => x.spec === spec && !x.dead);
+    if (night && !e && spec.lastNight !== scene.nightCount && !inSight(spec.x * TILE, spec.y * TILE)) {
+      spec.lastNight = scene.nightCount; // si lo tumbas, no vuelve hasta la noche siguiente
+      const n = makeEnemy(scene, spec);
+      if (!n) continue;
+      n.netId = null;
+      n.spawnState = n.state;
+      scene.enemies.push(n);
+      scene.enemyGroup.add(n.sprite);
+      alive += 1;
+    } else if (!night && e && CALM.has(e.state) && !inSight(e.x, e.y)) {
+      e.dead = true;
+      e.destroy();
+    } else if (e) alive += 1;
+  }
+  return alive;
 }

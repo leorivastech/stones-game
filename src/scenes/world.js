@@ -10,14 +10,18 @@ import { Controls, keyName } from "../engine/input.js";
 import { Fx } from "../engine/fx.js";
 import { Player, DIRS } from "../entities/player.js";
 import { Npc } from "../entities/npc.js";
-import { makeEnemy, Guard } from "../entities/enemies.js";
+import { makeEnemy, Guard, updateNightSpawns } from "../entities/enemies.js";
 import { Escort } from "../entities/escort.js";
 import { DEPTH, TILE, VIEW_W, VIEW_H, PLAYER, ENEMY } from "../config.js";
 import { hitstop, shake } from "../engine/juice.js"; // jugo del combate
 import { startMusic, startAmbience } from "../music.js";
 import { online, request, send, ownerOf, playersIn } from "../net/online.js";
 import { NetWorld } from "../net/worldnet.js";
-import { Daylight, setHour, ARRIVAL_HOUR, WAKE_HOUR } from "../engine/daylight.js"; // luz del día
+import { Daylight, setHour, hourOf, WAKE_HOUR, DAY_SECONDS } from "../engine/daylight.js"; // luz del día
+import { Bandit } from "../entities/enemies.js"; // matones del Gremio (deuda con dientes)
+import {
+  BOAT_COLD, coldAt, meltHours, debtCuota, thugsPending, clearThugs, thugsCollect, checkRumors, addFame,
+} from "../state.js"; // el tiempo corre en la ruta, deuda con dientes, rumores comprobados
 import { Ambient } from "../engine/ambient.js"; // ambiente
 import { textWidth } from "../art/font.js"; // letreros de salida
 
@@ -38,7 +42,7 @@ import {
 
 // La partida nueva empieza con dos líneas y el tutorial (el lore largo se quitó: 25-sep).
 const INTRO = [
-  "Tu padre murió debiéndole 500 al Gremio de la Corona. La deuda ahora es tuya: el cobrador pasa cada diez días.",
+  "Tu padre murió debiéndole 500 al Gremio de la Corona. La deuda ahora es tuya: el cobrador pasa cada siete días.",
   "Las piedras de hechizo se compran donde sobran y se venden donde las ocupan. Empecemos por la plaza.",
 ];
 
@@ -77,7 +81,8 @@ export class WorldScene extends Phaser.Scene {
     this.fx = new Fx(this);
     this.controls = new Controls(this);
 
-    // Llegar a un pueblo desde una ruta pasa días: el mercado se mueve y la escarcha se derrite.
+    // El tiempo corre con el reloj en todos los mapas (26-sep): llegar a pie ya no pasa días fijos.
+    // La barca sí salta 3 días de mar.
     this.arrival = null;
     if (def.kind === "route") reg.set("lastRoute", this.mapId);
     if (def.kind === "town") {
@@ -85,21 +90,25 @@ export class WorldScene extends Phaser.Scene {
       const route = reg.get("lastRoute");
       const boat = data?.boat;
       if (route || boat) {
-        const days = boat ? TRAVEL_DAYS.boat : prev === def.town ? TRAVEL_DAYS.back : TRAVEL_DAYS.route;
-        const cold = route === "ruta4" ? 0.5 : 0;
-        // En línea el tiempo lo lleva el reloj del mundo: viajar no pasa días.
-        const report = online.on ? { ended: [], started: [], melted: 0 } : passDays(reg, days, { cold });
+        // En línea el tiempo lo lleva el reloj del mundo: tampoco la barca pasa días.
+        const days = boat && !online.on ? TRAVEL_DAYS.boat : 0;
+        const report = days ? passDays(reg, days, { cold: BOAT_COLD }) : { ended: [], started: [], melted: 0 };
         if (prev !== def.town) reg.inc("trips", 1);
-        this.arrival = { days: online.on ? 0 : days, from: prev !== def.town ? prev : null, route, ...report };
-        // Resultados del viaje: contra lo que llevabas al salir del pueblo (tripStart).
+        this.arrival = { days, from: prev !== def.town ? prev : null, route, ...report };
+        // Resultados del viaje: contra lo que llevabas al salir del pueblo (tripStart). Las horas de
+        // camino salen del reloj; la escarcha derretida se fue anotando en tripStart.melted.
         const start = reg.get("tripStart");
-        if (route && start) this.arrival.trip = { ...start, to: def.town, days: this.arrival.days, melted: report.melted, heat: localHeat(reg, MAPS[route]) };
-        setHour(reg, ARRIVAL_HOUR); // luz del día: se llega al pueblo en la mañana
+        if (route && start) {
+          const hours = start.hour != null ? Math.max(0, (day(reg) - start.day) * 24 + hourOf(reg) - start.hour) : null;
+          this.arrival.trip = { ...start, to: def.town, hours, trip: reg.get("trips") ?? 0, melted: start.melted ?? 0, heat: localHeat(reg, MAPS[route]) };
+        }
       }
       reg.set("lastRoute", null);
       reg.set("tripStart", null);
       reg.set("currentTown", def.town);
       recordSeen(reg, def.town);
+      // Los rumores de este pueblo se comprueban al llegar: los falsos se tachan en el mapa.
+      this.rumorCheck = checkRumors(reg, def.town);
       heal(reg);
       saveGame(reg);
     }
@@ -128,6 +137,8 @@ export class WorldScene extends Phaser.Scene {
 
     this.setupCrew();
     if (def.kind === "route") this.time.delayedCall(1200, () => this.checkRaids());
+    // Deuda con dientes: tras la 3ª falta, dos matones del Gremio esperan en la siguiente ruta.
+    if (def.kind === "route" && thugsPending(reg)) this.time.delayedCall(1600, () => this.spawnThugs());
     this.speedBonus = def.kind === "route" && partyHas(reg, "horse") ? 1.1 : 1;
     // luz del día: velo por hora y luces en faroles, fogatas, fraguas y ventanas (las cuevas, noche suave).
     this.daylight = new Daylight(this, def);
@@ -301,6 +312,9 @@ export class WorldScene extends Phaser.Scene {
           break;
       }
     });
+    // Noche: más bandidos y lobos (solo jugando solo). Se revisa cada segundo por si cae la noche o amanece.
+    updateNightSpawns(this, true);
+    this.time.addEvent({ delay: 1000, loop: true, callback: () => updateNightSpawns(this) });
   }
 
   /** En línea: cofres, palancas, rejas, refugios y la arquera cambian cuando otro jugador los toca. */
@@ -336,7 +350,8 @@ export class WorldScene extends Phaser.Scene {
 
   /** A quién persigue un enemigo: solo, a ti; en línea, al jugador más cercano del mapa. */
   targetFor(enemy) {
-    if (!this.net) return this.player;
+    if (!this.net || enemy.thug) return this.player; // los matones del Gremio vienen por ti
+
     let best = this.player;
     let bd = this.player.state === "ko" ? Infinity : Math.hypot(this.player.x - enemy.x, this.player.y - enemy.y);
     for (const t of this.net.targets()) {
@@ -710,7 +725,7 @@ export class WorldScene extends Phaser.Scene {
       this.ui.toast("Se rompió un vidrio rúnico", "font-red");
       sfx(this, "chop", { volume: 0.3 });
     }
-    if (steal && stones(reg) > 0) {
+    if (steal && !source.thug && stones(reg) > 0) { // los matones no roban piedras: cobran
       const keep = 0.35 * ambushProtection(reg);
       if (Math.random() >= keep) this.dropStone(s);
       else this.ui.toast("La carga aguantó el golpe", "font-green");
@@ -840,6 +855,7 @@ export class WorldScene extends Phaser.Scene {
 
   onEnemyDefeated(e) {
     const reg = this.registry;
+    if (e.thug) this.onThugDown(e);
     if (e.spec.kind === "bandit") {
       const n = 1 + Math.floor(Math.random() * 3);
       for (let i = 0; i < n; i += 1) this.spawnPickup("coin", e.x, e.y - 4, { value: 2 });
@@ -1016,7 +1032,13 @@ export class WorldScene extends Phaser.Scene {
 
   // ---------------------------------------------------------------- K.O.
 
-  knockOut() {
+  /**
+   * K.O. con castigo real (26-sep): pierdes piedras y oro como siempre (los matones del Gremio, en
+   * cambio, se cobran el 30 % del oro o la yegua), pasan 12 horas, la yegua se espanta y se queda en
+   * esta ruta hasta que vuelvas por ella, y despiertas en tu refugio con catre de esta ruta (si
+   * tienes) o en el último pueblo.
+   */
+  knockOut(source) {
     if (this.modal) return;
     this.runModal(async () => {
       const reg = this.registry;
@@ -1024,22 +1046,53 @@ export class WorldScene extends Phaser.Scene {
       duckTheme(this, 0.05);
       tone(this, "hurt");
       await new Promise((r) => this.time.delayedCall(1100, r));
-      const total = stones(reg);
-      const lose = Math.max(0, Math.ceil(total / 2) - ambushProtection(reg));
-      const lost = loseStones(reg, lose);
-      const goldLost = Math.floor(gold(reg) * 0.2);
-      if (goldLost) reg.inc("gold", -goldLost);
+      const byThugs = Boolean(source?.thug);
+      let lost = 0;
+      let goldLost = 0;
+      let took = null;
+      if (byThugs) {
+        took = thugsCollect(reg);
+        this.thugsGone();
+      } else {
+        const total = stones(reg);
+        const lose = Math.max(0, Math.ceil(total / 2) - ambushProtection(reg));
+        lost = loseStones(reg, lose);
+        goldLost = Math.floor(gold(reg) * 0.2);
+        if (goldLost) reg.inc("gold", -goldLost);
+      }
+      const route = this.def.kind === "route" ? this.mapId : null;
+      // La yegua se espanta y se queda en la ruta (si no se la llevó el Gremio).
+      const scared = Boolean(route && partyHas(reg, "horse") && !took?.horse);
+      if (scared) setCrewAt(reg, "horse", `scared:${route}`);
+      const refuge = route
+        ? Object.keys(REFUGES).find((id) => REFUGES[id].route === route && ownsRefuge(reg, id) && refugeHas(reg, id, "cot"))
+        : null;
       const town = reg.get("currentTown") ?? "ashfen";
+      // Se va medio día.
+      const t = this.advanceClock(12, { cold: coldAt(this.def) });
       this.cameras.main.fadeOut(500, 18, 14, 23);
       await new Promise((r) => this.time.delayedCall(550, r));
-      const lines = [`Despiertas en ${TOWNS[town].name}, con la cabeza zumbando.`];
+      const where = refuge ? `en tu refugio, ${REFUGES[refuge].name}` : `en ${TOWNS[town].name}`;
+      const lines = [online.on
+        ? `Despiertas ${where}, con la cabeza zumbando.`
+        : `Despiertas ${where}, medio día después, con la cabeza zumbando.${t.days ? ` Ya es el día ${day(reg)}.` : ""}`];
+      if (byThugs) {
+        lines.unshift("—El Gremio cobra. Por las buenas o por las malas.");
+        if (took.gold) lines.push(`Los matones se cobraron ${took.gold} de oro. Te quedan ${debt(reg).owed} de deuda.`);
+        else if (took.horse) lines.push(`No traías oro: se llevaron a la yegua. Nella la tiene en el establo de Valkeep (${DEBT.horseFine} oro).`);
+      }
       if (lost) lines.push(`Te faltan ${lost} ${lost === 1 ? "piedra" : "piedras"}.`);
       if (goldLost) lines.push(`Y ${goldLost} de oro.`);
+      if (t.melted) lines.push(`Se te derritió la escarcha (${t.melted}).`);
+      if (scared) lines.push(`La yegua se espantó y se quedó en ${this.def.name}. Vuelve por ella.`);
       heal(reg);
       restoreTheme(this);
       await this.ui.say(lines);
+      // Sin resultados de viaje: ya se contó todo aquí.
+      reg.set("tripStart", null);
+      saveGame(reg);
       this.leaving = true;
-      this.scene.restart({ map: town, entry: "start" });
+      this.scene.restart(refuge ? { map: refuge, entry: "door" } : { map: town, entry: "start" });
     });
   }
 
@@ -1163,6 +1216,9 @@ export class WorldScene extends Phaser.Scene {
       if (a.days) ui.queueNotice(() => ui.noticeToast(`Pasaron ${a.days} ${a.days === 1 ? "día" : "días"} · día ${day(reg)}`, "font-gold"));
       if (a.melted) ui.queueNotice(() => ui.noticeToast(`Se te derritió la escarcha (${a.melted})`, "font-red"));
     }
+    // Lo que oíste de este pueblo: aquí se ve si era cierto.
+    if (this.rumorCheck?.falses?.length) ui.queueNotice(() => ui.noticeToast("El rumor de aquí era falso: tachado en el mapa", "font-red"));
+    if (this.rumorCheck?.trues?.length) ui.queueNotice(() => ui.noticeToast("Lo que se decía de aquí era cierto", "font-green"));
     ui.queueNotice(async () => {
       if (debtDue(reg)) await this.runModal(() => this.debtCollector());
     });
@@ -1179,6 +1235,142 @@ export class WorldScene extends Phaser.Scene {
     if (this.ui.needsShown === key) return;
     this.ui.needsShown = key;
     this.ui.townNeeds(this.def.town);
+  }
+
+  // ---------------------------------------------------------------- el tiempo corre (26-sep)
+
+  /** Cada hora del reloj (fuera de línea): la escarcha que llevas se derrite un poco. */
+  onClockHour() {
+    const reg = this.registry;
+    const melted = meltHours(reg, 1, coldAt(this.def));
+    if (!melted) return;
+    this.noteTripMelt(melted);
+    this.ui.toast(`Se te derritió la escarcha (${melted})`, "font-red");
+  }
+
+  /** Medianoche (fuera de línea): pasa un día donde estés, también en la ruta. */
+  onMidnight() {
+    if (online.on) return;
+    const report = passDays(this.registry, 1, { cold: coldAt(this.def), meltCargo: false });
+    this.afterNewDay(report);
+  }
+
+  /** Lo que se avisa al empezar un día: el día nuevo, sucesos que empiezan y, en un pueblo, el cobrador. */
+  afterNewDay(report, { toast = true } = {}) {
+    const reg = this.registry;
+    const ui = this.ui;
+    if (toast) ui.queueNotice(() => ui.noticeToast(`Amanece el día ${day(reg)}`, "font-gold"));
+    for (const ev of report.started ?? []) {
+      if (ev.label) ui.queueNotice(() => ui.noticeToast(`Se oye: ${ev.label.toLowerCase()}`, "font-o"));
+    }
+    if (this.def.kind === "town") {
+      ui.queueNotice(async () => {
+        if (debtDue(reg)) await this.runModal(() => this.debtCollector());
+      });
+      ui.queueNotice(() => {
+        this.refreshSigns();
+        this.showNeeds();
+      });
+    }
+    saveGame(reg);
+  }
+
+  /** Lo que se derritió en camino cuenta para los resultados del viaje. */
+  noteTripMelt(n) {
+    const start = this.registry.get("tripStart");
+    if (start) this.registry.set("tripStart", { ...start, melted: (start.melted ?? 0) + n });
+  }
+
+  /**
+   * Adelanta el reloj `hours` horas de golpe (K.O., dormir): pasa los días que toquen y derrite la
+   * escarcha de esas horas. En línea no hace nada (el reloj es de todos).
+   */
+  advanceClock(hours, { cold = 0 } = {}) {
+    const reg = this.registry;
+    if (online.on || hours <= 0) return { days: 0, melted: 0, started: [], ended: [] };
+    const total = hourOf(reg) + hours;
+    const days = Math.floor(total / 24);
+    const melted = meltHours(reg, hours, cold);
+    const report = days ? passDays(reg, days, { cold, meltCargo: false }) : { started: [], ended: [] };
+    setHour(reg, total % 24);
+    if (melted) this.noteTripMelt(melted);
+    return { ...report, days, melted };
+  }
+
+  /** Dormir (posada o catre): despiertas a las 7 del día siguiente (o de hoy, si ya pasó la medianoche). */
+  sleepUntilMorning() {
+    const reg = this.registry;
+    if (online.on) return { days: 0, melted: 0 };
+    const h = hourOf(reg);
+    const hours = h < WAKE_HOUR - 2 ? WAKE_HOUR - h : 24 - h + WAKE_HOUR;
+    const t = this.advanceClock(hours, { cold: coldAt(this.def) });
+    if (t.days) this.afterNewDay(t, { toast: false });
+    return t;
+  }
+
+  // ---------------------------------------------------------------- matones del Gremio
+
+  /**
+   * Tras la 3ª falta, dos matones del Gremio (bandidos de morado, 4 golpes) salen a tu encuentro en
+   * la siguiente ruta. No roban piedras: si te tumban, se cobran el 30 % del oro o la yegua.
+   */
+  spawnThugs() {
+    const reg = this.registry;
+    if (this.leaving || !this.sys.isActive() || this.def.kind !== "route" || !thugsPending(reg)) return;
+    clearThugs(reg);
+    const w = this.world;
+    const p = this.player;
+    const open = (c, r) => [":", "=", "s", ".", ",", "_"].includes(w.at(c, r)) && !w.solidAt(c * TILE + 8, r * TILE + 8);
+    const spots = [];
+    for (let r = 2; r < w.rows - 2; r += 1) {
+      for (let c = 2; c < w.cols - 2; c += 1) {
+        if (!open(c, r) || !open(c + 1, r) || !open(c, r + 1)) continue;
+        const d = Math.hypot(c * TILE + 8 - p.x, r * TILE + 12 - p.y) / TILE;
+        if (d >= 6 && d <= 11) spots.push({ c, r, d });
+      }
+    }
+    if (!spots.length) return;
+    // El primero de frente a donde vas; el segundo, a unos pasos de él.
+    spots.sort((a, b) => a.d - b.d);
+    const first = spots[Math.floor(spots.length / 2)];
+    const second = spots.find((s) => Math.hypot(s.c - first.c, s.r - first.r) >= 2 && Math.hypot(s.c - first.c, s.r - first.r) <= 4) ?? spots[0];
+    this.thugs = [];
+    for (const s of [first, second].slice(0, DEBT.thugs)) {
+      const e = new Bandit(this, { type: "enemy", kind: "bandit", x: s.c + 0.5, y: s.r + 0.8, dir: "down" });
+      e.thug = true;
+      e.hp = DEBT.thugHp;
+      e.cast = "thug";
+      e.sprite.setTexture("cast-thug", e.sprite.frame.name);
+      e.puppet = false; // en línea son sólo tuyos: no se sincronizan
+      e.faceToward(p.x, p.y);
+      e.setState("chase");
+      e.showBubble("bubble-alert", 900);
+      this.fx.poof(e.x, e.y - 6);
+      this.enemies.push(e);
+      this.enemyGroup.add(e.sprite);
+      this.thugs.push(e);
+    }
+    duckTheme(this, 0.12);
+    this.time.delayedCall(2200, () => restoreTheme(this));
+    sfx(this, "horn", { volume: 0.3 });
+    this.ui.toast("¡Matones del Gremio! Vienen a cobrar", "font-red");
+    saveGame(reg);
+  }
+
+  /** Tumbaste a un matón. Si caen todos, se van de vacío (la deuda sigue ahí). */
+  onThugDown(e) {
+    this.thugs = (this.thugs ?? []).filter((t) => t !== e && !t.dead);
+    if (!this.thugs.length) this.ui.toast("Los matones se van de vacío. La deuda sigue", "font-gold");
+  }
+
+  /** Los matones cobraron: se retiran. */
+  thugsGone() {
+    for (const t of this.thugs ?? []) {
+      if (t.dead) continue;
+      t.dead = true;
+      t.destroy();
+    }
+    this.thugs = [];
   }
 
   // ---------------------------------------------------------------- buhonero de camino
@@ -1219,8 +1411,14 @@ export class WorldScene extends Phaser.Scene {
       }
       if (!spots.length) return;
       spot = spots[(p.day * 7 + p.name.length * 13) % spots.length];
-      reg.set("peddler", { ...p, spot });
-      if (online.on) send({ t: "peddler", route: this.mapId, op: "spot", spot });
+      if (online.on) {
+        // El primero que lo propone se queda; los demás usan el que guardó el servidor.
+        const r = await request({ t: "peddler", route, op: "spot", spot });
+        if (this.mapId !== route || !this.sys.isActive() || this.leaving) return;
+        if (r.ok && r.p?.spot) spot = r.p.spot;
+        if (this.npcs.some((n) => n.spec.role === "peddler")) return;
+      }
+      reg.set("peddler", { ...(reg.get("peddler") ?? p), spot });
     }
     const npc = new Npc(this, { type: "npc", cast: "peddler", name: p.name, x: spot.x, y: spot.y, dir: "down", role: "peddler", talk: [] });
     this.npcs.push(npc);
@@ -1297,34 +1495,67 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
+  /**
+   * El cobrador. Deuda con dientes (26-sep): las faltas seguidas cuentan. 1ª: aviso; 2ª: +10 % de lo
+   * que debes; 3ª y siguientes: matones en la siguiente ruta. Pagar la cuota borra las faltas.
+   * Pagar todo: "Mercader libre".
+   */
   async debtCollector() {
     const reg = this.registry;
     const d = debt(reg);
-    const cuota = Math.min(DEBT.cuota, d.owed);
+    const cuota = debtCuota(reg);
     const name = "Cobrador del Gremio";
-    await this.ui.say(["Un hombre con el sello del Gremio te cierra el paso.", `—Le debes ${d.owed} al Gremio. Toca la cuota: ${cuota}.`], { name, cast: null });
-    const pick = await this.ui.choose("Deuda con el Gremio", [
-      { label: `Pagar la cuota · ${cuota}`, disabled: gold(reg) < cuota, note: `Vuelvo en ${DEBT.every} días` },
-      { label: `Pagar todo · ${d.owed}`, disabled: gold(reg) < d.owed, note: "Y quedas libre" },
-      { label: "No tengo", note: `La deuda sube ${DEBT.interest} y vuelvo pronto` },
-    ], { name });
-    if (pick === 0 || pick === 1) {
-      payDebt(reg, pick === 0 ? cuota : d.owed);
+    const missed = d.missed ?? 0;
+    const warn = missed >= 2 ? "Ya van dos. A la próxima no vengo yo." : missed === 1 ? "La vez pasada no pagaste." : null;
+    await this.ui.say(["Un hombre con el sello del Gremio te cierra el paso.", `—Le debes ${d.owed} al Gremio. Toca la cuota: ${cuota}.`, ...(warn ? [`—${warn}`] : [])], { name, cast: null });
+    const g = gold(reg);
+    const next = missed + 1;
+    const missNote = next >= DEBT.thugsAt ? "Sube 10 % y el Gremio manda matones" : next === 2 ? "Sube 10 % de lo que debes" : `Sube ${DEBT.interest} y la próxima mandan a alguien`;
+    const options = [
+      { id: "cuota", label: `Pagar la cuota · ${cuota}`, disabled: g < cuota, note: `Vuelvo en ${DEBT.every} días` },
+      { id: "all", label: `Pagar todo · ${d.owed}`, disabled: g < d.owed, note: "Y quedas libre" },
+    ];
+    // Con algo de oro pero sin la cuota: abonar lo que traes (cuenta como falta, sin intereses).
+    if (g > 0 && g < cuota) options.push({ id: "part", label: `Darle lo que traigo · ${g}`, note: "Cuenta como falta, pero sin intereses" });
+    options.push({ id: "miss", label: "No tengo", note: missNote });
+    const opt = options[await this.ui.choose("Deuda con el Gremio", options, { name })] ?? options[options.length - 1];
+    if (opt.id !== "miss") {
+      const r = payDebt(reg, opt.id === "cuota" ? cuota : opt.id === "all" ? d.owed : g);
       sfx(this, "coins");
-      if (debt(reg).owed <= 0) {
-        setFlag(reg, "debt-paid");
-        duckTheme(this, 0.05);
-        sfx(this, "jingle-free", { volume: 0.55 });
-        this.time.delayedCall(3500, () => restoreTheme());
-        await this.ui.say(["—Cuenta saldada. El Gremio ya no te busca.", "(Eres libre. Lo que ganes ahora es tuyo.)"], { name, cast: null });
+      if (r.free) {
+        await this.freeMerchant(name);
+      } else if (opt.id === "part") {
+        tone(this, "deny");
+        await this.ui.say([`—Algo es algo. Quedan ${debt(reg).owed}.`, `—Vuelvo el día ${debt(reg).due}.`, ...this.debtThreat(r.missed)], { name, cast: null });
       } else {
         await this.ui.say([`—Quedan ${debt(reg).owed}. Nos vemos el día ${debt(reg).due}.`], { name, cast: null });
       }
     } else {
-      missDebt(reg);
+      const nd = missDebt(reg);
       tone(this, "deny");
-      await this.ui.say([`—Mala respuesta. Ahora son ${debt(reg).owed}.`, `—Vuelvo el día ${debt(reg).due}. Ten el oro.`], { name, cast: null });
+      await this.ui.say([`—Mala respuesta. Son ${nd.added} más: ahora debes ${nd.owed}.`, `—Vuelvo el día ${nd.due}. Ten el oro.`, ...this.debtThreat(nd.missed)], { name, cast: null });
     }
+    saveGame(reg);
+  }
+
+  /** Lo que dice el cobrador según las faltas seguidas. */
+  debtThreat(missed) {
+    if (missed >= DEBT.thugsAt) return ["—El Gremio ya mandó a sus muchachos. Te esperan en el camino."];
+    if (missed === 2) return ["—Dos faltas. Lo que debes ya cobra intereses: diez por ciento cada vez.", "(Una falta más y el Gremio manda matones.)"];
+    if (missed === 1) return ["—La próxima vez que no pagues, el Gremio manda a alguien."];
+    return [];
+  }
+
+  /** Pagaste toda la deuda: Mercader libre. Fama, ceremonia y nunca más cobrador. */
+  async freeMerchant(name) {
+    const reg = this.registry;
+    setFlag(reg, "debt-paid");
+    duckTheme(this, 0.05);
+    sfx(this, "jingle-free", { volume: 0.55 });
+    this.time.delayedCall(3500, () => restoreTheme(this));
+    await this.ui.say(["—Cuenta saldada. El Gremio ya no te busca.", "El cobrador rompe el pagaré de tu padre frente a ti."], { name, cast: null });
+    await this.ui.freeCeremony(DEBT.freeFame);
+    addFame(reg, DEBT.freeFame);
     saveGame(reg);
   }
 
@@ -1376,12 +1607,12 @@ export class WorldScene extends Phaser.Scene {
       const guard = crewIn(reg, spec.id).find((w) => !CREW[w].animal);
       if (guard) {
         this.ui.toast(`Una patrulla rondó tu refugio. ${CREW[guard].name} la espantó.`, "font-green");
-        return;
+        continue;
       }
       const lost = emptyStash(reg, spec.id);
       this.ui.toast(`Redada: la Corona encontró tu refugio (${lost} piedras)`, "font-red");
       saveGame(reg);
-      return;
+      // Sigue revisando: con dos refugios en la misma ruta se evalúan los dos.
     }
   }
 
@@ -1394,6 +1625,11 @@ export class WorldScene extends Phaser.Scene {
     this.crewStatics = [];
     // El caballo que esperaba afuera de la cueva se vuelve a juntar.
     if (def.kind === "route" && crewAt(reg, "horse") === `wait:${this.mapId}`) setCrewAt(reg, "horse", "party");
+    // La yegua que se espantó cuando caíste aquí te estaba esperando.
+    if (def.kind === "route" && crewAt(reg, "horse") === `scared:${this.mapId}`) {
+      setCrewAt(reg, "horse", "party");
+      this.time.delayedCall(900, () => this.ui.toast("La yegua te estaba esperando, todavía asustada", "font-green"));
+    }
     if (def.kind === "refuge" && partyHas(reg, "horse") && !refugeHas(reg, def.refuge, "corral")) {
       setCrewAt(reg, "horse", `wait:${REFUGES[def.refuge].route}`);
       this.time.delayedCall(900, () => this.ui.toast("La yegua no cabe: espera afuera", "font-o"));
@@ -1511,9 +1747,9 @@ export class WorldScene extends Phaser.Scene {
     const guests = Object.keys(CREW).filter((w) => crewAt(reg, w) === here);
     const r = hearRumor(reg, 0.95);
     await this.ui.say([...(npc.spec.talk ?? []), r.text], { name });
-    // Una noche de cama: pasa un día, te curas y despiertas a las 7.
+    // Una noche de cama: te curas y despiertas a las 7 del día siguiente.
     const bed = await this.ui.choose("Posada", [
-      { label: `Dormir · ${INN_SLEEP} oro`, disabled: gold(reg) < INN_SLEEP, note: online.on ? "Te curas (en línea el día no se salta)" : "Pasa un día: te curas y despiertas temprano" },
+      { label: `Dormir · ${INN_SLEEP} oro`, disabled: gold(reg) < INN_SLEEP, note: online.on ? "Te curas (en línea el día no se salta)" : "Te curas y despiertas a las 7 del día siguiente" },
       { label: "Ahora no" },
     ]);
     if (bed === 0) await this.sleepAtInn();
@@ -1533,7 +1769,7 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
-  /** Dormir en la posada: fundido a negro, pasa un día, cura, amanece a las 7 y cobra. */
+  /** Dormir en la posada: fundido a negro, el reloj corre hasta las 7 del día siguiente, cura y cobra. */
   async sleepAtInn() {
     const reg = this.registry;
     if (!pay(reg, INN_SLEEP)) return false;
@@ -1541,22 +1777,14 @@ export class WorldScene extends Phaser.Scene {
     this.cameras.main.fadeOut(450, 0, 0, 0);
     await new Promise((r) => this.time.delayedCall(700, r));
     // En línea el día no se salta: el reloj es de todos.
-    const report = online.on ? { melted: 0 } : passDays(reg, 1);
-    setHour(reg, WAKE_HOUR);
+    const report = this.sleepUntilMorning();
     heal(reg);
     recordSeen(reg, this.def.town);
     saveGame(reg);
     this.cameras.main.fadeIn(600, 0, 0, 0);
     this.ui.toast(`Dormiste. Día ${day(reg)}`, "font-gold");
     if (report.melted) this.ui.toast(`Se te derritió la escarcha (${report.melted})`, "font-red");
-    // Amaneció otro día: quizá toca el cobrador, y el pueblo quiere otras cosas.
-    this.ui.queueNotice(async () => {
-      if (debtDue(reg)) await this.runModal(() => this.debtCollector());
-    });
-    this.ui.queueNotice(() => {
-      this.refreshSigns();
-      this.showNeeds();
-    });
+    // Si amaneció otro día, sleepUntilMorning ya dejó en la cola el cobrador y lo que quiere el pueblo.
     return true;
   }
 
@@ -1565,6 +1793,22 @@ export class WorldScene extends Phaser.Scene {
     const reg = this.registry;
     const name = npc.spec.name;
     const at = crewAt(reg, "horse");
+    // Embargada por el Gremio: vuelve pagando la multa.
+    if (at === "seized") {
+      await this.ui.say(["Los del Gremio me dejaron tu yegua en prenda.", `Me dijeron que te la diera cuando pagaras ${DEBT.horseFine}.`], { name });
+      const pick = await this.ui.choose("Tu yegua, embargada", [
+        { label: `Pagar y llevármela · ${DEBT.horseFine} oro`, disabled: gold(reg) < DEBT.horseFine },
+        { label: "Ahora no" },
+      ], { name });
+      if (pick !== 0 || !pay(reg, DEBT.horseFine)) return;
+      setCrewAt(reg, "horse", "party");
+      sfx(this, "coins");
+      this.addHorse();
+      this.horse.setPosition(npc.x - 18, npc.y + 6);
+      this.followerTalkable("horse");
+      saveGame(reg);
+      return;
+    }
     if (at === "stable:valkeep") {
       const fee = lodgingFee(reg, "horse");
       const pick = await this.ui.choose("Tu yegua está en el establo", [
@@ -1585,7 +1829,9 @@ export class WorldScene extends Phaser.Scene {
       await this.ui.say(["¿Cómo va la yegua? Si un día no la necesitas, déjamela aquí.", `(Háblale a la yegua para dejarla: ${LODGING.stable} oro por día.)`], { name });
       return;
     }
-    const where = at?.startsWith("refuge:") ? REFUGES[at.slice(7)]?.name : at?.startsWith("wait:") ? "afuera de una cueva" : "por ahí";
+    const where = at?.startsWith("refuge:") ? REFUGES[at.slice(7)]?.name
+      : at?.startsWith("wait:") ? "afuera de una cueva"
+      : at?.startsWith("scared:") ? `${MAPS[at.slice(7)]?.name ?? "un camino"}, espantada` : "por ahí";
     await this.ui.say([`¿Y la yegua? Me dicen que la dejaste en ${where}.`], { name });
   }
 
@@ -1732,13 +1978,12 @@ export class WorldScene extends Phaser.Scene {
 
   async useCot() {
     const reg = this.registry;
-    const pick = await this.ui.choose("Catre", [{ label: online.on ? "Descansar" : "Dormir un día", note: "Te curas; el mundo sigue" }, { label: "Ahora no" }]);
+    const pick = await this.ui.choose("Catre", [{ label: online.on ? "Descansar" : "Dormir hasta mañana", note: online.on ? "Te curas; el mundo sigue" : "Te curas y despiertas a las 7" }, { label: "Ahora no" }]);
     if (pick !== 0) return;
     this.cameras.main.fadeOut(400, 0, 0, 0);
     await new Promise((r) => this.time.delayedCall(450, r));
     // En línea el día no se salta: el reloj es de todos.
-    const report = online.on ? { melted: 0 } : passDays(reg, 1, { cold: this.def.cold ? 1 : 0 });
-    setHour(reg, WAKE_HOUR); // luz del día: despiertas en la mañana
+    const report = this.sleepUntilMorning();
     heal(reg);
     this.cameras.main.fadeIn(500, 0, 0, 0);
     this.ui.toast(`Dormiste. Día ${day(reg)}`, "font-gold");
@@ -1816,7 +2061,7 @@ export class WorldScene extends Phaser.Scene {
         // Sales del pueblo a la ruta: se guarda cómo ibas, para los resultados del viaje al llegar.
         if (this.def.kind === "town" && MAPS[ex.to]?.kind === "route") {
           const reg = this.registry;
-          reg.set("tripStart", { from: this.def.town, gold: gold(reg), stones: stones(reg), fame: reputation(reg), day: day(reg) });
+          reg.set("tripStart", { from: this.def.town, gold: gold(reg), stones: stones(reg), fame: reputation(reg), day: day(reg), hour: hourOf(reg), melted: 0 });
         }
         this.cameras.main.fadeOut(240, 18, 14, 23);
         this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
@@ -1829,22 +2074,32 @@ export class WorldScene extends Phaser.Scene {
 
   // ---------------------------------------------------------------- salidas señaladas
 
-  /** A dónde lleva una salida y cuántos días cuesta ("Valkeep", 2). */
+  /**
+   * A dónde lleva una salida y cuánto se tarda a pie ("Valkeep", ~3 h). Ya no hay días fijos por
+   * ruta (26-sep): el tiempo corre con el reloj, así que se estima con el largo del camino.
+   */
   exitInfo(ex) {
-    const reg = this.registry;
     const dest = MAPS[ex.to];
     if (!dest) return null;
     let name = dest.name;
-    let days = 0;
+    let hours = 0;
     if (dest.kind === "route" && this.def.kind === "town") {
       const other = dest.between.find((t) => t !== this.def.town) ?? dest.between[0];
       name = TOWNS[other].name;
-      days = TRAVEL_DAYS.route;
-    } else if (dest.kind === "town") {
-      days = reg.get("currentTown") === dest.town ? TRAVEL_DAYS.back : TRAVEL_DAYS.route;
+      hours = this.walkHours(dest);
     }
-    if (online.on) days = 0; // en línea viajar no pasa días
-    return { name, days, label: `${name}${days ? ` · ${days} ${days === 1 ? "día" : "días"}` : ""}` };
+    return { name, hours, label: `${name}${hours ? ` · ~${hours} h a pie` : ""}` };
+  }
+
+  /** Horas del juego para cruzar una ruta caminando (de boca a boca, con las vueltas del camino). */
+  walkHours(route) {
+    const mouths = (route.exits ?? []).filter((e) => MAPS[e.to]?.kind === "town");
+    if (mouths.length < 2) return 0;
+    const [a, b] = mouths;
+    const tiles = Math.hypot(a.x + a.w / 2 - (b.x + b.w / 2), a.y + a.h / 2 - (b.y + b.h / 2));
+    const seconds = (tiles * TILE * 1.5) / (PLAYER.walk * (partyHas(this.registry, "horse") ? 1.1 : 1));
+    const secondsPerDay = online.on ? (online.dayMs ?? 180000) / 1000 : DAY_SECONDS;
+    return Math.max(1, Math.round((seconds * 24) / secondsPerDay));
   }
 
   /**
@@ -1891,7 +2146,11 @@ export class WorldScene extends Phaser.Scene {
     const p = this.player;
     let near = null;
     for (const s of this.waySigns) if (Math.hypot(s.x - p.x, s.y - p.y) < 48) near = s;
-    if (near && this.wayNear !== near) this.ui.toast(`→ ${near.info.name}${near.info.days ? `, ${near.info.days} ${near.info.days === 1 ? "día" : "días"}` : ""}`, "font-gold");
+    if (near && this.wayNear !== near) {
+      const h = near.info.hours;
+      const eta = h ? `, ~${h} h a pie · llegas hacia las ${Math.round(hourOf(this.registry) + h) % 24} h` : "";
+      this.ui.toast(`→ ${near.info.name}${eta}`, "font-gold");
+    }
     if (near) this.wayNear = near;
     else if (this.wayNear && Math.hypot(this.wayNear.x - p.x, this.wayNear.y - p.y) > 80) this.wayNear = null;
     this.updateTutorial();

@@ -12,7 +12,7 @@
 import { online, onNet, send, request, playersIn } from "./online.js";
 import { voice } from "./voice.js";
 import { DEPTH } from "../config.js";
-import { day, passDays, stones, debtDue } from "../state.js";
+import { day, passDays, stones, debtDue, coldAt } from "../state.js";
 
 const POS_MS = 100;
 const SNAP_MS = 100;
@@ -233,6 +233,13 @@ export class NetWorld {
     const x = Math.abs(n.x - e.x) > 60 ? n.x : e.x + (n.x - e.x) * k;
     const y = Math.abs(n.y - e.y) > 60 ? n.y : e.y + (n.y - e.y) * k;
     e.body.reset(x, y);
+    // reset() deja el cuerpo en la esquina del sprite (sin su offset): se acomoda para que los golpes
+    // del bastón le lleguen donde se ve (antes, de frente/abajo casi no se le podía pegar a un títere).
+    const b = e.body;
+    b.updateFromGameObject();
+    b.prev.copy(b.position);
+    b.prevFrame.copy(b.position);
+    b.autoFrame.copy(b.position);
     e.shadow.setVisible(e.sprite.visible);
     if (e.cone && e.drawCone) e.drawCone();
   }
@@ -244,7 +251,8 @@ export class NetWorld {
   onRemoteHit(m) {
     const e = this.byId(m.id);
     if (!e || e.puppet || e.dead) return;
-    e.hit(m.dmg, m.fx, m.fy);
+    // `remote`: si acaba de recibir otro golpe (de otro jugador), éste no cuenta (no hay daño doble).
+    e.hit(m.dmg, m.fx, m.fy, { remote: true });
   }
 
   enemyAct(e, act) {
@@ -350,10 +358,14 @@ export class NetWorld {
   onDay(m) {
     const s = this.scene;
     const reg = s.registry;
-    // Lo personal de un día: la escarcha que llevas se derrite (menos en tierra fría).
-    const report = passDays(reg, 1, { cold: s.def.cold || s.mapId === "ruta4" ? 0.5 : 0 });
+    // Lo personal de un día: la escarcha que llevas se derrite (menos en tierra fría; nada en la
+    // cueva fría, igual que fuera de línea).
+    const report = passDays(reg, 1, { cold: coldAt(s.def) });
     s.ui.toast(`Amanece: día ${day(reg)}`, "font-gold");
-    if (report.melted) s.ui.toast(`Se te derritió la escarcha (${report.melted})`, "font-red");
+    if (report.melted) {
+      s.noteTripMelt?.(report.melted);
+      s.ui.toast(`Se te derritió la escarcha (${report.melted})`, "font-red");
+    }
     s.refreshSigns();
     if (s.def.kind === "town" && !s.modal && debtDue(reg)) s.runModal(() => s.debtCollector());
   }

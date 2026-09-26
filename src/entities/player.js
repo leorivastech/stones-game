@@ -1,8 +1,8 @@
-/** El caminante. Estados: move, attack, roll, jump, slide, hurt, ko, frozen. */
+/** El caminante. Estados: move, attack, roll, jump, slide, hurt, recoil, ko, frozen. */
 
 import Phaser from "phaser";
 import { SHEET_INDEX, POSE } from "../art/actors.js";
-import { DEPTH, PLAYER, TILE } from "../config.js";
+import { DEPTH, PLAYER, STEALTH, TILE } from "../config.js";
 import { tone } from "../sfx.js";
 import { buzz, frozen, squash } from "../engine/juice.js";
 
@@ -45,6 +45,15 @@ export class Player {
     this.hitThisSwing = new Set();
     this.hop = 0;
     this.stepTimer = 0;
+    // Aguante (0-1) y su barrita sobre la cabeza (solo se ve si no está llena).
+    this.stamina = 1;
+    this.staminaRest = 0; // ms desde el último gasto
+    this.staminaFlash = 0; // parpadeo rojo al querer rodar sin aguante
+    this.staminaBar = scene.add.graphics().setDepth(DEPTH.fx);
+    this.barKey = "";
+    // Qué tanto te ven los enemigos (multiplica su vista): 0 escondido, 1 a la vista.
+    this.stealth = 1;
+    this.slow = false;
     this.faceIdle();
   }
 
@@ -109,6 +118,14 @@ export class Player {
       case "hurt":
         if (this.stateTime > PLAYER.hurtTime) this.setState("move");
         break;
+      case "recoil":
+        // Rebote contra un escudo: sin daño, se frena solo.
+        this.body.setVelocity(this.body.velocity.x * 0.85, this.body.velocity.y * 0.85);
+        if (this.stateTime > 160) {
+          this.setState("move");
+          this.faceIdle();
+        }
+        break;
       case "attack":
         this.body.setVelocity(0, 0);
         if (this.stateTime > PLAYER.attackTime) {
@@ -136,7 +153,12 @@ export class Player {
     }
 
     this.scene.ambient?.feet(this, dt); // ambiente: polvo o nieve detrás de los pies al correr o rodar
-    this.hidden = this.crouching && this.inGrass && this.state === "move";
+    // Pasto alto: oculta del todo solo agachado o caminando despacio (palanca a medias);
+    // caminando normal o corriendo entre el pasto te ven a ×0.6. Agachado fuera del pasto, ×0.55.
+    const still = this.state === "move";
+    this.hidden = still && this.inGrass && (this.crouching || this.slow);
+    this.stealth = this.hidden ? 0 : still && this.inGrass ? STEALTH.grassMoving : still && this.crouching ? STEALTH.crouch : 1;
+    this.updateStamina(dt);
     // Tras recibir daño parpadea (alpha) mientras dura la invulnerabilidad.
     const blink = this.hurtBlink && this.invuln > 0 && this.state !== "roll" && this.state !== "ko";
     if (this.invuln <= 0) this.hurtBlink = false;
@@ -144,12 +166,65 @@ export class Player {
     if (this.state !== "jump") this.shadow.setPosition(s.x, s.y);
     this.shadow.setVisible(!this.hidden);
     s.setDepth(s.y + (this.state === "jump" ? 32 : 0));
+    this.drawStaminaBar();
+  }
+
+  /** Correr gasta, rodar ya cobró al empezar; tras un rato sin gastar se llena. */
+  updateStamina(dt) {
+    const cfg = PLAYER.stamina;
+    const v = this.body.velocity;
+    const sprinting = this.state === "move" && this.running && !this.crouching && Math.hypot(v.x, v.y) > PLAYER.walk + 4;
+    if (sprinting) {
+      this.stamina = Math.max(0, this.stamina - (dt / 1000) * cfg.runDrain);
+      this.staminaRest = 0;
+      // Sin aire: deja de correr (para volver a correr hay que rodar otra vez).
+      if (this.stamina <= 0) this.running = false;
+    } else if (this.state !== "roll") {
+      this.staminaRest += dt;
+      if (this.staminaRest >= cfg.delay) this.stamina = Math.min(1, this.stamina + (dt / 1000) * cfg.regen);
+    }
+    this.staminaFlash = Math.max(0, this.staminaFlash - dt);
+  }
+
+  /** Barrita de 16×2 (con borde) sobre la cabeza. Se repinta solo si cambia. */
+  drawStaminaBar() {
+    const g = this.staminaBar;
+    const s = this.sprite;
+    const show = (this.stamina < 0.999 || this.staminaFlash > 0) && this.state !== "ko" && s.visible;
+    if (!show) {
+      if (g.visible) g.setVisible(false);
+      return;
+    }
+    g.setVisible(true);
+    g.setPosition(Math.round(s.x) - 9, Math.round(s.y) - 30);
+    const fill = Math.round(this.stamina * 16);
+    const low = this.stamina < PLAYER.stamina.rollCost;
+    const flash = this.staminaFlash > 0 && Math.floor(this.staminaFlash / 80) % 2 === 0;
+    const key = `${fill}|${low}|${flash}`;
+    if (key === this.barKey) return;
+    this.barKey = key;
+    g.clear();
+    g.fillStyle(0x1b1422, 0.85);
+    g.fillRect(0, 0, 18, 4);
+    g.fillStyle(0x2b2233, 1);
+    g.fillRect(1, 1, 16, 2);
+    if (fill > 0) {
+      g.fillStyle(flash ? 0xf58969 : low ? 0xe0493d : 0xe6b736, 1);
+      g.fillRect(1, 1, fill, 2);
+      g.fillStyle(flash ? 0xfaf3e1 : low ? 0xf58969 : 0xfff5c1, 1);
+      g.fillRect(1, 1, fill, 1);
+    } else if (flash) {
+      g.fillStyle(0xe0493d, 1);
+      g.fillRect(1, 1, 16, 2);
+    }
   }
 
   updateMove(dt, controls, world) {
     const s = this.sprite;
     const mv = controls.move();
     const moving = Math.abs(mv.x) + Math.abs(mv.y) > 0.1;
+    // Palanca a medias (control o táctil): paso lento, que en el pasto alto no se nota.
+    this.slow = moving && Math.hypot(mv.x, mv.y) < 0.6;
     this.crouching = controls.held("hide");
     if (!controls.held("roll")) this.running = false;
 
@@ -159,7 +234,13 @@ export class Player {
       return this.startSlide(dir);
     }
     if (controls.pressed("attack")) return this.startAttack(world);
-    if (controls.pressed("roll") && this.rollCooldown <= 0 && !this.crouching) return this.startRoll(mv);
+    if (controls.pressed("roll") && this.rollCooldown <= 0 && !this.crouching) {
+      // Sin aguante no se rueda: la barrita parpadea en rojo.
+      if (this.stamina < PLAYER.stamina.rollCost) {
+        this.staminaFlash = 400;
+        this.barKey = "";
+      } else return this.startRoll(mv);
+    }
 
     if (moving) {
       if (Math.abs(mv.x) > Math.abs(mv.y) + 0.05) this.facing = mv.x < 0 ? "left" : "right";
@@ -292,6 +373,8 @@ export class Player {
       dy = DIRS[this.facing].y;
     }
     const len = Math.hypot(dx, dy) || 1;
+    this.stamina = Math.max(0, this.stamina - PLAYER.stamina.rollCost);
+    this.staminaRest = 0;
     this.setState("roll");
     this.invuln = Math.max(this.invuln, PLAYER.rollTime + 60);
     this.body.setVelocity((dx / len) * PLAYER.rollSpeed, (dy / len) * PLAYER.rollSpeed);
@@ -348,6 +431,17 @@ export class Player {
     return true;
   }
 
+  /** Rebote sin daño (pegarle de frente al escudo de un guardia). */
+  recoil(fromX, fromY, force = PLAYER.blockPush) {
+    if (["ko", "jump", "frozen", "slide", "hurt"].includes(this.state)) return;
+    const c = this.center();
+    const dx = c.x - fromX;
+    const dy = c.y - fromY;
+    const len = Math.hypot(dx, dy) || 1;
+    this.setState("recoil");
+    this.body.setVelocity((dx / len) * force, (dy / len) * force);
+  }
+
   updateFlash() {
     const s = this.sprite;
     if (this.flashTime > 0) {
@@ -380,5 +474,6 @@ export class Player {
   destroy() {
     this.sprite.destroy();
     this.shadow.destroy();
+    this.staminaBar.destroy();
   }
 }

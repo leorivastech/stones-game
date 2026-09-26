@@ -105,6 +105,9 @@ export default {
     { type: "sign", x: 21.4, y: 54.6, text: ["PUERTA DE LA ESCARCHA", "Retén de la Corona. Toda piedra se declara."] },
     { type: "sign", x: 11.6, y: 43.4, text: ["LAGO HELADO", "En el hielo no se frena: resbalas hasta chocar.", "Si te pierdes, vuelve a salir por donde entraste."] },
     { type: "barrier", id: "escarcha", x: 16.5, y: 57.3 },
+    // Faroles del paso: de noche, bajo su luz los guardias ven como de día.
+    { type: "prop", art: "lamp", x: 14.1, y: 57.9, solid: [2, 22, 6, 5] },
+    { type: "prop", art: "lamp", x: 22.6, y: 57.9, solid: [2, 22, 6, 5] },
     { type: "refuge", id: "refugio-r4", x: 4.4, y: 42.2, snow: true },
     { type: "chest", id: "r4-lago", x: 12.5, y: 67.4, loot: { gold: 40 } },
     { type: "enemy", kind: "boar", x: 12, y: 12 },

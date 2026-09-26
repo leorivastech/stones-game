@@ -2,7 +2,8 @@
 
 Estado: **mundo completo y vivo** — 6 pueblos, 5 rutas, barca, 3 refugios, mercado de oferta y
 demanda, días, deuda y sucesos. **Las reglas del mercado son provisionales** (Leo, 23-sep: hay que
-sentarse a analizarlas y dejarlas claras). 2026-09-23. El rumbo y lo pendiente están en
+sentarse a analizarlas y dejarlas claras). 2026-09-23; tanda 4 (26-sep): el tiempo corre en la
+ruta, deuda con dientes, sucesos con cuenta atrás, rumores en el mapa, K.O. con castigo. El rumbo y lo pendiente están en
 `panorama.md`; los números del mundo, en `diseno-mundo.md`; el modo en línea, en `online.md`.
 
 ## Fantasía jugable
@@ -37,21 +38,37 @@ pasa a pantalla completa al primer toque (iPhone no lo permite desde el navegado
 
 ## Jugador
 
-- **Vida en corazones** (empieza con 3). Cada golpe quita medio o un corazón.
+- **Vida en corazones** (empieza con 3). Cada golpe de jabalí, lobo, escorpión o bandido (y el
+  cuchillo) quita **medio corazón**; el del guardia, **uno entero** (`damage` en `src/config.js`,
+  en medios corazones).
 - **Golpe**, **rodar** (invulnerable), **correr** (mantener K), **agacharse** (en pasto alto nadie te ve).
 - **Animación**: paso de 4 cuadros con rebote y brazos, respira cuando está quieto.
-- **K.O.**: despiertas en el último pueblo, pierdes la mitad de la carga (menos lo que salve tu
-  gente) y el 20 % del oro.
+- **K.O.** (castigo real, 26-sep): pierdes la mitad de la carga (menos lo que salve tu gente) y el
+  20 % del oro, **pasan 12 horas** (fuera de línea), **la yegua se espanta** y se queda en esa ruta
+  hasta que vuelvas por ella (al entrar a la ruta se te junta), y despiertas en **tu refugio con
+  catre de esa ruta** si tienes uno; si no, en el último pueblo. Si te tumban los matones del Gremio
+  no pierdes piedras: ver Deuda.
 - **Tónicos** (Verdelume, 12 oro, máx. 3): Q recupera 2 corazones.
 - **Hielo**: en el lago helado patinas en línea recta hasta chocar. **La yegua no pisa el hielo.**
 
-## El tiempo: días
+## El tiempo: el reloj corre (26-sep)
 
-- Cruzar una ruta de pueblo a pueblo: **2 días**. Barca: **3 días** (se ve el mapa con la barquita
-  cruzando el golfo; unos 4 s, A lo adelanta). Volver al mismo pueblo: 1 día.
-  Dormir en el catre de un refugio: 1 día.
-- Cada día los pueblos producen y consumen, el calor baja y el director tira los dados de sucesos.
-- El día se ve en el HUD. Al llegar a un pueblo avisa cuántos días pasaron.
+- **Un día = 4 minutos reales** (0,1 h por segundo; `DAY_SECONDS` en `src/engine/daylight.js`), en
+  **todos** los mapas: pueblo, ruta o refugio. Ya no hay días fijos por ruta.
+- **A medianoche pasa el día** donde estés: los pueblos producen y consumen, el calor baja, el
+  director tira los dados de sucesos, se derrite la escarcha de los alijos y sale el aviso
+  "Amanece el día N" (en fila con los demás avisos). Si estás en un pueblo y toca, llega el cobrador.
+- **La escarcha de tu carga se derrite hora por hora** (ver Piedras).
+- **Letreros de salida**: "Valkeep · ~3 h a pie" (sale del largo de la ruta y el paso; con la
+  yegua, un poco menos). Al acercarte: "→ Valkeep, ~3 h a pie · llegas hacia las 14 h".
+- **Resultados del viaje**: "VIAJE N", horas de camino, día y hora de llegada, oro, piedras, calor,
+  fama y la escarcha que se derritió en el camino.
+- **Barca**: salta **3 días** (+72 h, misma hora); el golfo es frío (la escarcha pierde la mitad).
+  Se ve el mapa con la barquita cruzando (unos 3 s, A lo adelanta).
+- **Dormir** (posada, 8 oro, o catre de refugio): te curas y despiertas **a las 7 del día
+  siguiente** (si ya pasó la medianoche, a las 7 de hoy).
+- **En línea** el día lo manda el servidor (uno cada 3 min) y nadie lo adelanta: ni viajar, ni
+  dormir, ni el K.O.
 
 ## Las piedras
 
@@ -61,7 +78,7 @@ pasa a pantalla completa al primer toque (iPhone no lo permite desde el navegado
 | Vidrio rúnico | Valkeep | 22 | **Frágil**: cada golpe que recibes tiene 30 % de romper una |
 | Perla de lluvia | Verdelume | 30 | **Pesada**: ocupa 2 lugares de carga |
 | Piedra solar | Duneshade | 36 | **Vigilada**: confiscarla sube 8 de calor por piedra; el soborno cuesta más; vender sube 7 de calor |
-| Cristal de escarcha | Frostholm | 44 | **Se derrite**: pierde 9 % de frío por día (3 % con hielera; la mitad por la Ruta 4); se paga en proporción; en 0 es agua |
+| Cristal de escarcha | Frostholm | 44 | **Se derrite**: pierde 20 % de frío por día, hora por hora (7 % con hielera); la mitad en la Ruta 4, en Frostholm y en la barca; nada en la cueva fría; se paga en proporción; en 0 es agua |
 
 ## Mercado (oferta y demanda)
 
@@ -79,7 +96,9 @@ pasa a pantalla completa al primer toque (iPhone no lo permite desde el navegado
   llena; lo que vendes baja el precio para la siguiente.
 - **La Corona** vende a 1,6 × el valor. Un pueblo te paga como mucho el 90 % de eso: por eso te
   compran a ti. El precio de la Corona se ve en la ventana.
-- El pueblo te vende 15 % más caro de lo que te compra. El calor del pueblo encarece y paga menos.
+- El pueblo te vende 15 % más caro de lo que te compra. El calor del pueblo encarece y paga menos,
+  las dos cosas **en proporción** (hasta 25 % con calor 100; antes al comprar sumaba oro fijo y
+  castigaba más a las piedras baratas).
 - Ventana: 5 filas (llevas · te cobran · te pagan · aquí). ←→ comprar o vender, ↑↓ piedra.
   "Aquí" dice **OCUPAN** (verde: te la pagan bien, con ▲ junto al precio) o **SOBRA** (dorado:
   cómprala barata y llévala). Ocupan = falta o paga ≥ 110 % del valor; sobra = sobra o cuesta ≤ 85 %.
@@ -88,8 +107,9 @@ pasa a pantalla completa al primer toque (iPhone no lo permite desde el navegado
     (con "+fama" si todavía da) y lo que sobra, con sus gemas. Una vez por pueblo y por día.
   - Sobre el comerciante flota una burbuja con la gema que ahí ocupan.
 - **Lo que sabes de otros pueblos envejece**: la pausa muestra lo que pagaban "hace N días".
-- Simulación: `node studio/sim/mercado.mjs`. Con el vaivén ya no hay un sentido que gane siempre:
-  los dos dejan (patrimonio de ~90 a ~500-600 en 34 días a pie).
+- Simulación: `node studio/sim/mercado.mjs`. Con el vaivén ya no hay un sentido que gane siempre.
+  Desde el 26-sep cuenta un tramo (ruta + pueblo) como 0,4 días y paga al cobrador: con cuota 40
+  cada 7 días nunca falla y queda libre hacia el día 22-36 (1,5-2,5 h reales).
 
 ## Buhonero de camino
 
@@ -99,13 +119,25 @@ pasa a pantalla completa al primer toque (iPhone no lo permite desde el navegado
   salidas, con una moneda encima. Al entrar avisa: "Por aquí anda un buhonero".
 - Te **compra** una piedra (casi siempre una que llevas) entre 125 % y 145 % de su valor, hasta 3.
   Te **vende** otra (nunca escarcha) entre 55 % y 70 % de su valor, 2 o 3 piezas. Sin calor ni fama.
+- En línea lo decide el servidor: el mismo para todos, en el mismo lugar (el primero que lo ve
+  propone el sitio y el servidor lo guarda); al recargar no se vuelve a tirar el dado.
 - Números en `PEDDLER` (`src/state.js`); personaje `peddler` en `src/art/actors.js`.
 
-## Deuda con el Gremio
+## Deuda con el Gremio (con dientes, 26-sep)
 
-- Empiezas debiendo **500** (la deuda de tu padre). Cada **10 días** un cobrador te para al llegar
-  a un pueblo: pagas la cuota (40), todo, o "no tengo" (la deuda sube 25 y vuelve en 5 días).
-- Al pagarla toda: "Eres libre". Es la primera meta, no el final.
+- Empiezas debiendo **500** (la deuda de tu padre). Cada **7 días** (~28 min reales) un cobrador
+  te para en el pueblo: pagas la cuota (**40**), todo, "darle lo que traigo" (si no juntas la
+  cuota: abona, cuenta como falta, sin intereses) o "no tengo". Números en `DEBT` (`src/state.js`).
+- **Faltas seguidas** (`missed`; vuelven a 0 al pagar la cuota completa). Cada falta: vuelve en 4 días.
+  - 1ª: +25 y aviso claro: "La próxima vez que no pagues, el Gremio manda a alguien".
+  - 2ª: **+10 % de lo que debes** (al menos 25).
+  - 3ª y siguientes: +10 % y, en **la siguiente ruta**, te salen **2 matones del Gremio** (embozados
+    de morado y oro, 4 golpes cada uno, no roban piedras). Si te tumban: se cobran el **30 % de tu
+    oro** (va a la deuda) o, sin oro, **embargan la yegua** (Nella la devuelve por **60** en el
+    establo de Valkeep). Si los tumbas tú, se van de vacío. Salen una vez por falta.
+- El HUD lo dice: "Cobrador en N días · deuda X · 2 faltas" (en rojo desde 2 faltas o 2 días).
+- **Pagar todo → "Mercader libre"**: ceremonia, **+2 de fama** y el cobrador no vuelve nunca.
+  Es la primera meta, no el final.
 
 ## Fama
 
@@ -124,8 +156,15 @@ pasa a pantalla completa al primer toque (iPhone no lo permite desde el navegado
   plaga en Ashfen, barco de la Corona, cargamento agarrado en la aduana, redadas en Duneshade,
   tormenta en el Paso. Cada uno cambia producción, consumo o demanda unos días (y a veces el calor).
   Como mucho 2 a la vez.
+- Se barajan cada día antes de tirar (antes los del final de la lista tiraban menos por el tope).
+- **Cuenta atrás** (26-sep): en la pausa, pestaña MAPA, abajo, "! Helada en Frostholm · quedan 3
+  días" y un "!" rojo junto al pueblo en el mapa; en MERCADOS, "!3d" junto al pueblo. Si le pega al
+  pueblo donde estás, una línea en el HUD ("Feria en Verdelume · quedan 2 d").
 - **Rumores**: la gente del pueblo los cuenta. Unos dicen más la verdad que otros; los posaderos
   casi siempre. La pausa guarda los últimos que oíste.
+- **Rumores en el mapa** (26-sep): el que habla de un pueblo pone un "?" dorado junto a él, hasta
+  que acabe el suceso (o 4 días). Al llegar a ese pueblo se comprueba: si era falso se **tacha** en
+  rojo ("El rumor de aquí era falso"); si era cierto, el "?" se pone verde.
 
 ## Refugios secretos
 
@@ -139,10 +178,11 @@ Cuartitos privados, como las bases secretas de Pokémon. Se entra caminando.
 
 - **Estante**: guardar y sacar piedras (6; 12 con estantes). Lo guardado no se pierde en K.O.,
   robos ni revisiones.
-- **Mesa de trabajo**: mejoras — estantes (30), catre (20: dormir un día y curarte), corral (40),
+- **Mesa de trabajo**: mejoras — estantes (30), catre (20: dormir hasta las 7 y curarte; y si caes
+  K.O. en esa ruta, despiertas aquí), corral (40),
   cerrojo reforzado (60: la Corona no lo encuentra).
-- **Redada**: al entrar a la ruta con calor ≥ 60, cada refugio sin cerrojo tiene 50 % de ser
-  vaciado. Si dejaste a alguien cuidando, espanta a la patrulla.
+- **Redada**: al entrar a la ruta con calor ≥ 60, **cada** refugio sin cerrojo de esa ruta tiene
+  50 % de ser vaciado (se revisan todos). Si dejaste a alguien cuidando, espanta a la patrulla.
 
 ## Tu gente: se lleva y se deja caminando
 
@@ -154,6 +194,8 @@ Cuartitos privados, como las bases secretas de Pokémon. Se entra caminando.
   - Posada (hay posadero en cada pueblo): 3 oro por día, se paga al recogerla.
   - Establo de Valkeep: la yegua, 2 oro por día.
 - **Recogerlos**: vuelve a donde los dejaste (háblales, o al posadero, o a Nella).
+- **Yegua espantada** (K.O.): se queda en la ruta donde caíste; al volver a entrar a esa ruta se
+  te junta. **Embargada** (matones): Nella la devuelve por 60.
 - La yegua **espera afuera** de las cuevas sin corral y **no pisa el hielo**: para cruzar el lago
   hay que dejarla (en la cueva del lago) o ir por el retén.
 - Mientras más gente llevas, **los guardias te ven de más lejos** (+20 % por acompañante).
@@ -218,8 +260,9 @@ Entrar a un pueblo **guarda la partida** y cura.
 ## Interfaz
 
 - **HUD**: corazones · oro · casillas de carga (la perla ocupa dos; las del fondo falso, rayadas)
-  · tónicos · ojo de alerta · fama · **día**.
-- **Pausa**: MAPA (pueblos, barca) · CARGA (vida, oro, fama con título, tónicos, deuda, carga con
+  · tónicos · ojo de alerta · fama · **día** con sol/luna · objetivo (cobrador, faltas, dónde
+  ocupan algo, suceso del pueblo).
+- **Pausa**: MAPA (pueblos, barca, sucesos con cuenta atrás, rumores marcados) · CARGA (vida, oro, fama con título, tónicos, deuda, carga con
   frío de la escarcha, refugios, mejoras) · FAMA (título, cómo sube y lo que se dice) · MERCADOS (lo que
   pagaban y hace cuántos días) · CONTROLES.
 - **Mercado**, **estante** y **mesa** con ventanas propias; diálogos y elecciones con nota.

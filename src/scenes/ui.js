@@ -11,7 +11,7 @@ import { WORLD_MAP, WORLD_PINS, WORLD_ROADS, panelDark, panelPaper, panelTag } f
 import { ninePatch } from "../art/pixel.js";
 import { touch } from "../engine/touch.js";
 import { online, send } from "../net/online.js";
-import { isNight } from "../engine/daylight.js"; // luz del día: sol / luna junto al día
+import { isNight, hourOf } from "../engine/daylight.js"; // luz del día: sol / luna junto al día
 import { MAPS } from "../maps/index.js";
 import { tone, sfx } from "../sfx.js";
 import {
@@ -19,6 +19,7 @@ import {
   hasUpgrade, heatLevel, hiddenCapacity, hp, load, localHeat, maxHp, priceOf, reputation, saveGame, sell, setFlag,
   seenOf, stones, rumors, fameTitle, nextFameTitle, moveStash, stashOf, stashCount, STASH_CAPACITY, STASH_RAID_HEAT,
   tonics, TONIC, townTips, FAME_TITLES, REFUGES, TUTORIAL, tutorialStep, setTutorialStep, bestLead,
+  eventList, rumorMarks, DEBT, thugsPending,
 } from "../state.js";
 
 const D = 20000;
@@ -68,7 +69,9 @@ export class UIScene extends Phaser.Scene {
     // Objetivo bajo "Día N": el cobrador y la mejor pista de venta (o el paso del tutorial).
     this.goalText = this.add.bitmapText(VIEW_W - 6, 40, "font-o", "").setOrigin(1, 0);
     this.leadText = this.add.bitmapText(VIEW_W - 6, 51, "font-green", "").setOrigin(1, 0);
-    this.hud.add([this.goalText, this.leadText]);
+    // Suceso que le pega al pueblo donde estás ("Helada aquí · quedan 3 d").
+    this.eventText = this.add.bitmapText(VIEW_W - 6, 62, "font-gold", "").setOrigin(1, 0);
+    this.hud.add([this.goalText, this.leadText, this.eventText]);
     this.hud.add([this.coinIcon, this.goldText, this.eye, ...this.pips, this.star, this.fameText, this.dayText, this.skyIcon, this.tonicIcon, this.tonicText]);
   }
 
@@ -165,19 +168,29 @@ export class UIScene extends Phaser.Scene {
     if (step >= 0) {
       this.goalText.setText(`Tutorial ${step + 1}/${TUTORIAL.length} · ${keyName("pause")}: saltar`).setFont("font-o");
       this.leadText.setText("");
+      this.eventText.setText("");
       return;
     }
     const d = debt(reg);
     if (d.owed > 0) {
       const left = d.due - day(reg);
       const when = left <= 0 ? "Cobrador: hoy" : `Cobrador en ${left} ${left === 1 ? "día" : "días"}`;
-      this.goalText.setText(`${when} · deuda ${d.owed}`).setFont(left <= 2 ? "font-red" : "font-o");
+      // Deuda con dientes: las faltas se ven (y los matones, si ya te esperan).
+      const missed = d.missed ?? 0;
+      const warn = thugsPending(reg) ? " · ¡matones!" : missed ? ` · ${missed} ${missed === 1 ? "falta" : "faltas"}` : "";
+      this.goalText.setText(`${when} · deuda ${d.owed}${warn}`).setFont(left <= 2 || missed >= 2 ? "font-red" : "font-o");
     } else {
       this.goalText.setText("");
     }
     const lead = bestLead(reg, this.def?.kind === "town" ? this.def.town : null);
     this.leadText.setText(lead ? `Ocupan ${GOODS[lead.good].short.toLowerCase()} en ${TOWNS[lead.town].name}` : "");
-    this.leadText.setY(this.goalText.text ? 51 : 40);
+    let y = this.goalText.text ? 51 : 40;
+    this.leadText.setY(y);
+    if (this.leadText.text) y += 11;
+    // Un suceso en este pueblo: una línea corta con lo que le queda.
+    const here = this.def?.kind === "town" ? this.def.town : null;
+    const ev = here ? eventList(reg).find((e) => e.town === here) : null;
+    this.eventText.setText(ev ? `${ev.label} · quedan ${ev.days} d` : "").setY(y);
   }
 
   // ------------------------------------------------------------------ juice del HUD
@@ -580,7 +593,11 @@ export class UIScene extends Phaser.Scene {
       const reg = this.registry;
       const lines = [];
       const sign = (n) => (n > 0 ? `+${n}` : String(n));
-      if (r.days) lines.push({ label: "Días", text: `${r.days} de camino · hoy es el día ${day(reg)}`, font: "font" });
+      if (r.hours != null) {
+        const h = Math.round(r.hours);
+        const took = h >= 24 ? `${Math.floor(h / 24)} d ${h % 24} h` : `${Math.max(1, h)} h`;
+        lines.push({ label: "Camino", text: `${took} · día ${day(reg)}, ${String(Math.floor(hourOf(reg))).padStart(2, "0")}:00`, font: "font" });
+      } else if (r.days) lines.push({ label: "Días", text: `${r.days} de camino · hoy es el día ${day(reg)}`, font: "font" });
       const dg = gold(reg) - r.gold;
       lines.push({ label: "Oro", text: `${r.gold} → ${gold(reg)}  (${sign(dg)})`, font: dg > 0 ? "font-green" : dg < 0 ? "font-red" : "font" });
       const now = stones(reg);
@@ -598,7 +615,7 @@ export class UIScene extends Phaser.Scene {
       const box = this.add.container(0, 0).setDepth(D + 14);
       box.add(this.add.rectangle(x + 2, y + 2, w - 4, h - 4, 0x120e17, 0.9).setOrigin(0, 0));
       box.add(this.panel(x, y, "ui-dark", w, h));
-      box.add(this.add.bitmapText(x + 10, y + 7, "font-dim", "VIAJE"));
+      box.add(this.add.bitmapText(x + 10, y + 7, "font-dim", r.trip ? `VIAJE ${r.trip}` : "VIAJE"));
       box.add(this.add.bitmapText(x + w - 10, y + 7, "font-gold", title).setOrigin(1, 0));
       box.add(this.add.rectangle(x + 8, y + 21, w - 16, 1, 0x8c5e13, 0.7).setOrigin(0, 0));
       lines.forEach((l, i) => {
@@ -1007,7 +1024,7 @@ export class UIScene extends Phaser.Scene {
     s.pick.setPosition(s.side === 0 ? s.col.buy : s.col.sell, row.y - 2);
     const q = priceOf(reg, s.townId, row.good);
     const mood = tips.wanted.some((w) => w.good === row.good) ? `Aquí la ocupan: te la pagan bien${tips.fameToday ? " y da fama" : ""}.` : tips.cheap.some((c) => c.good === row.good) ? "Aquí sobra: cómprala barata y llévala." : "";
-    const frost = row.good === "frost" && cargoOf(reg, "frost") ? ` Tu escarcha: ${chill(reg)} % de frío.` : "";
+    const frost = row.good === "frost" && cargoOf(reg, "frost") ? ` Tu escarcha: ${Math.round(chill(reg))} % de frío.` : "";
     s.info.setText(`${STONE[row.good].trait} ${mood}${frost}`);
     const d = debt(reg);
     s.footer.setText(`Oro ${gold(reg)} · Carga ${load(reg)}/${capacity(reg)} · Fama ${reputation(reg)}${d.owed > 0 ? ` · Deuda ${d.owed}` : ""}`);
@@ -1281,21 +1298,20 @@ export class UIScene extends Phaser.Scene {
         const pin = add(this.add.bitmapText(mx + (ax + bx) / 2 - 2, my + (ay + by) / 2 - 12, "font-red", "▼"));
         this.tweens.add({ targets: pin, y: pin.y - 3, duration: 280, yoyo: true, repeat: -1 });
       }
+      this.drawMapNews(p, mx, my, add, txt);
       const side = 258;
       txt(side, 42, p.def.name, "font-gold");
       txt(side, 54, p.def.subtitle, "font-dim");
       txt(side, 74, "Recorrido", "font-gold");
       // El camino por tierra y la barca; lo que conviene cambia cada día en todos lados.
+      // (Abajo del mapa van los sucesos y los rumores: ver drawMapNews.)
       const lines = [
         "Ashfen → Valkeep →",
         "Verdelume → Duneshade →",
         "Mossgrove → Frostholm.",
-        "Todos compran de todo, y",
-        "lo que buscan cambia cada",
-        "día: mira los precios y",
-        "oye los rumores.",
         flag(reg, "met-ferry") ? "La barca cruza el golfo:" : "Dicen que en Frostholm",
         flag(reg, "met-ferry") ? "Frostholm y Ashfen." : "hay un barquero.",
+        "! suceso · ? rumor",
       ];
       lines.forEach((l, i) => txt(side, 86 + i * 12, l, "font-dim"));
     } else if (p.index === 1) {
@@ -1333,7 +1349,7 @@ export class UIScene extends Phaser.Scene {
         const n = c[id] ?? 0;
         if (!n) continue;
         add(this.add.image(170, 56 + row * 13, `gem-${id}`).setOrigin(0, 0));
-        const extra = id === "frost" ? ` · ${chill(reg)} % frío` : id === "rain" ? " · 2 lugares c/u" : "";
+        const extra = id === "frost" ? ` · ${Math.round(chill(reg))} % frío` : id === "rain" ? " · 2 lugares c/u" : "";
         txt(184, 56 + row * 13, `${GOODS[id].short} × ${n}${extra}`);
         row += 1;
       }
@@ -1394,6 +1410,12 @@ export class UIScene extends Phaser.Scene {
         const lvl = heatLevel(localHeat(reg, { kind: "town", town: t.id }));
         add(this.add.image(440, y - 1, `ui-eye-${lvl}`).setOrigin(0, 0));
       });
+      // Sucesos: "!" junto al pueblo con los días que le quedan.
+      Object.values(TOWNS).forEach((t, i) => {
+        const ev = eventList(reg).find((e) => e.town === t.id);
+        if (!ev) return;
+        txt(24 + textWidth(seenOf(reg, t.id) ? t.name : "???") + 4, 72 + i * 18, `!${ev.days}d`, "font-red");
+      });
       // El cartel "HOY EN …" del pueblo donde estás, para volver a verlo.
       if (p.def.kind === "town") {
         txt(24, 174, `HOY EN ${TOWNS[p.def.town].name.toUpperCase()}`, "font-gold");
@@ -1436,6 +1458,92 @@ export class UIScene extends Phaser.Scene {
       txt(24, 196, "Guardias: revisan si llevas piedras a la vista.", "font-dim");
       txt(24, 208, "Bandidos: te arrancan piedras; recógelas antes que ellos.", "font-dim");
     }
+  }
+
+  /**
+   * Pestaña MAPA: sucesos con cuenta atrás ("!" rojo junto al pueblo) y rumores escuchados ("?" dorado;
+   * tachado en rojo si al llegar resultó falso), con la lista abajo del mapa.
+   */
+  drawMapNews(p, mx, my, add, txt) {
+    const reg = this.registry;
+    const g = add(this.add.graphics());
+    const events = eventList(reg);
+    const marks = rumorMarks(reg);
+    const tag = (x, y, char, font, crossed) => {
+      g.fillStyle(0x1b1422, 1).fillRect(x - 1, y - 1, 7, 10);
+      add(this.add.bitmapText(x + 1, y, font, char));
+      if (crossed) g.fillStyle(0xe0493d, 1).fillRect(x - 2, y + 3, 9, 2);
+    };
+    for (const ev of events) {
+      const [x, y] = WORLD_PINS[ev.town] ?? [];
+      if (x == null) continue;
+      tag(mx + x + 6, my + y - 10, "!", "font-red");
+    }
+    const seenTowns = new Set();
+    for (const r of marks) {
+      if (seenTowns.has(r.town)) continue;
+      seenTowns.add(r.town);
+      const [x, y] = WORLD_PINS[r.town] ?? [];
+      if (x == null) continue;
+      tag(mx + x - 11, my + y - 10, "?", r.checked === "false" ? "font-dim" : r.checked === "true" ? "font-green" : "font-gold", r.checked === "false");
+    }
+    // Listas abajo del mapa.
+    const today = day(reg);
+    txt(24, 172, "SUCESOS", "font-gold");
+    if (!events.length) txt(24, 184, "Nada fuera de lo normal.", "font-dim");
+    events.slice(0, 4).forEach((ev, i) => {
+      txt(24, 184 + i * 11, `! ${ev.label}`, "font-red");
+      txt(24 + textWidth(`! ${ev.label}`) + 6, 184 + i * 11, `quedan ${ev.days} ${ev.days === 1 ? "día" : "días"}`, "font-dim");
+    });
+    const rx = 250;
+    txt(rx, 172, "RUMORES", "font-gold");
+    if (!marks.length) txt(rx, 184, "Habla con la gente.", "font-dim");
+    marks.slice(0, 4).forEach((r, i) => {
+      const name = TOWNS[r.town]?.name ?? "?";
+      const left = Math.max(0, (r.until ?? today) - today);
+      const status = r.checked === "false" ? "falso" : r.checked === "true" ? "cierto" : left ? `${left} ${left === 1 ? "día" : "días"}` : "hoy";
+      const font = r.checked === "false" ? "font-dim" : r.checked === "true" ? "font-green" : "font-o";
+      txt(rx, 184 + i * 11, `? ${name}`, font);
+      if (r.checked === "false") g.fillStyle(0xe0493d, 1).fillRect(rx, 188 + i * 11, textWidth(`? ${name}`), 1);
+      txt(rx + textWidth(`? ${name}`) + 6, 184 + i * 11, status, "font-dim");
+    });
+  }
+
+  /**
+   * Mercader libre: pagaste toda la deuda. Panel al centro con la estrella, oro y la fama que ganas.
+   * Resuelve al cerrarse (~2.8 s).
+   */
+  freeCeremony(fame) {
+    return new Promise((resolve) => {
+      const title = "Mercader libre";
+      const line = "La deuda de tu padre está saldada. El cobrador no vuelve.";
+      const bonus = `+${fame} de fama`;
+      if (this.ceremony) this.endCeremony();
+      const w = even(Math.max(textWidth(line), 140) + 28);
+      const h = 96;
+      const x = Math.round(VIEW_W / 2 - w / 2);
+      const y = Math.round(VIEW_H / 2 - h / 2 - 8);
+      const sy = y + 18;
+      const box = this.add.container(0, 0).setDepth(D + 40);
+      box.add(this.add.rectangle(x + 2, y + 2, w - 4, h - 4, 0x120e17, 0.92).setOrigin(0, 0));
+      box.add(this.panel(x, y, "ui-dark", w, h));
+      box.add(centerX(this.add.bitmapText(VIEW_W / 2, y + 38, "font-dim", "Sin deudas")));
+      box.add(centerX(this.add.bitmapText(VIEW_W / 2, y + 51, "font-gold", title)));
+      box.add(centerX(this.add.bitmapText(VIEW_W / 2, y + 66, "font-o", line)));
+      box.add(centerX(this.add.bitmapText(VIEW_W / 2, y + 78, "font-green", bonus)));
+      const star = this.add.image(VIEW_W / 2, sy, "ui-star").setScale(0);
+      box.add(star);
+      for (let i = 0; i < 8; i += 1) {
+        const a = (i / 8) * Math.PI * 2 - Math.PI / 2;
+        const c = this.add.sprite(VIEW_W / 2, sy, "coin", 0).setAlpha(0);
+        box.add(c);
+        this.tweens.add({ targets: c, x: VIEW_W / 2 + Math.cos(a) * 40, y: sy + Math.sin(a) * 20, alpha: { from: 1, to: 0 }, delay: 160 + i * 30, duration: 620, ease: "Quad.Out" });
+      }
+      this.openBox(box, VIEW_W / 2, y + h / 2);
+      this.tweens.add({ targets: star, scale: 3, duration: 420, ease: "Back.Out", easeParams: [3] });
+      sfx(this, "jingle-fame", { volume: 0.4 });
+      this.time.delayedCall(2800, () => this.closeBox(box, () => resolve()));
+    });
   }
 
   updatePause() {
@@ -1497,6 +1605,7 @@ export class UIScene extends Phaser.Scene {
     const big = this.mode === "shop" || this.mode === "stash" || this.mode === "pause" || this.mode === "boat" || this.mode === "report";
     this.goalText.setVisible(!big);
     this.leadText.setVisible(!big);
+    this.eventText.setVisible(!big);
     if (this.mode === "dialog" && this.dialog) this.updateDialog(delta);
     else if (this.mode === "choice" && this.choice) this.updateChoice();
     else if (this.mode === "shop" && this.shopState) this.updateShop();

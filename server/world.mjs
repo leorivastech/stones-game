@@ -260,7 +260,9 @@ export class World {
     const p = this.peddler(route);
     if (p.none) return { ok: false };
     if (op === "spot") {
-      if (!p.spot) p.spot = spot;
+      // El lugar lo propone el primer cliente que lo ve y se guarda: los demás reciben este mismo
+      // en la respuesta (antes cada quien lo ponía donde quería y ganaba el primero en silencio).
+      if (!p.spot && spot && Number.isFinite(spot.x) && Number.isFinite(spot.y)) p.spot = { x: spot.x, y: spot.y };
     } else if (op === "sell") {
       if (p.buys.left <= 0) return { ok: false };
       p.buys.left -= 1;

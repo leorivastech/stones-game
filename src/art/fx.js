@@ -229,6 +229,18 @@ export function arrow() {
   return b;
 }
 
+/** Cuchillo que lanza el bandido, horizontal hacia la derecha (se rota al lanzarlo). 11×5 con contorno. */
+export function knife() {
+  const b = new Buf(11, 5);
+  b.hline(5, 2, 4, "s5");
+  b.set(9, 2, "s6");
+  b.set(5, 1, "s3"); b.set(6, 1, "s4"); b.set(7, 1, "s4");
+  b.set(4, 1, "o2"); b.set(4, 2, "o2"); b.set(4, 3, "o2");
+  b.hline(1, 2, 3, "o4");
+  b.outline("ink");
+  return b;
+}
+
 /** Tónico de raíz: frasco verde con tapón. */
 export function tonicIcon() {
   const b = new Buf(9, 11);

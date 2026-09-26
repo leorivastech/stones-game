@@ -153,6 +153,7 @@ export function buildArt() {
   add("sparkle", { buf: fx.sparkleDot() });
   add("stone-burst", fx.stoneBurst());
   add("arrow", { buf: fx.arrow() });
+  add("knife", { buf: fx.knife() });
   add("tonic", { buf: fx.tonicIcon() });
 
   // Interfaz

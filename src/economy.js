@@ -35,11 +35,19 @@ export const MARKET = {
   heatDecay: 3, // calor que baja cada día en cada pueblo
 };
 
-/** Frío de la escarcha, de 0 a 100. Se paga en proporción; en 0 ya es agua. */
-export const FROST = { meltPerDay: 9, meltWithIcebox: 3 };
+/**
+ * Frío de la escarcha, de 0 a 100. Se paga en proporción; en 0 ya es agua. Desde el 26-sep el tiempo
+ * corre también en la ruta (4 min reales = 1 día), así que se derrite por hora y no por tramo:
+ * cruzar una ruta (~3 h) le quita ~2-3; un día entero, 20 (7 con hielera). La tierra fría la mitad.
+ */
+export const FROST = { meltPerDay: 20, meltWithIcebox: 7 };
 
-/** Días que pasan al viajar. */
-export const TRAVEL_DAYS = { route: 2, boat: 3, back: 1 };
+/**
+ * Tiempo de los viajes. A pie ya no hay días fijos: corre el reloj (24 h en 4 min reales, ver
+ * src/engine/daylight.js). La barca sí salta 3 días de mar (el golfo es frío: la escarcha pierde la mitad).
+ */
+export const TRAVEL_DAYS = { boat: 3 };
+export const BOAT_COLD = 0.5;
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
@@ -148,7 +156,8 @@ export function quote(state, townId, good, chill = 100) {
   const mid = clamp(v * ((target + 1) / (stock + 1)) ** MARKET.elasticity, v * MARKET.floor, v * MARKET.crownMarkup);
   let sell = Math.min(mid, crown * MARKET.crownCut) * (1 - heat / 400);
   if (good === "frost") sell *= chill / 100;
-  const buy = Math.min(crown, mid * MARKET.spread + Math.floor(heat / 30));
+  // El calor encarece en proporción (igual que descuenta al vender): no castiga más a las baratas.
+  const buy = Math.min(crown, mid * MARKET.spread * (1 + heat / 400));
   return {
     good,
     stock: Math.floor(stock),
