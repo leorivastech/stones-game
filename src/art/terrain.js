@@ -96,17 +96,22 @@ export function paintGround(grid, { biome = "temperate", seed = 7, crispCobble =
       if (gpIdx && !nearBorder[(y >> 4) * cols + (x >> 4)]) {
         gpIdx[y * W + x] = cellBiome[y >> 4][x >> 4];
       } else if (gpIdx) {
-        const bx = wx + (smoothNoise(x, y, 26, seed + 47) - 0.5) * 20 + (bayer(x, y) - 0.5) * 8;
-        const by = wy + (smoothNoise(x, y, 26, seed + 59) - 0.5) * 20 + (bayer(x + 2, y + 1) - 0.5) * 8;
+        // Onda larga (40 px) + ondita (13 px): la frontera serpentea varios cuadros; ±4 px de Bayer la trama.
+        const bx = wx + (smoothNoise(x, y, 40, seed + 47) - 0.5) * 30 + (smoothNoise(x, y, 13, seed + 53) - 0.5) * 10 + (bayer(x, y) - 0.5) * 8;
+        const by = wy + (smoothNoise(x, y, 40, seed + 59) - 0.5) * 30 + (smoothNoise(x, y, 13, seed + 61) - 0.5) * 10 + (bayer(x + 2, y + 1) - 0.5) * 8;
         const bcx = Math.floor(bx / TILE);
         const bcy = Math.floor(by / TILE);
         const k = biomeCell(bcx, bcy);
         gpIdx[y * W + x] = k;
         // Pasto → arena o nieve de otro bioma: el suelo sigue la misma frontera ondulada.
-        if (SOFT.has(t) && !crisp.has(base) && k !== biomeCell(Math.floor(wx / TILE), Math.floor(wy / TILE))) {
+        const wk = biomeCell(Math.floor(wx / TILE), Math.floor(wy / TILE));
+        let swapped = false;
+        if (SOFT.has(t) && !crisp.has(base) && k !== wk) {
           const other = cellAt(bcx, bcy);
-          if (SOFT.has(other)) t = other;
+          if (SOFT.has(other)) { t = other; swapped = true; }
         }
+        // La arena no cambia de paleta a medias (en nieve es grava helada): la del cuadro de donde salió.
+        if (t === T.SAND && !swapped) gpIdx[y * W + x] = wk;
       }
       ter[y * W + x] = t;
     }
@@ -326,7 +331,7 @@ function plazaWarm(x, y, seed) {
   if (ly === 1 || lx === 1) return c(tone > 0.66 ? "d5" : "c3");
   if (ly === 5 || lx === 6) return c(tone > 0.66 ? "d3" : "c1");
   if (tone > 0.86) return c("d4");
-  if (tone < 0.07) return c("s4");
+  if (tone < 0.035) return c("s4");
   return c(tone > 0.45 ? "c2" : "c1");
 }
 

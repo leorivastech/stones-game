@@ -7,6 +7,7 @@ import { paintGround, paintFlowerBeds, T } from "../art/terrain.js";
 import { hash, bayer } from "../art/pixel.js";
 import { num } from "../art/palette.js";
 import { DEPTH, TILE } from "../config.js";
+import { sunAngle, sunLength, sunStrength } from "./daylight.js";
 
 // "D" = suelo por defecto de la zona: pasto en templado/montaña/selva, arena en desierto, nieve en nieve.
 const GROUND = {
@@ -46,7 +47,8 @@ const FLORA = {
 // izquierda → sombra abajo-derecha). Las casas y los puestos, sombra corta a la derecha y abajo.
 // La silueta se saca UNA vez por textura (caché "shadow-<clave>"); luego todas las sombras del mapa
 // se juntan en una sola capa (sin que se oscurezcan donde se cruzan), con borde tramado Bayer.
-// setShadowSun(angle, length, strength) la reorienta con la hora del día.
+// setShadowSun(angle, length, strength) la reorienta; buildMap la engancha al update de la escena con
+// sunAngle/sunLength/sunStrength de daylight.js (de noche, la luna: sombra tenue). Cuevas: sombra fija.
 
 /** Qué texturas del suelo tiran sombra: "cast" = silueta proyectada, "drop" = corta a un lado. */
 const CASTS = new Set([
@@ -54,7 +56,7 @@ const CASTS = new Set([
   "jungle-tree-0", "jungle-tree-1", "bare-tree", "boulder", "sand-boulder", "snow-boulder",
   "cactus-0", "cactus-1", "cactus-2", "well", "sign", "lamp", "banner",
 ]);
-const SHADOW_ALPHA = 0.28;
+const SHADOW_ALPHA = 0.3;
 const SHADOW_INK = num("ink");
 // Proyección por píxel de altura: x += h·vx, y += h·vy (desde el pie). Por defecto, sol arriba-izquierda.
 const DEFAULT_SUN = { vx: 0.28, vy: 0.4, strength: 1 };
@@ -147,10 +149,24 @@ function shadowShape(scene, key, flip, mode) {
   return shape;
 }
 
-/** Junta todas las sombras del mapa en su lienzo. */
+const SHADOW_RGBA = (() => {
+  const r = (SHADOW_INK >> 16) & 255;
+  const g = (SHADOW_INK >> 8) & 255;
+  const b = SHADOW_INK & 255;
+  return ((255 << 24) | (b << 16) | (g << 8) | r) >>> 0;
+})();
+
+/**
+ * Junta todas las sombras del mapa en su lienzo. Donde dos se cruzan no se oscurece más: la trama
+ * de cada nivel (3 lleno, 2 medio, 1 cuarto) contiene a la del nivel de abajo, así que basta con
+ * entintar cada píxel que pida cualquiera de las sombras. Sólo se recorre el área de las sombras.
+ */
 function paintShadows(layer) {
   const { scene, W, H, list, tex } = layer;
-  const cov = new Uint8Array(W * H);
+  const ctx = tex.getContext();
+  layer.img ??= ctx.createImageData(W, H);
+  const px = new Uint32Array(layer.img.data.buffer);
+  px.fill(0);
   for (const it of list) {
     const shape = shadowShape(scene, it.key, it.flip, it.mode);
     if (!shape) continue;
@@ -163,24 +179,11 @@ function paintShadows(layer) {
         const v = shape.data[y * shape.w + x];
         const wx = bx + x;
         if (!v || wx < 0 || wx >= W) continue;
-        const i = wy * W + wx;
-        if (v > cov[i]) cov[i] = v;
+        if (v === 3 || (v === 2 && bayer(wx, wy) < 0.5) || (v === 1 && bayer(wx, wy) < 0.25)) px[wy * W + wx] = SHADOW_RGBA;
       }
     }
   }
-  const ctx = tex.getContext();
-  const img = ctx.createImageData(W, H);
-  const px = new Uint32Array(img.data.buffer);
-  const r = (SHADOW_INK >> 16) & 255;
-  const g = (SHADOW_INK >> 8) & 255;
-  const b = SHADOW_INK & 255;
-  const ink = ((255 << 24) | (b << 16) | (g << 8) | r) >>> 0;
-  for (let y = 0; y < H; y += 1) for (let x = 0; x < W; x += 1) {
-    const i = y * W + x;
-    const v = cov[i];
-    if (v === 3 || (v === 2 && bayer(x, y) < 0.5) || (v === 1 && bayer(x, y) < 0.25)) px[i] = ink;
-  }
-  ctx.putImageData(img, 0, 0);
+  ctx.putImageData(layer.img, 0, 0);
   tex.refresh();
 }
 
@@ -244,13 +247,6 @@ function playSway(sprite, anim, seedX, seedY) {
 }
 
 export function buildMap(scene, def) {
-  const t0 = performance.now(); // TIMING
-  const out = buildMapInner(scene, def); // TIMING
-  console.log(`TIMING buildMap ${def.id} ${(performance.now() - t0).toFixed(1)}`); // TIMING
-  return out; // TIMING
-} // TIMING
-
-function buildMapInner(scene, def) {
   const rows = def.grid;
   const cols = rows[0].length;
   const H = rows.length;
@@ -479,12 +475,23 @@ function buildMapInner(scene, def) {
   const shadowTex = scene.textures.exists(shadowKey)
     ? scene.textures.get(shadowKey)
     : scene.textures.createCanvas(shadowKey, cols * TILE, H * TILE);
-  const shadowImg = scene.add.image(0, 0, shadowKey).setOrigin(0, 0).setDepth(DEPTH.decal + 1)
-    .setAlpha(SHADOW_ALPHA * sun.strength).setVisible(sun.strength > 0.02);
+  const shadowImg = scene.add.image(0, 0, shadowKey).setOrigin(0, 0).setDepth(DEPTH.decal + 1);
+  // El sol de la hora actual antes de pintar (las cuevas no tienen sol: sombra fija de siempre).
+  const reg = scene.registry;
+  const followSun = () => setShadowSun(sunAngle(reg), sunLength(reg), sunStrength(reg));
+  activeShadows = null;
+  if (def.dark) Object.assign(sun, DEFAULT_SUN);
+  else followSun();
+  shadowImg.setAlpha(SHADOW_ALPHA * sun.strength).setVisible(sun.strength > 0.02);
   activeShadows = { scene, W: cols * TILE, H: H * TILE, list: shadowList, tex: shadowTex, image: shadowImg };
   paintShadows(activeShadows);
   const shadows = activeShadows;
-  scene.events.once("shutdown", () => { if (activeShadows === shadows) activeShadows = null; });
+  // Las sombras siguen al sol solas (setShadowSun sólo repinta cuando la sombra cambia de verdad).
+  if (!def.dark) scene.events.on("update", followSun);
+  scene.events.once("shutdown", () => {
+    scene.events.off("update", followSun);
+    if (activeShadows === shadows) activeShadows = null;
+  });
 
   return {
     cols, rows: H, W: cols * TILE, H: H * TILE, at, layer, statics, tallGrass, bushes, addSolid, setShadowSun,
