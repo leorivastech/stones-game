@@ -13,6 +13,11 @@ import { SHEET_INDEX, POSE } from "../art/actors.js";
 import { DEPTH, ENEMY, TILE } from "../config.js";
 import { tone, sfx } from "../sfx.js";
 import { DIRS, viewOf } from "./player.js";
+import { frozen, release, shake, squash } from "../engine/juice.js";
+
+// Parpadeo al recibir un golpe: blanco/normal 3 veces.
+const BLINK_STEP = 45;
+const BLINK_TIME = BLINK_STEP * 6;
 
 function dirFromVec(x, y) {
   if (Math.abs(x) > Math.abs(y)) return x < 0 ? "left" : "right";
@@ -97,23 +102,28 @@ class Enemy {
     // En línea, si este enemigo lo mueve otro jugador, el golpe se le manda a él.
     if (this.puppet) {
       this.invuln = 260;
-      this.flash = 120;
+      this.hitBlink = BLINK_TIME;
       const c = this.center();
       this.scene.fx.spark(c.x, c.y);
+      this.scene.fx.float?.(c.x, c.y - 8, `-${damage}`, "font-red");
       tone(this.scene, "hit");
       this.scene.net?.hitPuppet(this, damage, fromX, fromY);
       return true;
     }
     this.hp -= damage;
     this.invuln = 260;
-    this.flash = 120;
+    this.hitBlink = BLINK_TIME;
     const c = this.center();
     const dx = c.x - fromX;
     const dy = c.y - fromY;
     const len = Math.hypot(dx, dy) || 1;
-    this.body.setVelocity((dx / len) * 190, (dy / len) * 190);
+    // Empujón según el tipo (jabalí y escorpión vuelan, el guardia apenas se mueve) y el daño.
+    const kind = this.kind ?? this.spec.kind;
+    const force = (ENEMY[kind]?.knock ?? 190) * (0.75 + 0.25 * damage) * (this.hp <= 0 ? 1.3 : 1);
+    this.body.setVelocity((dx / len) * force, (dy / len) * force);
     this.knockTime = 140;
     this.scene.fx.spark(c.x, c.y);
+    this.scene.fx.float?.(c.x, c.y - 8, `-${damage}`, "font-red");
     tone(this.scene, "hit");
     if (this.hp <= 0) this.die();
     else this.onHurt?.();
@@ -122,13 +132,27 @@ class Enemy {
 
   die() {
     this.dead = true;
+    release(this);
     this.body.enable = false;
     this.bubble?.destroy();
     this.scene.fx.poof(this.x, this.y - 6);
     sfx(this.scene, "die", { volume: 0.3, detune: (Math.random() - 0.5) * 300 });
     if (!this.puppet) this.scene.onEnemyDefeated(this);
     this.scene.net?.enemyDied(this);
-    this.scene.tweens.add({ targets: [this.sprite, this.shadow], alpha: 0, duration: 200, onComplete: () => this.destroy() });
+    // Se queda blanco durante el congelado, se aplasta contra el suelo y se desvanece.
+    const wait = Math.max(0, (this.hitstopUntil ?? 0) - this.scene.time.now);
+    this.sprite.anims.stop();
+    this.whiten(true);
+    this.scene.tweens.add({
+      targets: this.sprite,
+      scaleX: 1.3,
+      scaleY: 0.55,
+      delay: wait,
+      duration: 90,
+      ease: "Quad.Out",
+      onStart: () => this.whiten(false),
+    });
+    this.scene.tweens.add({ targets: [this.sprite, this.shadow], alpha: 0, delay: wait + 60, duration: 200, onComplete: () => this.destroy() });
   }
 
   destroy() {
@@ -139,21 +163,33 @@ class Enemy {
   }
 
   preUpdate(dt) {
+    // Congelado del golpe: blanco y quieto; el empujón sale al soltarse. (Los títeres no se congelan.)
+    if (!this.puppet && frozen(this, this.hitstopUntil ?? 0, this.scene.time.now)) {
+      this.whiten(true);
+      return true;
+    }
     this.stateTime += dt;
     this.invuln = Math.max(0, this.invuln - dt);
     if (this.knockTime > 0) this.knockTime -= dt;
     this.shadow.setPosition(this.x, this.y);
     this.sprite.setDepth(this.y);
     if (this.bubble) this.bubble.setPosition(this.x, this.y - 25 - (this.stateTime < 120 ? 2 : 0));
-    if (this.flash > 0) {
-      this.flash -= dt;
-      this.sprite.setTint(0xffffff).setTintMode(Phaser.TintModes.FILL);
-      this.flashed = true;
-    } else if (this.flashed) {
-      this.flashed = false;
-      this.sprite.clearTint();
-    }
+    if (this.hitBlink > 0) this.hitBlink -= dt;
+    // Blanco en los pasos pares del parpadeo del golpe, o en el destello de aviso (`flash`).
+    const blinkWhite = this.hitBlink > 0 && Math.floor((BLINK_TIME - this.hitBlink) / BLINK_STEP) % 2 === 0;
+    if (this.flash > 0) this.flash -= dt;
+    if (this.flash > 0 || blinkWhite) this.whiten(true);
+    else if (this.flashed) this.whiten(false);
     return this.knockTime > 0;
+  }
+
+  /** Destello blanco. En Canvas no hay tinte: se hace semitransparente. */
+  whiten(on) {
+    const s = this.sprite;
+    this.flashed = on;
+    if (this.scene.game.renderer.type === Phaser.CANVAS) s.setAlpha(on ? 0.4 : 1);
+    else if (on) s.setTint(0xffffff).setTintMode(Phaser.TintModes.FILL);
+    else s.clearTint();
   }
 
   /** ¿Toca al jugador? Para el daño por contacto. */
@@ -226,7 +262,7 @@ export class Boar extends Enemy {
         if (this.stateTime > 120 && (b.left || b.right || b.up || b.down)) {
           this.setState("stunned");
           this.body.setVelocity(0, 0);
-          this.scene.cameras.main.shake(80, 0.004);
+          shake(this.scene, "bump");
           tone(this.scene, "bump");
           this.showBubble("bubble-ask", 900);
         } else if (this.stateTime > 950) {
@@ -248,6 +284,11 @@ export class Boar extends Enemy {
         this.setState("wander");
     }
     if (this.state === "wander" && Math.abs(this.body.velocity.x) > 1) this.sprite.setFlipX(this.body.velocity.x < 0);
+    // Embestida: se estira a lo largo (con los pies en el suelo) y vuelve a su tamaño al parar.
+    const s = this.sprite;
+    const [tx, ty] = this.state === "charge" ? [1.15, 0.9] : [1, 1];
+    const k = Math.min(1, dt / 60);
+    s.setScale(Math.abs(tx - s.scaleX) < 0.01 ? tx : s.scaleX + (tx - s.scaleX) * k, Math.abs(ty - s.scaleY) < 0.01 ? ty : s.scaleY + (ty - s.scaleY) * k);
   }
 
   anim(key, frame = 0) {
@@ -727,11 +768,15 @@ export class Guard extends Humanoid {
   die() {
     // Los guardias no mueren: quedan tendidos y el calor sube mucho.
     this.dead = true;
+    release(this);
     this.body.enable = false;
     this.bubble?.destroy();
     this.cone.clear();
     this.sprite.anims.stop();
     this.sprite.setTexture("ko-guard");
+    // Cae tendido con un aplastón, después del congelado del golpe.
+    const wait = Math.max(0, (this.hitstopUntil ?? 0) - this.scene.time.now);
+    this.scene.time.delayedCall(wait, () => { if (!this.sprite.active) return; this.whiten(false); squash(this.scene, this.sprite, 1.25, 0.7, 140); });
     this.scene.fx.poof(this.x, this.y - 6);
     if (!this.puppet) this.scene.onEnemyDefeated(this);
     this.scene.net?.enemyDied(this);

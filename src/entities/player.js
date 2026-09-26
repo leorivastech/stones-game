@@ -4,6 +4,7 @@ import Phaser from "phaser";
 import { SHEET_INDEX, POSE } from "../art/actors.js";
 import { DEPTH, PLAYER, TILE } from "../config.js";
 import { tone } from "../sfx.js";
+import { buzz, frozen, squash } from "../engine/juice.js";
 
 export const DIRS = {
   down: { x: 0, y: 1 },
@@ -85,6 +86,12 @@ export class Player {
 
   update(dt, controls, world) {
     const s = this.sprite;
+    // Congelado de golpe (hitstop): nada avanza, ni el barrido; el empujón sale al soltarse.
+    if (frozen(this, this.scene.hitstopUntil ?? 0, this.scene.time.now)) {
+      this.slash?.active && this.slash.anims.pause();
+      return;
+    }
+    if (this.slash?.active && this.slash.anims.isPaused) this.slash.anims.resume();
     this.stateTime += dt;
     this.invuln = Math.max(0, this.invuln - dt);
     this.rollCooldown = Math.max(0, this.rollCooldown - dt);
@@ -115,6 +122,7 @@ export class Player {
           this.rollCooldown = PLAYER.rollCooldown;
           this.running = controls.held("roll");
           this.faceIdle();
+          squash(this.scene, s, 1.15, 0.85, 110);
         }
         break;
       case "jump":
@@ -129,7 +137,10 @@ export class Player {
 
     this.scene.ambient?.feet(this, dt); // ambiente: polvo o nieve detrás de los pies al correr o rodar
     this.hidden = this.crouching && this.inGrass && this.state === "move";
-    s.setAlpha(this.hidden ? 0.75 : 1);
+    // Tras recibir daño parpadea (alpha) mientras dura la invulnerabilidad.
+    const blink = this.hurtBlink && this.invuln > 0 && this.state !== "roll" && this.state !== "ko";
+    if (this.invuln <= 0) this.hurtBlink = false;
+    s.setAlpha(blink && Math.floor(this.invuln / 70) % 2 === 1 ? 0.3 : this.hidden ? 0.75 : 1);
     if (this.state !== "jump") this.shadow.setPosition(s.x, s.y);
     this.shadow.setVisible(!this.hidden);
     s.setDepth(s.y + (this.state === "jump" ? 32 : 0));
@@ -254,6 +265,7 @@ export class Player {
     const c = this.center();
     const [ox, oy] = SLASH_ORIGIN[this.facing];
     const slash = this.scene.add.sprite(c.x, c.y + 1, `slash-${this.facing}`, 0).setOrigin(ox, oy);
+    this.slash = slash;
     slash.setDepth(this.facing === "up" ? this.sprite.y - 1 : this.sprite.y + 2);
     slash.play(`slash-${this.facing}`);
     slash.once("animationcomplete", () => slash.destroy());
@@ -296,6 +308,7 @@ export class Player {
     this.jumpTo = (cellY + 1) * TILE + 10;
     this.body.enable = false;
     this.faceIdle();
+    squash(this.scene, this.sprite, 0.9, 1.1, 120);
     tone(this.scene, "jump");
   }
 
@@ -311,12 +324,13 @@ export class Player {
       this.body.reset(this.sprite.x, this.jumpTo);
       this.setState("move");
       this.scene.fx?.dust(this.sprite.x, this.sprite.y);
+      squash(this.scene, this.sprite, 1.15, 0.85, 110);
       tone(this.scene, "land");
     }
   }
 
-  /** Devuelve true si el golpe entró. */
-  hurt(halves, fromX, fromY) {
+  /** Devuelve true si el golpe entró. `push`: fuerza del empujón (según el enemigo). */
+  hurt(halves, fromX, fromY, push = PLAYER.knockback) {
     if (this.invuln > 0 || this.state === "ko" || this.state === "jump" || this.state === "frozen") return false;
     const c = this.center();
     const dx = c.x - fromX;
@@ -324,11 +338,13 @@ export class Player {
     const len = Math.hypot(dx, dy) || 1;
     this.setState("hurt");
     this.invuln = PLAYER.invulnTime;
+    this.hurtBlink = true;
     this.flashTime = 140;
-    this.body.setVelocity((dx / len) * PLAYER.knockback, (dy / len) * PLAYER.knockback);
+    this.body.setVelocity((dx / len) * push, (dy / len) * push);
     this.sprite.anims.stop();
+    this.updateFlash(); // blanco ya, para que se vea durante el congelado
     tone(this.scene, "hurt");
-    this.scene.cameras.main.shake(90, 0.006);
+    buzz(30);
     return true;
   }
 
@@ -342,8 +358,7 @@ export class Player {
       this.flashing = false;
       if (s.texture.key === "cast-player-flash") s.setTexture("cast-player", s.frame.name);
     }
-    if (this.invuln > 0 && this.state !== "roll" && this.state !== "ko") s.setVisible(Math.floor(this.invuln / 70) % 2 === 0);
-    else s.setVisible(true);
+    s.setVisible(true);
   }
 
   knockOut() {
@@ -352,11 +367,13 @@ export class Player {
     this.sprite.anims.stop();
     this.sprite.setTexture("ko-player").setVisible(true);
     this.sprite.setFlipX(false);
+    buzz(60);
   }
 
   revive() {
     this.setState("move");
     this.invuln = 600;
+    this.hurtBlink = true;
     this.faceIdle();
   }
 
