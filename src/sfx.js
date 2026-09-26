@@ -1,65 +1,91 @@
 /**
- * Efectos. Muestras CC0 (public/assets/sfx/ y proto/sfx/, créditos en public/assets/CREDITS.md)
- * + tonitos sintetizados (WebAudio) para lo que no tiene muestra: texto, salto, alertas.
- * Si un tono tiene muestra (SAMPLE_TONES), suena la muestra.
+ * Efectos. Casi todo es propio, generado con IA local (MOSS-SoundEffect v2; qué archivo es cada clave:
+ * SFX_IA y PASOS en src/audio-ia.js, archivos en public/assets/sfx-ia/). Lo que no tiene equivalente
+ * IA sigue con la muestra CC0 de antes (OLD_SFX; créditos en public/assets/CREDITS.md), y los tonos
+ * de 8 bits sintetizados (WebAudio) quedan para menú, texto, salto y alertas.
+ * Todo pasa por el bus de efectos (setVolume("sfx", v) de music.js).
  */
 
-import { getCurrentMusic, musicVolume } from "./music.js";
+import { SFX_IA, SFX_STINGER, PASOS, sfxUrl } from "./audio-ia.js";
+import { duckMusic, restoreMusic, getVolume, stinger, preloadMusic } from "./music.js";
 
-export const SFX = {
-  horse: "assets/proto/sfx/horse.mp3",
-  horn: "assets/proto/sfx/horn.mp3",
-  cart: "assets/proto/sfx/cart.mp3",
-  coins: "assets/proto/sfx/coins.mp3",
-  knife: "assets/proto/sfx/knife.mp3",
+export { setVolume, getVolume, setTension, stinger } from "./music.js";
+
+// Muestras de antes que siguen sonando (no hay equivalente IA). Clave = `sfx-<nombre>`.
+const OLD_SFX = {
   draw: "assets/proto/sfx/draw.mp3",
   latch: "assets/proto/sfx/latch.mp3",
   sack: "assets/proto/sfx/sack.mp3",
   chop: "assets/proto/sfx/chop.mp3",
-  click: "assets/proto/sfx/click.mp3",
 };
+for (const n of [
+  "arrow-hit", "swing", "swing2", "armor", "die", "lever", "splash", "coin",
+  "ui-move", "ui-ok", "ui-error", "jingle-mission", "jingle-free",
+]) OLD_SFX[n] = `assets/sfx/${n}.ogg`;
 
-// Muestras nuevas (Kenney, OpenGameArt; CC0). Nombre = archivo en assets/sfx/.
-const NEW = [
-  "bow", "arrow-hit", "swing", "swing2", "hit", "hit2", "armor", "bump", "die", "wolf", "growl", "boar", "scorpion",
-  "step-grass", "step-grass2", "step-snow", "step-snow2", "step-stone", "step-stone2", "step-wood", "step-wood2",
-  "step-sand", "step-sand2", "door-open", "door-close", "chest", "lever", "splash", "coin", "coins-sell", "gem",
-  "ui-move", "ui-ok", "ui-back", "ui-error", "jingle-mission", "jingle-fame", "jingle-free", "jingle-buy",
-];
-for (const n of NEW) SFX[n] = `assets/sfx/${n}.ogg`;
+export const SFX = OLD_SFX;
 
 /** Tonos que suenan con muestra: [nombres posibles, volumen]. Se elige una al azar. */
 const SAMPLE_TONES = {
   swing: [["swing", "swing2"], 0.35],
-  hit: [["hit", "hit2"], 0.5],
+  hit: [["hit"], 0.5],
   bump: [["bump"], 0.5],
+  hurt: [["hurt"], 0.5],
   select: [["ui-move"], 0.3],
   confirm: [["ui-ok"], 0.4],
   deny: [["ui-error"], 0.4],
   pickup: [["coin"], 0.35],
 };
 
+const iaKey = (file) => `sfx-ia-${file}`;
+const pickOne = (list) => list[Math.floor(Math.random() * list.length)];
+
 export function preloadSfx(scene) {
-  for (const [name, url] of Object.entries(SFX)) scene.load.audio(`sfx-${name}`, url);
+  for (const [name, url] of Object.entries(OLD_SFX)) scene.load.audio(`sfx-${name}`, url);
+  const files = new Set();
+  for (const { files: f } of [...Object.values(SFX_IA), ...Object.values(PASOS)]) f.forEach((x) => files.add(x));
+  for (const f of files) scene.load.audio(iaKey(f), sfxUrl(f));
+  preloadMusic(scene);
+}
+
+function hasSample(scene, name) {
+  const ia = SFX_IA[name];
+  if (ia) return ia.files.some((f) => scene.cache.audio.exists(iaKey(f)));
+  return scene.cache.audio.exists(`sfx-${name}`);
 }
 
 export function sfx(scene, name, extra = {}) {
   // Grabación de trailer (?capture=1, sin audio): se anota el sonido para ponerlo en su cuadro.
   if (globalThis.__captureSfx) globalThis.__captureSfx.push({ name, volume: extra.volume ?? 0.55 });
-  const key = `sfx-${name}`;
+  if (SFX_STINGER[name]) {
+    if (!globalThis.__captureSfx) stinger(SFX_STINGER[name], scene);
+    return;
+  }
+  const ia = SFX_IA[name];
+  const key = ia ? iaKey(pickOne(ia.files)) : `sfx-${name}`;
   if (!scene.cache.audio.exists(key)) return;
-  scene.sound.play(key, { volume: 0.55, ...extra });
+  const volume = (extra.volume ?? 0.55) * (ia?.gain ?? 1) * getVolume("sfx");
+  scene.sound.play(key, { ...extra, volume });
 }
 
 /** Una de varias muestras, con un poco de variación de tono para que no suene repetida. */
 export function sfxVary(scene, names, volume = 0.5, spread = 120) {
-  const name = names[Math.floor(Math.random() * names.length)];
+  const name = pickOne(names);
   sfx(scene, name, { volume, detune: (Math.random() - 0.5) * 2 * spread });
 }
 
-/** Paso según el suelo: pasto, nieve, piedra, madera, arena. */
+let lastStep = null;
+
+/** Paso según el suelo: pasto, nieve, piedra, madera, arena (cortes IA, nunca el mismo dos veces seguidas). */
 export function footstep(scene, ground, volume = 0.16) {
-  sfxVary(scene, [`step-${ground}`, `step-${ground}2`], volume, 150);
+  const set = PASOS[ground] ?? PASOS.grass;
+  if (globalThis.__captureSfx) globalThis.__captureSfx.push({ name: `step-${ground}`, volume });
+  let file = pickOne(set.files);
+  if (file === lastStep && set.files.length > 1) file = pickOne(set.files.filter((f) => f !== lastStep));
+  lastStep = file;
+  const key = iaKey(file);
+  if (!scene.cache.audio.exists(key)) return;
+  scene.sound.play(key, { volume: volume * set.gain * getVolume("sfx"), detune: (Math.random() - 0.5) * 300 });
 }
 
 const TONES = {
@@ -87,17 +113,19 @@ let noiseBuffer = null;
 
 export function tone(scene, name) {
   const sample = SAMPLE_TONES[name];
-  if (sample && (globalThis.__captureSfx || sample[0].every((n) => scene.cache.audio.exists(`sfx-${n}`)))) {
+  if (sample && (globalThis.__captureSfx || sample[0].every((n) => hasSample(scene, n)))) {
     sfxVary(scene, sample[0], sample[1], 80);
     return;
   }
   const ctx = scene.sound.context;
   if (!ctx || scene.sound.locked || !TONES[name]) return;
   const now = ctx.currentTime;
+  const bus = getVolume("sfx");
+  if (bus <= 0) return;
   for (const t of TONES[name]) {
     const start = now + (t.at ?? 0);
     const gain = ctx.createGain();
-    gain.gain.setValueAtTime(t.vol, start);
+    gain.gain.setValueAtTime(t.vol * bus, start);
     gain.gain.exponentialRampToValueAtTime(0.0001, start + t.dur);
     let src;
     if (t.type === "noise") {
@@ -128,12 +156,11 @@ export function tone(scene, name) {
   }
 }
 
+/** Baja la música (y un poco el ambiente) con fundido de 250 ms. `volume` como antes: 0.05-0.12. */
 export function duckTheme(scene, volume = 0.1) {
-  const theme = getCurrentMusic();
-  if (theme) theme.setVolume(volume);
+  duckMusic(volume);
 }
 
 export function restoreTheme() {
-  const theme = getCurrentMusic();
-  if (theme) theme.setVolume(musicVolume(theme.key));
+  restoreMusic();
 }

@@ -10,8 +10,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload() {
-    // Sólo la del título se carga al arrancar; las demás se bajan cuando suenan (music.js).
-    this.load.audio("music-title", "assets/music/title.ogg");
+    // Efectos, la música del título y los stingers; las demás pistas se bajan cuando suenan (music.js).
     preloadSfx(this);
   }
 

@@ -6,83 +6,271 @@
 <title>Stones · escuchar música</title>
 <link rel="icon" href="data:," />
 <style>
-  :root { --bg: #1b1422; --panel: #2b2233; --ink: #faf3e1; --dim: #b9ab98; --gold: #e6b736; --green: #8bbf55; --line: #3d3247; }
+  :root { --bg: #1b1422; --panel: #2b2233; --ink: #faf3e1; --dim: #b9ab98; --gold: #e6b736; --green: #8bbf55; --red: #d0664f; --line: #3d3247; }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 system-ui, sans-serif; }
-  main { max-width: 980px; margin: 0 auto; padding: 24px 16px 64px; }
+  main { max-width: 1020px; margin: 0 auto; padding: 24px 16px 64px; }
   h1 { color: var(--gold); margin: 0 0 4px; font-size: 26px; }
   h2 { color: var(--gold); margin: 32px 0 10px; font-size: 19px; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
   p.sub { color: var(--dim); margin: 0 0 16px; }
   .group { background: var(--panel); border-radius: 10px; padding: 12px 14px; margin: 12px 0; }
-  .group h3 { margin: 0 0 8px; font-size: 16px; }
+  .group h3 { margin: 0 0 2px; font-size: 16px; }
   .row { display: grid; grid-template-columns: 1fr 300px; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
   .row:first-of-type { border-top: 0; }
   .t { font-weight: 600; }
   .m { color: var(--dim); font-size: 13px; }
   .m a { color: var(--dim); }
   .chosen { color: var(--green); font-weight: 700; font-size: 12px; margin-left: 6px; }
+  .warn { color: var(--red); font-size: 12px; margin-left: 6px; }
   .id { font-family: ui-monospace, monospace; color: var(--gold); font-size: 12px; }
   audio { width: 100%; height: 34px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; }
-  .sfx { background: var(--panel); border-radius: 8px; padding: 8px 10px; display: flex; justify-content: space-between; align-items: center; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
+  .sfx { background: var(--panel); border-radius: 8px; padding: 8px 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .sfx .btns { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
   button { background: #8c5e13; color: var(--ink); border: 0; border-radius: 6px; padding: 5px 10px; cursor: pointer; font-weight: 600; }
-  @media (max-width: 640px) { .row { grid-template-columns: 1fr; } }
+  button.on { background: var(--green); color: #1b1422; }
+  button.alt { background: #4a3b56; }
+  .mixer { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0 4px; }
+  .mixer label { color: var(--dim); font-size: 13px; display: flex; align-items: center; gap: 6px; }
+  .mixer input[type=range] { width: 160px; }
+  select { background: #1b1422; color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; }
+  details { margin-top: 32px; }
+  details > summary { color: var(--gold); cursor: pointer; font-size: 17px; }
+  @media (max-width: 640px) { .row { grid-template-columns: 1fr; } .mixer input[type=range] { width: 100%; } }
 </style>
 </head>
 <body>
 <main>
   <h1>Stones · escuchar música</h1>
-  <p class="sub">Candidatas por lugar. <b style="color:var(--green)">EN USO</b> es la que suena hoy en el juego. Para cambiar una, dile a Claude el código (por ejemplo <span class="id">duneshade-b</span>). Todas tienen licencia libre: CC0 o CC-BY (con crédito).</p>
-  <div id="music"></div>
-  <h2>Ambientes (van debajo de la música)</h2>
-  <div class="grid" id="amb"></div>
-  <h2>Efectos</h2>
+  <p class="sub">Toda la música y los efectos del juego son propios, generados con IA en esta máquina (ACE-Step 1.5 y MOSS-SoundEffect v2).
+    <b style="color:var(--green)">ELEGIDA</b> es la que suena hoy. Para cambiar una, dile a Claude el código (por ejemplo <span class="id">ashfen-calma-2</span>);
+    el cambio es un número en <span class="id">src/audio-ia.js</span>.</p>
+
+  <h2>Música IA por zona</h2>
+  <p class="sub">Cada zona suena con dos capas a la vez (misma tonalidad y bpm): <b>calma</b> y <b>tensión</b>. En el juego la tensión sube con la persecución (1) y con el calor de la ruta (0.25 / 0.4). «Ambas» las toca juntas: mueve el deslizador para oír la mezcla. Puedes probar otras variantes en los selectores.</p>
+  <div id="zonas"></div>
+
+  <h2>Stingers (clips de ~6 s)</h2>
+  <div id="stingers"></div>
+
+  <h2>Efectos IA</h2>
+  <p class="sub">Junto a cada uno, la clave del juego que lo usa. Sin clave = generado pero no se usa todavía (o descartado).</p>
   <div class="grid" id="sfx"></div>
+
+  <details>
+    <summary>Antes (música y efectos de OpenGameArt/Kenney, ya casi no suenan)</summary>
+    <div id="music"></div>
+    <h2>Ambientes de antes</h2>
+    <div class="grid" id="amb"></div>
+    <h2>Efectos de antes</h2>
+    <div class="grid" id="sfxold"></div>
+  </details>
 </main>
 <script type="module">
+  import { ELEGIDAS, ZONAS, STINGERS, SFX_IA, SFX_STINGER, PASOS, AMBIENTES, musicUrl } from "/src/audio-ia.js";
+
+  const cat = (await (await fetch("studio/musica/ia/catalogo.json")).json()).items
+    .map((i) => ({ ...i, url: i.archivo.replace(/^public\//, "") }));
+  const fmt = (x, d = 3) => (x == null ? "—" : Number(x).toFixed(d).replace(/\.?0+$/, ""));
+
+  // ---------- reproductor único (Web Audio): una cosa a la vez, capas sincronizadas
+  const ctx = new AudioContext();
+  const buffers = new Map();
+  const load = (url) => {
+    if (!buffers.has(url)) buffers.set(url, fetch(url).then((r) => r.arrayBuffer()).then((b) => ctx.decodeAudioData(b)));
+    return buffers.get(url);
+  };
+  let playing = null;
+  function stopAll() {
+    if (!playing) return;
+    for (const s of playing.srcs) try { s.stop(); } catch { /* ya paró */ }
+    playing.onStop?.();
+    playing = null;
+  }
+  /** Toca varias pistas juntas en loop; devuelve los nodos de volumen. */
+  async function playLayers(urls, gains, onStop) {
+    stopAll();
+    await ctx.resume();
+    const bufs = await Promise.all(urls.map(load));
+    const L = Math.min(...bufs.map((b) => b.duration));
+    const when = ctx.currentTime + 0.05;
+    const srcs = [];
+    const nodes = bufs.map((b, i) => {
+      const src = ctx.createBufferSource();
+      src.buffer = b;
+      src.loop = true;
+      src.loopEnd = L;
+      const g = ctx.createGain();
+      g.gain.value = gains[i];
+      src.connect(g).connect(ctx.destination);
+      src.start(when);
+      srcs.push(src);
+      return g;
+    });
+    playing = { srcs, onStop };
+    return nodes;
+  }
+  async function playOnce(url) {
+    await ctx.resume();
+    const src = ctx.createBufferSource();
+    src.buffer = await load(url);
+    src.connect(ctx.destination);
+    src.start();
+  }
+
+  // ---------- zonas
+  const zonasRoot = document.getElementById("zonas");
+  for (const [zona, info] of Object.entries(ZONAS)) {
+    const el = ELEGIDAS[zona];
+    const items = cat.filter((i) => i.tipo === "musica" && i.zona === zona);
+    const byLayer = (capa) => items.filter((i) => i.capa === capa).sort((a, b) => a.variante - b.variante);
+    const g = document.createElement("div");
+    g.className = "group";
+    const elegida = `calma-${el.calma}${el.tension ? ` · tensión-${el.tension}` : ""}`;
+    g.innerHTML = `<h3>${info.nombre}</h3><div class="m">${info.bpm} bpm · ${info.tono} · elegidas: <span class="id">${elegida}</span></div>`;
+
+    const mixer = document.createElement("div");
+    mixer.className = "mixer";
+    const sel = (capa) => {
+      const s = document.createElement("select");
+      for (const i of byLayer(capa)) s.add(new Option(`${capa}-${i.variante}${i.variante === el[capa] ? " ✓" : ""}`, i.variante, false, i.variante === el[capa]));
+      return s;
+    };
+    const selC = sel("calma");
+    const selT = el.tension ? sel("tension") : null;
+    const bC = Object.assign(document.createElement("button"), { textContent: "▶ Calma" });
+    mixer.append(selC, bC);
+    let slider = null;
+    if (selT) {
+      const bT = Object.assign(document.createElement("button"), { textContent: "▶ Tensión" });
+      const bA = Object.assign(document.createElement("button"), { textContent: "▶ Ambas" });
+      slider = Object.assign(document.createElement("input"), { type: "range", min: 0, max: 100, value: 0 });
+      const lab = document.createElement("label");
+      const val = document.createElement("span");
+      val.textContent = "0.00";
+      lab.append("tensión", slider, val);
+      mixer.append(selT, bT, bA, lab);
+      let nodes = null;
+      const setMix = () => {
+        const t = slider.value / 100;
+        val.textContent = t.toFixed(2);
+        if (!nodes) return;
+        nodes[0].gain.value = Math.cos((t * Math.PI) / 2);
+        nodes[1].gain.value = Math.sin((t * Math.PI) / 2);
+      };
+      slider.oninput = setMix;
+      const mark = (btn) => { btn.classList.add("on"); return () => { btn.classList.remove("on"); nodes = null; }; };
+      bT.onclick = async () => { await playLayers([musicUrl(zona, "tension", selT.value)], [1], mark(bT)); };
+      bA.onclick = async () => {
+        const off = mark(bA);
+        nodes = await playLayers([musicUrl(zona, "calma", selC.value), musicUrl(zona, "tension", selT.value)], [1, 0], off);
+        setMix();
+      };
+    }
+    bC.onclick = async () => { bC.classList.add("on"); await playLayers([musicUrl(zona, "calma", selC.value)], [1], () => bC.classList.remove("on")); };
+    const stop = Object.assign(document.createElement("button"), { textContent: "■", className: "alt", title: "Parar" });
+    stop.onclick = stopAll;
+    mixer.append(stop);
+    g.appendChild(mixer);
+
+    for (const capa of ["calma", "tension"]) {
+      for (const i of byLayer(capa)) {
+        const row = document.createElement("div");
+        row.className = "row";
+        const chosen = el[capa] === i.variante;
+        const voz = i.clap_prob_voz > 0.7 ? `<span class="warn">¿voz? ${fmt(i.clap_prob_voz, 2)}</span>` : "";
+        row.innerHTML = `<div><span class="id">${zona}-${capa}-${i.variante}</span>${chosen ? '<span class="chosen">ELEGIDA</span>' : ""}${voz}
+          <div class="m">CLAP ${fmt(i.clap_sim)} · puesto ${i.clap_puesto ?? "—"} · ${fmt(i.duracion_s, 1)} s</div></div>
+          <audio controls preload="none" src="${i.url}"></audio>`;
+        g.appendChild(row);
+      }
+    }
+    zonasRoot.appendChild(g);
+  }
+
+  // ---------- stingers
+  const stRoot = document.getElementById("stingers");
+  const stg = document.createElement("div");
+  stg.className = "group";
+  for (const name of Object.keys(STINGERS)) {
+    for (const i of cat.filter((x) => x.tipo === "stinger" && x.capa === name).sort((a, b) => a.variante - b.variante)) {
+      const row = document.createElement("div");
+      row.className = "row";
+      row.innerHTML = `<div><span class="id">stinger-${name}-${i.variante}</span>${STINGERS[name] === i.variante ? '<span class="chosen">ELEGIDA</span>' : ""}
+        <div class="m">CLAP ${fmt(i.clap_sim)} · puesto ${i.clap_puesto ?? "—"} · ${fmt(i.duracion_s, 1)} s</div></div>
+        <audio controls preload="none" src="${i.url}"></audio>`;
+      stg.appendChild(row);
+    }
+  }
+  stRoot.appendChild(stg);
+
+  // ---------- efectos IA
+  const uses = {};
+  const use = (file, what) => (uses[file] ??= []).push(what);
+  for (const [k, v] of Object.entries(SFX_IA)) v.files.forEach((f) => use(f, k));
+  for (const [k, v] of Object.entries(PASOS)) v.files.forEach((f) => use(f, `paso ${k}`));
+  for (const [k, v] of Object.entries(AMBIENTES)) {
+    if (v.file) use(v.file, `ambiente ${k}`);
+    if (v.noche) use(v.noche.file, `ambiente ${k} (noche)`);
+  }
+  for (const [k, v] of Object.entries(SFX_STINGER)) use(`stinger-${v}`, k);
+  const sfxRoot = document.getElementById("sfx");
+  for (const i of cat.filter((x) => x.tipo === "sfx").sort((a, b) => a.archivo.localeCompare(b.archivo, "es", { numeric: true }))) {
+    const file = i.url.split("/").pop().replace(/\.ogg$/, "");
+    const d = document.createElement("div");
+    d.className = "sfx";
+    const u = uses[file];
+    d.innerHTML = `<div><span class="id">${file}</span>${u ? `<div class="m" style="color:var(--green)">${u.join(" · ")}</div>` : '<div class="m">sin usar</div>'}
+      <div class="m">${fmt(i.duracion_s, 2)} s · CLAP ${fmt(i.clap_sim)}</div></div><div class="btns"><button>▶</button></div>`;
+    d.querySelector("button").onclick = () => playOnce(i.url);
+    sfxRoot.appendChild(d);
+  }
+
+  // ---------- antes
   const LUGAR = {
     title: "Título y trailer", verdelume: "Verdelume (selva)", duneshade: "Duneshade (desierto)", frostholm: "Frostholm (nieve y muelle)",
     "road-mountain": "Ruta 2 · Paso Alto (montaña)", "road-desert": "Ruta 3 · selva → desierto", "road-snow": "Ruta 4 · Paso del Hielo",
     refuge: "Cuevas (refugios)", "refuge-plot": "Tierra escondida (refugio)", chase: "Persecución de guardias",
   };
-  const list = await (await fetch("studio/musica/candidatas.json")).json();
-  const groups = {};
-  for (const m of list) (groups[m.for] ??= []).push(m);
-  const root = document.getElementById("music");
-  const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-  for (const [area, items] of Object.entries(groups)) {
-    const g = document.createElement("div");
-    g.className = "group";
-    g.innerHTML = `<h3>${LUGAR[area] ?? area}</h3>`;
-    for (const m of items) {
-      const row = document.createElement("div");
-      row.className = "row";
-      row.innerHTML = `<div><span class="t">${m.title}</span>${m.chosen ? '<span class="chosen">EN USO</span>' : ""}
-        <div class="m"><span class="id">${m.id}</span> · ${m.author} · ${m.license} · ${mmss(m.duration)} · <a href="${m.page}" target="_blank" rel="noopener">página</a></div></div>
-        <audio controls preload="none" src="studio/musica/candidatas/${m.file}"></audio>`;
-      g.appendChild(row);
+  try {
+    const list = await (await fetch("studio/musica/candidatas.json")).json();
+    const groups = {};
+    for (const m of list) (groups[m.for] ??= []).push(m);
+    const root = document.getElementById("music");
+    const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+    for (const [area, items] of Object.entries(groups)) {
+      const g = document.createElement("div");
+      g.className = "group";
+      g.innerHTML = `<h3>${LUGAR[area] ?? area}</h3>`;
+      for (const m of items) {
+        const row = document.createElement("div");
+        row.className = "row";
+        row.innerHTML = `<div><span class="t">${m.title}</span>
+          <div class="m"><span class="id">${m.id}</span> · ${m.author} · ${m.license} · ${mmss(m.duration)} · <a href="${m.page}" target="_blank" rel="noopener">página</a></div></div>
+          <audio controls preload="none" src="studio/musica/candidatas/${m.file}"></audio>`;
+        g.appendChild(row);
+      }
+      root.appendChild(g);
     }
-    root.appendChild(g);
-  }
-  const AMB = { jungle: "Selva (pájaros)", desert: "Viento del desierto", snow: "Viento de nieve", cave: "Cueva", sea: "Olas (muelle)", fire: "Fogata" };
+  } catch { /* sin candidatas de antes */ }
+  const AMB = { jungle: "Selva (pájaros)", desert: "Viento del desierto", snow: "Viento de nieve", cave: "Cueva (sigue en uso)", sea: "Olas (muelle)", fire: "Fogata" };
   const amb = document.getElementById("amb");
   for (const [k, name] of Object.entries(AMB)) {
     const d = document.createElement("div");
     d.className = "sfx";
-    d.innerHTML = `<div><div class="t">${name}</div><audio controls preload="none" src="assets/ambience/${k}.ogg"></audio></div>`;
+    d.innerHTML = `<div style="width:100%"><div class="t">${name}</div><audio controls preload="none" src="assets/ambience/${k}.ogg"></audio></div>`;
     amb.appendChild(d);
   }
-  const SFX = ["bow", "arrow-hit", "swing", "hit", "armor", "die", "wolf", "growl", "boar", "scorpion", "step-grass", "step-snow",
+  const OLD = ["bow", "arrow-hit", "swing", "hit", "armor", "die", "wolf", "growl", "boar", "scorpion", "step-grass", "step-snow",
     "step-stone", "step-wood", "step-sand", "door-open", "door-close", "chest", "lever", "splash", "coin", "coins-sell", "gem",
     "ui-move", "ui-ok", "ui-back", "ui-error", "jingle-mission", "jingle-fame", "jingle-free", "jingle-buy"];
-  const sfx = document.getElementById("sfx");
-  for (const k of SFX) {
+  const sfxOld = document.getElementById("sfxold");
+  for (const k of OLD) {
     const d = document.createElement("div");
     d.className = "sfx";
     d.innerHTML = `<span class="id">${k}</span><button>▶</button>`;
-    const a = new Audio(`assets/sfx/${k}.ogg`);
-    d.querySelector("button").onclick = () => { a.currentTime = 0; a.play(); };
-    sfx.appendChild(d);
+    d.querySelector("button").onclick = () => playOnce(`assets/sfx/${k}.ogg`);
+    sfxOld.appendChild(d);
   }
 </script>
 </body>
