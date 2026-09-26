@@ -66,10 +66,13 @@ export function sunLength(reg) {
 export function sunStrength(reg) {
   const h = hourOf(reg);
   const day = h >= 6 && h < 18 ? 1 : 0.35;
-  // Transición de media hora en la salida y la puesta.
+  // A las 6 y a las 18 el sol y la luna se relevan y la sombra cambia de lado: se apaga
+  // del todo justo en ese instante para que el salto no se vea.
   const edge = (a, b) => Phaser.Math.Clamp((h - a) / (b - a), 0, 1);
-  if (h >= 5.5 && h < 6.5) return 0.35 + 0.65 * edge(5.5, 6.5);
-  if (h >= 17.5 && h < 18.5) return 1 - 0.65 * edge(17.5, 18.5);
+  if (h >= 5.5 && h < 6) return 0.35 * (1 - edge(5.5, 6));
+  if (h >= 6 && h < 6.5) return edge(6, 6.5);
+  if (h >= 17.5 && h < 18) return 1 - edge(17.5, 18);
+  if (h >= 18 && h < 18.5) return 0.35 * edge(18, 18.5);
   return day;
 }
 

@@ -56,7 +56,7 @@ const CASTS = new Set([
   "jungle-tree-0", "jungle-tree-1", "bare-tree", "boulder", "sand-boulder", "snow-boulder",
   "cactus-0", "cactus-1", "cactus-2", "well", "sign", "lamp", "banner",
 ]);
-const SHADOW_ALPHA = 0.3;
+const SHADOW_ALPHA = 0.4;
 const SHADOW_INK = num("ink");
 // Proyección por píxel de altura: x += h·vx, y += h·vy (desde el pie). Por defecto, sol arriba-izquierda.
 const DEFAULT_SUN = { vx: 0.28, vy: 0.4, strength: 1 };
