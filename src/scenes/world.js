@@ -12,12 +12,14 @@ import { Player, DIRS } from "../entities/player.js";
 import { Npc } from "../entities/npc.js";
 import { makeEnemy, Guard } from "../entities/enemies.js";
 import { Escort } from "../entities/escort.js";
-import { DEPTH, TILE, VIEW_W, VIEW_H } from "../config.js";
+import { DEPTH, TILE, VIEW_W, VIEW_H, PLAYER, ENEMY } from "../config.js";
+import { hitstop, shake } from "../engine/juice.js"; // jugo del combate
 import { startMusic, startAmbience } from "../music.js";
 import { online, request, send, ownerOf, playersIn } from "../net/online.js";
 import { NetWorld } from "../net/worldnet.js";
 import { Daylight, setHour, ARRIVAL_HOUR, WAKE_HOUR } from "../engine/daylight.js"; // luz del día
 import { Ambient } from "../engine/ambient.js"; // ambiente
+import { textWidth } from "../art/font.js"; // letreros de salida
 
 // Sonido de los pasos según la letra de la celda (si no está, según el bioma).
 const STEP_BY_CELL = { "=": "stone", B: "wood", _: "sand", s: "snow", i: "snow", "#": "stone", g: "stone" };
@@ -31,16 +33,13 @@ import {
   debtDue, payDebt, missDebt, fameTitle, load, hearRumor, econ, chill,
   REFUGES, REFUGE_UPGRADES, CREW, LODGING, crewAt, setCrewAt, partyHas, partySize, lodgingFee, ownsRefuge, refugeHas,
   stashCapacity, crewIn, townTips, peddlerFor, peddlerOnline, sellToPeddler, buyFromPeddler,
+  TUTORIAL, tutorialStep, setTutorialStep, INN_SLEEP,
 } from "../state.js";
 
+// La partida nueva empieza con dos líneas y el tutorial (el lore largo se quitó: 25-sep).
 const INTRO = [
-  "Las piedras de hechizo calientan casas, guardan el agua y salvan la cosecha.",
-  "La Corona y su Gremio las venden caras, pocas y tarde.",
-  "Por eso los pueblos le compran a quien se atreva a llevarlas por la calzada.",
-  "Tu padre le debía 500 al Gremio. Murió el invierno pasado y la deuda ahora es tuya.",
-  "Cada diez días pasa el cobrador.",
-  "Tienes 40 de oro, un bastón y una mochila con cuatro lugares.",
-  "Los comerciantes de cada plaza pagan extra a quien lleve lo que le falta a otro pueblo.",
+  "Tu padre murió debiéndole 500 al Gremio de la Corona. La deuda ahora es tuya: el cobrador pasa cada diez días.",
+  "Las piedras de hechizo se compran donde sobran y se venden donde las ocupan. Empecemos por la plaza.",
 ];
 
 export class WorldScene extends Phaser.Scene {
@@ -64,6 +63,9 @@ export class WorldScene extends Phaser.Scene {
     this.barrier = null;
     this.gates = {};
     this.stashes = [];
+    this.waySigns = [];
+    this.wayNear = null;
+    this.tutArrow = null;
   }
 
   create(data) {
@@ -88,10 +90,14 @@ export class WorldScene extends Phaser.Scene {
         // En línea el tiempo lo lleva el reloj del mundo: viajar no pasa días.
         const report = online.on ? { ended: [], started: [], melted: 0 } : passDays(reg, days, { cold });
         if (prev !== def.town) reg.inc("trips", 1);
-        this.arrival = { days: online.on ? 0 : days, from: prev !== def.town ? prev : null, ...report };
+        this.arrival = { days: online.on ? 0 : days, from: prev !== def.town ? prev : null, route, ...report };
+        // Resultados del viaje: contra lo que llevabas al salir del pueblo (tripStart).
+        const start = reg.get("tripStart");
+        if (route && start) this.arrival.trip = { ...start, to: def.town, days: this.arrival.days, melted: report.melted, heat: localHeat(reg, MAPS[route]) };
         setHour(reg, ARRIVAL_HOUR); // luz del día: se llega al pueblo en la mañana
       }
       reg.set("lastRoute", null);
+      reg.set("tripStart", null);
       reg.set("currentTown", def.town);
       recordSeen(reg, def.town);
       heal(reg);
@@ -142,21 +148,22 @@ export class WorldScene extends Phaser.Scene {
     this.ui.enterMap(def);
     this.refreshSigns();
     if (def.kind === "route") this.spawnPeddler();
-    if (this.arrival) this.time.delayedCall(700, () => this.onArrival());
-    else if (def.kind === "town") this.time.delayedCall(2900, () => this.showNeeds());
+    this.buildWaySigns();
+    // Todo lo que sale al llegar va en la cola de la interfaz, uno tras otro (ver onArrival).
+    if (this.intro) this.startTutorial();
+    else if (tutorialStep(reg) >= 0) this.ui.showTutorial(tutorialStep(reg), { done: this.tutorialHalf });
+    else this.ui.hideTutorial();
+    if (this.arrival) this.onArrival();
+    else if (def.kind === "town") this.ui.queueNotice(async () => { await this.ui.afterBanner(); this.showNeeds(); });
+    if (def.kind === "route") this.tutorialEvent("route");
 
     this.debugOn = false;
     this.input.keyboard.on("keydown", this.onDebugKey, this);
     // El modo depuración sigue prendido al cambiar de mapa hasta que se apague con F1.
     if (reg.get("debugMode")) this.toggleDebug(true);
     this.events.once("shutdown", () => this.ui.prompt(null));
-    if (this.intro) {
-      const lines = online.on
-        ? [...INTRO, "Y no estás solo: otros contrabandistas andan por el golfo. Lo que vendan ellos mueve tus precios.", "Enter para escribirles. Mantén T para hablarles por micrófono."]
-        : INTRO;
-      this.time.delayedCall(900, () => this.runModal(() => this.ui.say(lines)));
-    }
-    if (def.kind === "route" && !flag(reg, "hint-route")) {
+    // Con el tutorial andando, sus pasos ya dicen cómo correr y agacharse.
+    if (def.kind === "route" && !flag(reg, "hint-route") && tutorialStep(reg) < 0) {
       setFlag(reg, "hint-route");
       this.time.delayedCall(2600, () => this.ui.toast(`${keyName("attack")} golpear · ${keyName("roll")} rodar (mantén: correr) · ${keyName("hide")} agacharse`, "font-o"));
       this.time.delayedCall(5400, () => this.ui.toast("En el pasto alto, agachado, nadie te ve", "font-green"));
@@ -429,6 +436,7 @@ export class WorldScene extends Phaser.Scene {
     this.updateHorse();
     this.updateBarrier(dt);
     this.ui.prompt(target && this.player.state === "move" ? target.label : null);
+    this.updateGuides();
     this.checkExits();
   }
 
@@ -473,6 +481,8 @@ export class WorldScene extends Phaser.Scene {
     npc.lookAt(this.player.x, this.player.y);
     const reg = this.registry;
     const name = npc.spec.name;
+    // El retrato del diálogo: lo que diga con su nombre lleva su cara.
+    this.ui.talkCast = npc.spec.cast;
     try {
       switch (npc.spec.role) {
         case "market":
@@ -523,6 +533,7 @@ export class WorldScene extends Phaser.Scene {
       }
     } finally {
       npc.talking = false;
+      this.ui.talkCast = null;
       this.refreshSigns();
     }
   }
@@ -635,8 +646,11 @@ export class WorldScene extends Phaser.Scene {
       const r2 = new Phaser.Geom.Rectangle(b.x - 3, b.y - 12, b.width + 6, b.height + 14);
       if (Phaser.Geom.Intersects.RectangleToRectangle(rect, r2)) {
         p.hitThisSwing.add(e);
-        e.hit(1, c.x, c.y);
-        this.cameras.main.shake(50, 0.003);
+        if (e.invuln > 0) continue;
+        // Congelado antes del golpe, para que el enemigo que muere lo respete al aplastarse.
+        const kills = !e.puppet && e.hp <= 1;
+        hitstop(this, kills ? PLAYER.hitstop.kill : PLAYER.hitstop.hit, e);
+        if (e.hit(1, c.x, c.y)) shake(this, kills ? "kill" : "hit");
       }
     }
     const x0 = Math.floor(rect.x / TILE);
@@ -684,7 +698,12 @@ export class WorldScene extends Phaser.Scene {
   damagePlayer(halves, source, { steal = false } = {}) {
     const reg = this.registry;
     const s = source.center ? source.center() : source;
-    if (!this.player.hurt(halves, s.x, s.y)) return;
+    // Empujón según quién pega (el guardia más fuerte); una embestida pega más y sacude más.
+    const charged = source.state === "charge";
+    const push = (ENEMY[source.kind ?? source.spec?.kind]?.push ?? PLAYER.knockback) * (charged ? 1.2 : 1);
+    if (!this.player.hurt(halves, s.x, s.y, push)) return;
+    hitstop(this, PLAYER.hitstop.hurt, source.sprite ? source : null);
+    shake(this, charged ? "charge" : "hurt");
     hurt(reg, halves);
     if (maybeBreakRune(reg)) {
       this.fx.float(this.player.x, this.player.y - 26, "¡crac!", "font-red");
@@ -1127,15 +1146,27 @@ export class WorldScene extends Phaser.Scene {
 
   // ---------------------------------------------------------------- llegada y deuda
 
-  /** Al llegar a un pueblo: días que pasaron, escarcha y el cobrador. */
+  /**
+   * Al llegar a un pueblo, en fila (cola de la interfaz): el cartel del lugar → los resultados del
+   * viaje (o el aviso de días, si llegaste en barca) → el cobrador → "HOY EN …".
+   */
   onArrival() {
     const reg = this.registry;
     const a = this.arrival;
     if (!a) return;
-    if (a.days) this.ui.toast(`Pasaron ${a.days} ${a.days === 1 ? "día" : "días"} · día ${day(reg)}`, "font-gold");
-    if (a.melted) this.time.delayedCall(500, () => this.ui.toast(`Se te derritió la escarcha (${a.melted})`, "font-red"));
-    this.runModal(async () => {
-      if (debtDue(reg)) await this.debtCollector();
+    const ui = this.ui;
+    this.tutorialEvent("town");
+    ui.queueNotice(() => ui.afterBanner());
+    if (a.trip) {
+      ui.queueNotice(() => this.runModal(() => ui.tripReport(a.trip)));
+    } else {
+      if (a.days) ui.queueNotice(() => ui.noticeToast(`Pasaron ${a.days} ${a.days === 1 ? "día" : "días"} · día ${day(reg)}`, "font-gold"));
+      if (a.melted) ui.queueNotice(() => ui.noticeToast(`Se te derritió la escarcha (${a.melted})`, "font-red"));
+    }
+    ui.queueNotice(async () => {
+      if (debtDue(reg)) await this.runModal(() => this.debtCollector());
+    });
+    ui.queueNotice(() => {
       this.refreshSigns();
       this.showNeeds();
     });
@@ -1271,7 +1302,7 @@ export class WorldScene extends Phaser.Scene {
     const d = debt(reg);
     const cuota = Math.min(DEBT.cuota, d.owed);
     const name = "Cobrador del Gremio";
-    await this.ui.say(["Un hombre con el sello del Gremio te cierra el paso.", `—Le debes ${d.owed} al Gremio. Toca la cuota: ${cuota}.`], { name });
+    await this.ui.say(["Un hombre con el sello del Gremio te cierra el paso.", `—Le debes ${d.owed} al Gremio. Toca la cuota: ${cuota}.`], { name, cast: null });
     const pick = await this.ui.choose("Deuda con el Gremio", [
       { label: `Pagar la cuota · ${cuota}`, disabled: gold(reg) < cuota, note: `Vuelvo en ${DEBT.every} días` },
       { label: `Pagar todo · ${d.owed}`, disabled: gold(reg) < d.owed, note: "Y quedas libre" },
@@ -1285,14 +1316,14 @@ export class WorldScene extends Phaser.Scene {
         duckTheme(this, 0.05);
         sfx(this, "jingle-free", { volume: 0.55 });
         this.time.delayedCall(3500, () => restoreTheme());
-        await this.ui.say(["—Cuenta saldada. El Gremio ya no te busca.", "(Eres libre. Lo que ganes ahora es tuyo.)"], { name });
+        await this.ui.say(["—Cuenta saldada. El Gremio ya no te busca.", "(Eres libre. Lo que ganes ahora es tuyo.)"], { name, cast: null });
       } else {
-        await this.ui.say([`—Quedan ${debt(reg).owed}. Nos vemos el día ${debt(reg).due}.`], { name });
+        await this.ui.say([`—Quedan ${debt(reg).owed}. Nos vemos el día ${debt(reg).due}.`], { name, cast: null });
       }
     } else {
       missDebt(reg);
       tone(this, "deny");
-      await this.ui.say([`—Mala respuesta. Ahora son ${debt(reg).owed}.`, `—Vuelvo el día ${debt(reg).due}. Ten el oro.`], { name });
+      await this.ui.say([`—Mala respuesta. Ahora son ${debt(reg).owed}.`, `—Vuelvo el día ${debt(reg).due}. Ten el oro.`], { name, cast: null });
     }
     saveGame(reg);
   }
@@ -1480,6 +1511,12 @@ export class WorldScene extends Phaser.Scene {
     const guests = Object.keys(CREW).filter((w) => crewAt(reg, w) === here);
     const r = hearRumor(reg, 0.95);
     await this.ui.say([...(npc.spec.talk ?? []), r.text], { name });
+    // Una noche de cama: pasa un día, te curas y despiertas a las 7.
+    const bed = await this.ui.choose("Posada", [
+      { label: `Dormir · ${INN_SLEEP} oro`, disabled: gold(reg) < INN_SLEEP, note: online.on ? "Te curas (en línea el día no se salta)" : "Pasa un día: te curas y despiertas temprano" },
+      { label: "Ahora no" },
+    ]);
+    if (bed === 0) await this.sleepAtInn();
     for (const who of guests) {
       const fee = lodgingFee(reg, who);
       const pick = await this.ui.choose(`${CREW[who].name} está arriba`, [
@@ -1494,6 +1531,33 @@ export class WorldScene extends Phaser.Scene {
       this.followerTalkable(who);
       saveGame(reg);
     }
+  }
+
+  /** Dormir en la posada: fundido a negro, pasa un día, cura, amanece a las 7 y cobra. */
+  async sleepAtInn() {
+    const reg = this.registry;
+    if (!pay(reg, INN_SLEEP)) return false;
+    sfx(this, "coins", { volume: 0.4 });
+    this.cameras.main.fadeOut(450, 0, 0, 0);
+    await new Promise((r) => this.time.delayedCall(700, r));
+    // En línea el día no se salta: el reloj es de todos.
+    const report = online.on ? { melted: 0 } : passDays(reg, 1);
+    setHour(reg, WAKE_HOUR);
+    heal(reg);
+    recordSeen(reg, this.def.town);
+    saveGame(reg);
+    this.cameras.main.fadeIn(600, 0, 0, 0);
+    this.ui.toast(`Dormiste. Día ${day(reg)}`, "font-gold");
+    if (report.melted) this.ui.toast(`Se te derritió la escarcha (${report.melted})`, "font-red");
+    // Amaneció otro día: quizá toca el cobrador, y el pueblo quiere otras cosas.
+    this.ui.queueNotice(async () => {
+      if (debtDue(reg)) await this.runModal(() => this.debtCollector());
+    });
+    this.ui.queueNotice(() => {
+      this.refreshSigns();
+      this.showNeeds();
+    });
+    return true;
   }
 
   /** Nella: además de vender la yegua, la cuida en el establo. */
@@ -1732,18 +1796,28 @@ export class WorldScene extends Phaser.Scene {
 
   // ---------------------------------------------------------------- salidas
 
+  /** Hacia dónde se sale por un borde: up, down, left o right. */
+  exitDir(ex) {
+    return ex.dir ?? (ex.y === 0 ? "up" : ex.x === 0 ? "left" : ex.x + ex.w >= this.world.cols ? "right" : "down");
+  }
+
   checkExits() {
     const p = this.player;
     const cx = p.x / TILE;
     const cy = (p.y - 2) / TILE;
     for (const ex of this.def.exits ?? []) {
       if (cx >= ex.x - 0.3 && cx <= ex.x + ex.w + 0.3 && cy >= ex.y - 0.3 && cy <= ex.y + ex.h + 0.1) {
-        const dir = ex.dir ?? (ex.y === 0 ? "up" : ex.x === 0 ? "left" : ex.x + ex.w >= this.world.cols ? "right" : "down");
+        const dir = this.exitDir(ex);
         const v = p.body.velocity;
         const moving = { up: v.y < 0, down: v.y > 0, left: v.x < 0, right: v.x > 0 }[dir];
         if (!moving) continue;
         this.leaving = true;
         this.ui.prompt(null);
+        // Sales del pueblo a la ruta: se guarda cómo ibas, para los resultados del viaje al llegar.
+        if (this.def.kind === "town" && MAPS[ex.to]?.kind === "route") {
+          const reg = this.registry;
+          reg.set("tripStart", { from: this.def.town, gold: gold(reg), stones: stones(reg), fame: reputation(reg), day: day(reg) });
+        }
         this.cameras.main.fadeOut(240, 18, 14, 23);
         this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
           this.scene.restart({ map: ex.to, entry: ex.entry });
@@ -1751,6 +1825,184 @@ export class WorldScene extends Phaser.Scene {
         return;
       }
     }
+  }
+
+  // ---------------------------------------------------------------- salidas señaladas
+
+  /** A dónde lleva una salida y cuántos días cuesta ("Valkeep", 2). */
+  exitInfo(ex) {
+    const reg = this.registry;
+    const dest = MAPS[ex.to];
+    if (!dest) return null;
+    let name = dest.name;
+    let days = 0;
+    if (dest.kind === "route" && this.def.kind === "town") {
+      const other = dest.between.find((t) => t !== this.def.town) ?? dest.between[0];
+      name = TOWNS[other].name;
+      days = TRAVEL_DAYS.route;
+    } else if (dest.kind === "town") {
+      days = reg.get("currentTown") === dest.town ? TRAVEL_DAYS.back : TRAVEL_DAYS.route;
+    }
+    if (online.on) days = 0; // en línea viajar no pasa días
+    return { name, days, label: `${name}${days ? ` · ${days} ${days === 1 ? "día" : "días"}` : ""}` };
+  }
+
+  /**
+   * Un letrero con flecha junto a cada salida (a un lado del camino, donde haya piso libre) y,
+   * encima, una placa con el destino y los días.
+   */
+  buildWaySigns() {
+    const w = this.world;
+    const OPEN = new Set([".", ",", ":", "=", "_", "s", "g", '"']);
+    const free = (c, r) => {
+      const cc = Math.floor(c);
+      const rr = Math.floor(r);
+      return cc >= 0 && rr >= 0 && cc < w.cols && rr < w.rows && OPEN.has(w.at(cc, rr)) && !w.solidAt(cc * TILE + 8, rr * TILE + 8);
+    };
+    const ARROW = { up: "↑", down: "↓", left: "←", right: "→" };
+    for (const ex of this.def.exits ?? []) {
+      const info = this.exitInfo(ex);
+      if (!info) continue;
+      const dir = this.exitDir(ex);
+      // Lugares posibles (en celdas), del mejor al peor; la tabla apunta hacia la abertura.
+      const spots = dir === "up" || dir === "down"
+        ? [0.9, 1.9, -0.9, -1.9].map((d) => ({ c: d > 0 ? ex.x + ex.w + d - 1 : ex.x + d, r: dir === "up" ? ex.y + 3 : ex.y - 1.4, flip: d > 0 }))
+        : [-1.2, -2.2, 1.2, 2.2].map((d) => ({ c: dir === "left" ? ex.x + 2 : ex.x - 1.5, r: d < 0 ? ex.y + d : ex.y + ex.h + d - 1, flip: dir === "left" }));
+      const spot = spots.find((s) => free(s.c + 0.5, s.r + 0.5)) ?? spots[0];
+      const px = Math.round((spot.c + 0.5) * TILE);
+      const py = Math.round((spot.r + 1) * TILE);
+      const sign = this.add.image(px, py, "way-sign").setOrigin(0.5, 1).setFlipX(spot.flip).setDepth(py);
+      const text = `${ARROW[dir]} ${info.label}`;
+      const tw = Math.ceil(textWidth(text) / 2) * 2 + 10;
+      // La placa no se sale del mapa (en las salidas de los lados quedaría cortada).
+      const tx = Phaser.Math.Clamp(px, tw / 2 + 2, w.W - tw / 2 - 2);
+      const tag = this.add.container(tx, py - 22).setDepth(py + 1);
+      tag.add(this.add.image(0, 0, this.ui.panelKey("ui-tag", tw, 13)).setOrigin(0.5, 1));
+      tag.add(this.add.bitmapText(Math.round(-tw / 2) + 5, -11, "font-o", text));
+      this.waySigns.push({ ex, info, sign, tag, x: (ex.x + ex.w / 2) * TILE, y: (ex.y + ex.h / 2) * TILE });
+    }
+    // Si entraste junto a una salida, su aviso no sale hasta que te alejes y vuelvas.
+    const p = this.player;
+    this.wayNear = this.waySigns.find((s) => Math.hypot(s.x - p.x, s.y - p.y) < 80) ?? null;
+  }
+
+  /** Cada cuadro: el aviso al acercarte a una salida y la flecha del tutorial. */
+  updateGuides() {
+    const p = this.player;
+    let near = null;
+    for (const s of this.waySigns) if (Math.hypot(s.x - p.x, s.y - p.y) < 48) near = s;
+    if (near && this.wayNear !== near) this.ui.toast(`→ ${near.info.name}${near.info.days ? `, ${near.info.days} ${near.info.days === 1 ? "día" : "días"}` : ""}`, "font-gold");
+    if (near) this.wayNear = near;
+    else if (this.wayNear && Math.hypot(this.wayNear.x - p.x, this.wayNear.y - p.y) > 80) this.wayNear = null;
+    this.updateTutorial();
+  }
+
+  // ---------------------------------------------------------------- tutorial (partida nueva)
+
+  /** Dos líneas de historia y el primer paso. Reemplaza a las siete páginas de lore. */
+  startTutorial() {
+    const reg = this.registry;
+    setTutorialStep(reg, 0);
+    setFlag(reg, "tutorial-ran", false);
+    setFlag(reg, "tutorial-crouch", false);
+    const lines = online.on
+      ? [...INTRO, "Y no estás solo: otros contrabandistas andan por el golfo. Enter para escribirles; mantén T para hablarles."]
+      : INTRO;
+    this.ui.queueNotice(async () => {
+      await this.ui.afterBanner();
+      await this.runModal(() => this.ui.say(lines));
+    });
+    this.ui.queueNotice(() => {
+      if (tutorialStep(reg) < 0) return;
+      this.ui.showTutorial(tutorialStep(reg));
+      tone(this, "confirm");
+    });
+  }
+
+  /** En la ruta del tutorial ya corriste y te agachaste. */
+  get tutorialHalf() {
+    return flag(this.registry, "tutorial-ran") && flag(this.registry, "tutorial-crouch");
+  }
+
+  /** Algo que cuenta para el tutorial: "shop", "buy", "sell" (del mercado), "route", "town". */
+  tutorialEvent(kind) {
+    const reg = this.registry;
+    const step = tutorialStep(reg);
+    if (step < 0) return;
+    let next = null;
+    if (kind === "shop" && step === 0) next = 1;
+    else if (kind === "buy" && step <= 1) next = 2;
+    else if (kind === "route" && step <= 2) next = 3;
+    else if (kind === "town" && step === 3) next = 4;
+    else if (kind === "sell" && step === 4) { this.endTutorial(false); return; }
+    if (next == null) return;
+    setTutorialStep(reg, next);
+    saveGame(reg);
+    this.ui.showTutorial(next, { done: next === 3 && this.tutorialHalf });
+    tone(this, "confirm");
+  }
+
+  /** Se acabó el tutorial (o se saltó desde la pausa). */
+  endTutorial(skipped) {
+    const reg = this.registry;
+    setTutorialStep(reg, -1);
+    if (!skipped) setFlag(reg, "hint-route");
+    this.tutArrow?.setVisible(false);
+    this.ui.hideTutorial();
+    saveGame(reg);
+    if (!skipped) {
+      this.ui.queueNotice(() => {
+        sfx(this, "jingle-mission", { volume: 0.4 });
+        return this.ui.noticeToast("¡Listo! Compra donde sobra, vende donde ocupan y paga al cobrador", "font-gold");
+      });
+    }
+  }
+
+  /** A dónde apunta la flecha del paso: {x, y, dir} en el mundo (dir = hacia dónde apunta). */
+  tutorialTarget(step) {
+    const reg = this.registry;
+    if (step === 0 || step === 1 || step === 4) {
+      const m = this.npcs.find((n) => n.spec.role === "market");
+      return m ? { x: m.x, y: m.y - 42, dir: "down" } : null; // encima de la burbuja con la gema
+    }
+    const town = reg.get("currentTown");
+    const ex = step === 2
+      ? (this.def.exits ?? []).find((e) => MAPS[e.to]?.kind === "route")
+      : step === 3 ? (this.def.exits ?? []).find((e) => MAPS[e.to]?.kind === "town" && MAPS[e.to].town !== town) : null;
+    if (!ex) return null;
+    const dir = this.exitDir(ex);
+    const [ix, iy] = { up: [0, 1], down: [0, -1], left: [1, 0], right: [-1, 0] }[dir];
+    return { x: (ex.x + ex.w / 2) * TILE + ix * 18, y: (ex.y + ex.h / 2) * TILE + iy * 18, dir };
+  }
+
+  /** La flecha que rebota sobre el objetivo (o en el borde de la pantalla, apuntando hacia él). */
+  updateTutorial() {
+    const reg = this.registry;
+    const step = tutorialStep(reg);
+    // Paso de la ruta: se cumple a medias corriendo y agachándote; luego, a Valkeep.
+    if (step === 3 && !this.tutorialHalf) {
+      if (this.player.running) setFlag(reg, "tutorial-ran");
+      if (this.player.crouching) setFlag(reg, "tutorial-crouch");
+      if (this.tutorialHalf) { this.ui.showTutorial(3, { done: true }); tone(this, "confirm"); saveGame(reg); }
+    }
+    const t = step >= 0 ? this.tutorialTarget(step) : null;
+    if (!t) { this.tutArrow?.setVisible(false); return; }
+    if (!this.tutArrow) this.tutArrow = this.add.image(0, 0, "ui-guide-arrow").setDepth(DEPTH.ui - 1);
+    const view = this.cameras.main.worldView;
+    // Márgenes: arriba quedan el letrero del tutorial y el HUD; abajo, los avisos.
+    const [ml, mr, mt, mb] = [12, 12, 30, 34];
+    let { x, y, dir } = t;
+    if (x < view.x + ml || x > view.right - mr || y < view.y + mt || y > view.bottom - mb) {
+      const dx = x - view.centerX;
+      const dy = y - view.centerY;
+      dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : dy > 0 ? "down" : "up";
+      x = Phaser.Math.Clamp(x, view.x + ml, view.right - mr);
+      y = Phaser.Math.Clamp(y, view.y + mt, view.bottom - mb);
+    }
+    const [vx, vy] = { down: [0, 1], up: [0, -1], left: [-1, 0], right: [1, 0] }[dir];
+    const back = 8 + Math.round((Math.sin(this.time.now / 130) + 1) * 2);
+    this.tutArrow.setVisible(true).setAngle({ down: 0, left: 90, up: 180, right: -90 }[dir])
+      .setPosition(Math.round(x - vx * back), Math.round(y - vy * back));
   }
 
   // ---------------------------------------------------------------- pausa y depuración

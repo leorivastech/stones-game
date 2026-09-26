@@ -79,6 +79,27 @@ export function pipIcon(on) {
   return b;
 }
 
+/** Flecha del tutorial: apunta abajo, oro con borde oscuro. 13×10. Se gira de 90 en 90. */
+export function guideArrow() {
+  const b = new Buf(13, 10);
+  b.stamp([
+    "..#######..",
+    "..#######..",
+    "###########",
+    ".#########.",
+    "..#######..",
+    "...#####...",
+    "....###....",
+    ".....#.....",
+  ], { "#": "y3" }, 1, 1);
+  b.hline(4, 1, 5, "y5");
+  b.hline(2, 3, 3, "y4");
+  b.rect(9, 4, 2, 1, "y1");
+  b.rect(8, 5, 2, 1, "y1");
+  b.outline("ink");
+  return b;
+}
+
 export function keycap(wide = false) {
   const w = wide ? 21 : 11;
   const b = new Buf(w, 12);

@@ -1,6 +1,6 @@
 /** Catálogo de todo el arte. Boot lo sube a Phaser; lab.html lo muestra ampliado. */
 
-import { castSheet, flashSheet, rollSheet, koFrame, CASTS } from "./actors.js";
+import { castSheet, flashSheet, rollSheet, koFrame, portrait, CASTS } from "./actors.js";
 import { paintGround, T } from "./terrain.js";
 import * as props from "./props.js";
 import * as creatures from "./creatures.js";
@@ -21,6 +21,7 @@ export function buildArt() {
     add(`cast-${cast}`, sheet);
     add(`cast-${cast}-flash`, flashSheet(sheet));
     add(`ko-${cast}`, { buf: koFrame(cast) });
+    add(`portrait-${cast}`, { buf: portrait(cast) });
   }
   add("roll", rollSheet());
 
@@ -42,6 +43,7 @@ export function buildArt() {
   add("fence", { buf: props.fence() });
   add("fence-v", { buf: props.fence(true) });
   add("sign", { buf: props.sign() });
+  add("way-sign", { buf: props.waySign() });
   add("barrel", { buf: props.barrel() });
   add("crate", { buf: props.crate() });
   add("hay", { buf: props.hay() });
@@ -165,6 +167,7 @@ export function buildArt() {
   add("ui-pip-off", { buf: ui.pipIcon(false) });
   add("ui-key", { buf: ui.keycap(false) });
   add("ui-key-wide", { buf: ui.keycap(true) });
+  add("ui-guide-arrow", { buf: ui.guideArrow() });
   add("worldmap", { buf: ui.worldMap() });
   add("logo", { buf: ui.logo() });
   for (const l of lightArt(out)) add(l.key, l); // luz del día: manchas de luz y sol/luna del HUD

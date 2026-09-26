@@ -233,6 +233,26 @@ export function sign() {
   return withOutline(b, "o0");
 }
 
+/** Letrero de salida: poste con una tabla en punta de flecha (apunta a la derecha; se voltea). 18×20. */
+export function waySign() {
+  const b = new Buf(18, 20);
+  contact(b, 6, 18, 2.5, 1);
+  b.rect(5, 8, 2, 11, "o2");
+  b.set(5, 8, "o3");
+  // Tabla en flecha
+  b.rect(1, 2, 12, 7, "o4");
+  for (let i = 0; i < 4; i += 1) b.rect(13 + i, 2 + i, 1, 7 - i * 2, "o4");
+  b.hline(1, 2, 12, "o5");
+  b.hline(1, 8, 12, "o2");
+  // Flecha pintada en rojo sobre la tabla
+  b.hline(3, 5, 8, "r3");
+  b.rect(9, 4, 1, 3, "r3");
+  b.set(10, 5, "r3");
+  b.set(8, 3, "r2");
+  b.set(8, 7, "r2");
+  return withOutline(b, "o0");
+}
+
 export function barrel() {
   const b = new Buf(12, 16);
   shadow(b, 6, 14, 5, 1.5);

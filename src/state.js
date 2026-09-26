@@ -56,6 +56,8 @@ export const CREW = {
 };
 /** Lo que cobran por día la posada (gente) y el establo (caballo). */
 export const LODGING = { inn: 3, stable: 2 };
+/** Dormir una noche en la posada: pasa un día, curas y despiertas temprano. */
+export const INN_SLEEP = 8;
 export const STASH_RAID_HEAT = 60;
 export const TONIC = { cost: 12, max: 3, heal: 4 };
 export const BOAT_FARE = 15;
@@ -102,6 +104,8 @@ export function freshRun() {
     mapId: online.on && online.start ? online.start : "ashfen",
     // Hora del día (0-24): la mueve src/engine/daylight.js.
     hour: 8,
+    // Cómo ibas al salir del último pueblo (para los resultados del viaje al llegar).
+    tripStart: null,
   };
 }
 
@@ -421,6 +425,31 @@ export function setFlag(registry, id, value = true) {
   registry.set("flags", { ...getRecord(registry, "flags", {}), [id]: value });
 }
 
+// ---------- Tutorial de la partida nueva ----------
+
+/**
+ * Pasos del tutorial (flags.tutorial = número del paso; sin número = no hay tutorial).
+ * Cada paso se cumple con la acción real; `{roll}` y `{hide}` se cambian por la tecla.
+ */
+export const TUTORIAL = [
+  { id: "talk", text: "Habla con Brena, la comerciante" },
+  { id: "buy", text: "Compra una piedra que SOBRA", alt: "Compra una piedra: la más barata" },
+  { id: "north", text: "Sal por el norte hacia Valkeep" },
+  { id: "route", text: "Corre con {roll} · agáchate con {hide} en el pasto alto", done: "Bien. Sigue al norte hasta Valkeep" },
+  { id: "sell", text: "Vende lo que OCUPAN: así ganas fama" },
+];
+
+/** Paso actual del tutorial (0…), o -1 si no hay. */
+export function tutorialStep(registry) {
+  const v = getRecord(registry, "flags", {}).tutorial;
+  return typeof v === "number" && v >= 0 && v < TUTORIAL.length ? v : -1;
+}
+
+/** Pasa al paso `n`; de largo del último, se termina (y no vuelve). */
+export function setTutorialStep(registry, n) {
+  setFlag(registry, "tutorial", n >= 0 && n < TUTORIAL.length ? n : false);
+}
+
 // ---------- Calor ----------
 
 export function heat(registry, townId) {
@@ -602,6 +631,22 @@ export function seenOf(registry, townId) {
   return getRecord(registry, "seen", {})[townId] ?? null;
 }
 
+/**
+ * La mejor pista para el HUD: en qué otro pueblo pagaban más por una piedra (respecto a su valor),
+ * según lo último que viste allá. Sólo si pagaban bien (×1.2 o más). null si no sabes nada.
+ */
+export function bestLead(registry, hereTown = null) {
+  let best = null;
+  for (const [town, s] of Object.entries(getRecord(registry, "seen", {}))) {
+    if (town === hereTown || !s?.prices) continue;
+    for (const g of GOOD_IDS) {
+      const rate = (s.prices[g] ?? 0) / STONE[g].value;
+      if (rate >= 1.2 && (!best || rate > best.rate)) best = { town, good: g, price: s.prices[g], rate, day: s.day };
+    }
+  }
+  return best;
+}
+
 // ---------- Días ----------
 
 /**
@@ -777,7 +822,7 @@ const saveKey = () => (online.on && online.name ? `${BASE_KEY}-online-${online.n
 const SAVED = [
   "gold", "cargo", "chill", "baseCapacity", "reputation", "trips", "currentTown", "lastRoute", "day", "market", "drift", "mods",
   "heat", "seen", "rumors", "debt", "fameSold", "peddler", "upgrades", "hp", "maxHp", "tonics",
-  "stashes", "flags", "mapId", "crew", "hour",
+  "stashes", "flags", "mapId", "crew", "hour", "tripStart",
 ];
 
 export function saveGame(registry) {

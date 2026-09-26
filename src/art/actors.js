@@ -638,3 +638,29 @@ export function rollSheet() {
 export function koFrame(cast) {
   return frame(cast, "down", 0).rotated();
 }
+
+/**
+ * Retrato para los diálogos: 24×24 con marco. Cabeza y hombros del cuadro de frente, a tamaño real
+ * (×1), sobre un fondo cálido; el marco oscuro con filo dorado, como los paneles.
+ */
+export function portrait(cast) {
+  const src = frame(cast, "down");
+  const b = new Buf(24, 24);
+  b.rect(0, 0, 24, 24, "ink");
+  b.rect(1, 1, 22, 22, "y1");
+  b.rect(2, 2, 20, 20, "o1");
+  b.rect(2, 2, 20, 9, "o2");
+  // Filas 0-19 del personaje (cabeza y hombros), centradas; lo de abajo queda cortado por el marco.
+  for (let y = 0; y < 20; y += 1) {
+    for (let x = 0; x < FW; x += 1) {
+      const c = src.get(x, y);
+      if (c >>> 24) b.set(4 + x, 3 + y, c);
+    }
+  }
+  // Marco encima: tapa lo que se sale por abajo.
+  b.rect(2, 22, 20, 1, "y1");
+  b.rect(1, 23, 22, 1, "ink");
+  b.set(1, 1, "y3");
+  b.set(22, 1, "y2");
+  return b;
+}

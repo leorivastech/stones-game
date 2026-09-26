@@ -18,7 +18,7 @@ import {
   GOODS, GOOD_IDS, STONE, TOWNS, UPGRADES, buy, canBuy, capacity, cargo, cargoOf, chill, day, debt, flag, gold,
   hasUpgrade, heatLevel, hiddenCapacity, hp, load, localHeat, maxHp, priceOf, reputation, saveGame, sell, setFlag,
   seenOf, stones, rumors, fameTitle, nextFameTitle, moveStash, stashOf, stashCount, STASH_CAPACITY, STASH_RAID_HEAT,
-  tonics, TONIC, townTips, FAME_TITLES, REFUGES,
+  tonics, TONIC, townTips, FAME_TITLES, REFUGES, TUTORIAL, tutorialStep, setTutorialStep, bestLead,
 } from "../state.js";
 
 const D = 20000;
@@ -37,6 +37,10 @@ export class UIScene extends Phaser.Scene {
     this.def = null;
     this.toasts = [];
     this.bornAt = this.time.now; // lo que llega al cargar la partida no es "pagar" ni "subir de fama"
+    // Cola de avisos: lo que sale al llegar (resultados, días, cobrador, HOY EN) va uno tras otro.
+    this.noticeQ = [];
+    this.noticeGen = 0;
+    this.noticeBusy = false;
     this.buildHud();
     this.buildPrompt();
     this.registry.events.on("changedata", () => this.refresh(), this);
@@ -61,6 +65,10 @@ export class UIScene extends Phaser.Scene {
     this.skyIcon = this.add.sprite(0, 30, "ui-sky", 0).setOrigin(0, 0); // luz del día
     this.tonicIcon = this.add.image(7, 28, "tonic").setOrigin(0, 0);
     this.tonicText = this.add.bitmapText(18, 29, "font-o", "");
+    // Objetivo bajo "Día N": el cobrador y la mejor pista de venta (o el paso del tutorial).
+    this.goalText = this.add.bitmapText(VIEW_W - 6, 40, "font-o", "").setOrigin(1, 0);
+    this.leadText = this.add.bitmapText(VIEW_W - 6, 51, "font-green", "").setOrigin(1, 0);
+    this.hud.add([this.goalText, this.leadText]);
     this.hud.add([this.coinIcon, this.goldText, this.eye, ...this.pips, this.star, this.fameText, this.dayText, this.skyIcon, this.tonicIcon, this.tonicText]);
   }
 
@@ -147,6 +155,29 @@ export class UIScene extends Phaser.Scene {
     this.fameText.setText(String(reputation(reg)));
     this.dayText.setText(`Día ${day(reg)}`);
     this.skyIcon.setFrame(isNight(reg) ? 1 : 0).setX(VIEW_W - 6 - this.dayText.width - 10); // luz del día
+    this.refreshGoal();
+  }
+
+  /** La línea de objetivo: "Cobrador en 3 días · deuda 420" y "Ocupan ámbar en Valkeep". */
+  refreshGoal() {
+    const reg = this.registry;
+    const step = tutorialStep(reg);
+    if (step >= 0) {
+      this.goalText.setText(`Tutorial ${step + 1}/${TUTORIAL.length} · ${keyName("pause")}: saltar`).setFont("font-o");
+      this.leadText.setText("");
+      return;
+    }
+    const d = debt(reg);
+    if (d.owed > 0) {
+      const left = d.due - day(reg);
+      const when = left <= 0 ? "Cobrador: hoy" : `Cobrador en ${left} ${left === 1 ? "día" : "días"}`;
+      this.goalText.setText(`${when} · deuda ${d.owed}`).setFont(left <= 2 ? "font-red" : "font-o");
+    } else {
+      this.goalText.setText("");
+    }
+    const lead = bestLead(reg, this.def?.kind === "town" ? this.def.town : null);
+    this.leadText.setText(lead ? `Ocupan ${GOODS[lead.good].short.toLowerCase()} en ${TOWNS[lead.town].name}` : "");
+    this.leadText.setY(this.goalText.text ? 51 : 40);
   }
 
   // ------------------------------------------------------------------ juice del HUD
@@ -344,7 +375,7 @@ export class UIScene extends Phaser.Scene {
 
   /** Cierra cualquier ventana abierta (por si el mapa cambió con una abierta). */
   resetModals() {
-    for (const [key, obj] of [["dialog", this.dialog], ["choice", this.choice], ["shopState", this.shopState], ["pauseState", this.pauseState], ["stashState", this.stashState]]) {
+    for (const [key, obj] of [["dialog", this.dialog], ["choice", this.choice], ["shopState", this.shopState], ["pauseState", this.pauseState], ["stashState", this.stashState], ["report", this.report]]) {
       if (!obj) continue;
       this.killTree(obj.box);
       obj.box.destroy();
@@ -356,6 +387,7 @@ export class UIScene extends Phaser.Scene {
 
   enterMap(def) {
     this.resetModals();
+    this.clearNotices();
     // El cartel "HOY EN …" es del lugar que dejaste: se va.
     this.needsObj?.destroy();
     this.needsObj = null;
@@ -376,6 +408,7 @@ export class UIScene extends Phaser.Scene {
     const t2 = centerX(this.add.bitmapText(0, 17, "font-dim", sub));
     c.add([bg, t1, t2]);
     this.bannerObj = c;
+    this.bannerAt = this.time.now;
     this.tweens.add({ targets: c, y: 34, duration: 320, ease: "Back.Out" });
     this.tweens.add({ targets: c, y: -40, delay: 2400, duration: 280, ease: "Quad.In", onComplete: () => c.destroy() });
   }
@@ -384,8 +417,8 @@ export class UIScene extends Phaser.Scene {
    * Lo que conviene en este pueblo hoy, con sus gemas: lo tuyo que aquí pagan bien, lo que ocupan
    * (venderlo da fama) y lo que sobra. Sale solo al llegar y se va.
    */
-  townNeeds(townId, delay = 0) {
-    this.needsObj?.destroy();
+  /** Las filas de "HOY EN …": lo tuyo que aquí pagan bien, lo que ocupan y lo que sobra. */
+  needsRows(townId) {
     const tips = townTips(this.registry, townId);
     const short = (g) => GOODS[g].short.toLowerCase();
     const rows = [];
@@ -397,12 +430,18 @@ export class UIScene extends Phaser.Scene {
     const cheap = tips.cheap.find((q) => q.good !== want?.good);
     if (cheap) rows.push({ good: cheap.good, font: "font", text: `Sobra ${short(cheap.good)} · cuesta ${cheap.buy}` });
     if (!rows.length) rows.push({ good: null, font: "font-dim", text: "Hoy no hay gran negocio aquí" });
-    const list = rows.slice(0, 3);
+    return rows.slice(0, 3);
+  }
+
+  townNeeds(townId, delay = 0) {
+    this.needsObj?.destroy();
+    const list = this.needsRows(townId);
     const title = `HOY EN ${TOWNS[townId].name.toUpperCase()}`;
     const w = even(Math.max(textWidth(title), ...list.map((r) => textWidth(r.text) + 14)) + 16);
     const h = 18 + list.length * 13;
     const x = VIEW_W - w - 6;
-    const c = this.add.container(VIEW_W + 4, 44).setDepth(D + 4);
+    // Encima de los diálogos (D+10) y bajo la línea de objetivo del HUD.
+    const c = this.add.container(VIEW_W + 4, 64).setDepth(D + 11);
     c.add(this.panel(0, 0, "ui-dark", w, h));
     c.add(this.add.bitmapText(8, 5, "font-gold", title));
     list.forEach((r, i) => {
@@ -413,6 +452,193 @@ export class UIScene extends Phaser.Scene {
     this.needsObj = c;
     this.tweens.add({ targets: c, x, delay, duration: 280, ease: "Back.Out", onStart: () => sfx(this, "coin", { volume: 0.25 }) });
     this.tweens.add({ targets: c, x: VIEW_W + 4, delay: delay + 7000, duration: 260, ease: "Quad.In", onComplete: () => c.destroy() });
+  }
+
+  /** El mercado ya dice lo mismo en grande: el cartel "HOY EN" se aparta. */
+  hideNeeds() {
+    const c = this.needsObj;
+    if (!c?.active) return;
+    this.needsObj = null;
+    this.tweens.killTweensOf(c);
+    this.tweens.add({ targets: c, x: VIEW_W + 4, duration: 160, ease: "Quad.In", onComplete: () => c.destroy() });
+  }
+
+  // ------------------------------------------------------------------ cola de avisos
+
+  /**
+   * Pone un aviso en la cola. `fn` puede devolver una promesa: el siguiente espera a que termine.
+   * Cada aviso espera además a que no haya ventana abierta (diálogo, elección, mercado, pausa) ni
+   * modal del mundo. Cambiar de mapa vacía la cola.
+   */
+  queueNotice(fn) {
+    this.noticeQ.push(fn);
+    if (!this.noticeBusy) this.runNotices(this.noticeGen);
+  }
+
+  async runNotices(gen) {
+    this.noticeBusy = true;
+    while (this.noticeQ.length && gen === this.noticeGen) {
+      await this.untilFree(gen);
+      if (gen !== this.noticeGen) return;
+      const fn = this.noticeQ.shift();
+      try {
+        await fn();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    if (gen === this.noticeGen) this.noticeBusy = false;
+  }
+
+  clearNotices() {
+    this.noticeGen += 1;
+    this.noticeQ = [];
+    this.noticeBusy = false;
+  }
+
+  /** Nada abierto: ni ventanas de la interfaz ni un modal o fundido del mundo. */
+  isFree() {
+    const w = this.scene.get("world");
+    const worldBusy = w?.sys.isActive() && (w.modal || w.leaving);
+    return !this.mode && !worldBusy;
+  }
+
+  untilFree(gen) {
+    return new Promise((resolve) => {
+      const check = () => {
+        if (gen !== this.noticeGen || this.isFree()) resolve();
+        else this.time.delayedCall(80, check);
+      };
+      check();
+    });
+  }
+
+  wait(ms) {
+    return new Promise((resolve) => this.time.delayedCall(ms, resolve));
+  }
+
+  /** Espera a que el cartel del lugar empiece a irse (los avisos no le caen encima). */
+  afterBanner() {
+    const left = (this.bannerAt ?? 0) + 2300 - this.time.now;
+    return left > 0 ? this.wait(left) : Promise.resolve();
+  }
+
+  /** Un aviso corto como parte de la cola: sale y deja 900 ms antes del siguiente. */
+  noticeToast(text, font) {
+    this.toast(text, font);
+    return this.wait(900);
+  }
+
+  // ------------------------------------------------------------------ tutorial
+
+  /** Letrero de arriba al centro con el paso del tutorial. `done`: el paso ya se cumplió a medias. */
+  showTutorial(step, { done = false } = {}) {
+    const old = this.tutObj;
+    this.tutObj = null;
+    if (old) { this.tweens.killTweensOf(old); old.destroy(); }
+    this.refreshGoal();
+    if (step < 0 || !TUTORIAL[step]) return;
+    const t = TUTORIAL[step];
+    // Si hoy nada sobra en este pueblo, que compre lo más barato.
+    const noCheap = t.id === "buy" && this.def?.kind === "town" && !townTips(this.registry, this.def.town).cheap.length;
+    const text = (done && t.done ? t.done : noCheap ? t.alt ?? t.text : t.text).replace(/\{(\w+)\}/g, (_, a) => keyName(a) || a);
+    const num = `${step + 1}/${TUTORIAL.length}`;
+    const w = even(textWidth(num) + textWidth(text) + 26);
+    const c = this.add.container(0, -22).setDepth(D + 13);
+    c.add(this.panel(VIEW_W / 2 - w / 2, 0, "ui-dark", w, 17));
+    c.add(this.add.bitmapText(VIEW_W / 2 - w / 2 + 8, 3, "font-dim", num));
+    c.add(this.add.bitmapText(VIEW_W / 2 - w / 2 + 16 + textWidth(num), 3, done ? "font-green" : "font-gold", text));
+    this.tutObj = c;
+    this.tweens.add({ targets: c, y: 3, duration: 300, ease: "Back.Out" });
+  }
+
+  hideTutorial() {
+    const c = this.tutObj;
+    this.tutObj = null;
+    this.refreshGoal();
+    if (!c) return;
+    this.tweens.killTweensOf(c);
+    this.tweens.add({ targets: c, y: -22, duration: 220, ease: "Quad.In", onComplete: () => c.destroy() });
+  }
+
+  /** Avisa al mundo de algo que cuenta para el tutorial ("shop", "buy", "sell"). */
+  tutorialEvent(kind) {
+    const w = this.scene.get("world");
+    if (w?.sys.isActive()) w.tutorialEvent?.(kind);
+  }
+
+  // ------------------------------------------------------------------ resultados del viaje
+
+  /**
+   * Al llegar tras una ruta: días, oro ganado o perdido, piedras que llevas, calor de la ruta y fama.
+   * Se cierra con cualquier botón (tras un momento) o solo a los 7 s. Resuelve al cerrarse.
+   */
+  tripReport(r) {
+    return new Promise((resolve) => {
+      this.closeAll();
+      this.mode = "report";
+      const reg = this.registry;
+      const lines = [];
+      const sign = (n) => (n > 0 ? `+${n}` : String(n));
+      if (r.days) lines.push({ label: "Días", text: `${r.days} de camino · hoy es el día ${day(reg)}`, font: "font" });
+      const dg = gold(reg) - r.gold;
+      lines.push({ label: "Oro", text: `${r.gold} → ${gold(reg)}  (${sign(dg)})`, font: dg > 0 ? "font-green" : dg < 0 ? "font-red" : "font" });
+      const now = stones(reg);
+      lines.push({ label: "Piedras", text: now ? "" : "ninguna", font: "font", gems: now > 0, after: r.stones !== now ? `(antes ${r.stones})` : "" });
+      const lvl = heatLevel(r.heat);
+      lines.push({ label: "Calor", text: ["tranquila", "vigilada", "caliente", "ardiente"][lvl], font: ["font-green", "font", "font-gold", "font-red"][lvl], eye: lvl });
+      const df = reputation(reg) - r.fame;
+      lines.push({ label: "Fama", text: `${reputation(reg)}${df ? `  (${sign(df)})` : ""} · ${fameTitle(reputation(reg))}`, font: df > 0 ? "font-green" : "font" });
+      if (r.melted) lines.push({ label: "Escarcha", text: `se te derritieron ${r.melted}`, font: "font-red" });
+      const title = r.from && r.from !== r.to ? `${TOWNS[r.from].name} → ${TOWNS[r.to].name}` : `De vuelta en ${TOWNS[r.to].name}`;
+      const w = 250;
+      const h = 34 + lines.length * 15 + 18;
+      const x = Math.round(VIEW_W / 2 - w / 2);
+      const y = Math.round(VIEW_H / 2 - h / 2 - 6);
+      const box = this.add.container(0, 0).setDepth(D + 14);
+      box.add(this.add.rectangle(x + 2, y + 2, w - 4, h - 4, 0x120e17, 0.9).setOrigin(0, 0));
+      box.add(this.panel(x, y, "ui-dark", w, h));
+      box.add(this.add.bitmapText(x + 10, y + 7, "font-dim", "VIAJE"));
+      box.add(this.add.bitmapText(x + w - 10, y + 7, "font-gold", title).setOrigin(1, 0));
+      box.add(this.add.rectangle(x + 8, y + 21, w - 16, 1, 0x8c5e13, 0.7).setOrigin(0, 0));
+      lines.forEach((l, i) => {
+        const ly = y + 28 + i * 15;
+        box.add(this.add.bitmapText(x + 12, ly, "font-dim", l.label));
+        let tx = x + 72;
+        if (l.eye != null) { box.add(this.add.image(tx, ly - 1, `ui-eye-${l.eye}`).setOrigin(0, 0)); tx += 16; }
+        if (l.gems) {
+          const c = cargo(reg);
+          for (const g of GOOD_IDS) {
+            if (!c[g]) continue;
+            box.add(this.add.image(tx, ly - 1, `gem-${g}`).setOrigin(0, 0));
+            box.add(this.add.bitmapText(tx + 11, ly, "font", `×${c[g]}`));
+            tx += 11 + textWidth(`×${c[g]}`) + 7;
+          }
+        }
+        if (l.text) box.add(this.add.bitmapText(tx, ly, l.font, l.text));
+        if (l.after) box.add(this.add.bitmapText(tx + (l.text ? textWidth(l.text) + 6 : 0), ly, "font-dim", l.after));
+      });
+      box.add(this.add.bitmapText(x + w - 10, y + h - 15, "font-dim", `${keyName("confirm")} seguir`).setOrigin(1, 0));
+      this.openBox(box, VIEW_W / 2, y + h / 2);
+      sfx(this, "coin", { volume: 0.25 });
+      const finish = () => {
+        if (this.report?.box !== box) return;
+        this.report = null;
+        this.mode = null;
+        timer.remove();
+        this.closeBox(box, () => resolve());
+      };
+      const timer = this.time.delayedCall(7000, finish);
+      this.report = { box, finish, resolve };
+    });
+  }
+
+  updateReport() {
+    if (this.time.now - this.openedAt < 450) return;
+    if (this.controls.pressed("confirm") || this.controls.pressed("interact") || this.controls.pressed("cancel")) {
+      tone(this, "select");
+      this.report.finish();
+    }
   }
 
   /**
@@ -559,7 +785,11 @@ export class UIScene extends Phaser.Scene {
   // ------------------------------------------------------------------ diálogo
 
   /** Muestra páginas de texto. Resuelve al cerrar la última. */
-  say(lines, { name } = {}) {
+  /**
+   * `cast`: el personaje que habla, para su retrato junto al nombre. Si no viene, se usa el de la
+   * persona con la que estás hablando (`talkCast`, lo pone el mundo).
+   */
+  say(lines, { name, cast } = {}) {
     return new Promise((resolve) => {
       this.closeAll();
       this.mode = "dialog";
@@ -568,9 +798,13 @@ export class UIScene extends Phaser.Scene {
       const bg = this.panel(8, VIEW_H - 70, "ui-paper", VIEW_W - 16, 62).setOrigin(0, 0);
       box.add(bg);
       if (name) {
+        const who = cast === undefined ? this.talkCast : cast;
+        const face = who && this.textures.exists(`portrait-${who}`) ? `portrait-${who}` : null;
+        const nx = face ? 42 : 16;
+        if (face) box.add(this.add.image(16, VIEW_H - 94, face).setOrigin(0, 0));
         const tw = textWidth(name) + 14;
-        const tag = this.panel(16, VIEW_H - 82, "ui-dark", tw, 17).setOrigin(0, 0);
-        const tt = this.add.bitmapText(23, VIEW_H - 79, "font-gold", name);
+        const tag = this.panel(nx, VIEW_H - 82, "ui-dark", tw, 17).setOrigin(0, 0);
+        const tt = this.add.bitmapText(nx + 7, VIEW_H - 79, "font-gold", name);
         box.add([tag, tt]);
       }
       const text = this.add.bitmapText(20, VIEW_H - 62, "font-dark", "").setMaxWidth(VIEW_W - 44).setLineSpacing(2);
@@ -743,7 +977,9 @@ export class UIScene extends Phaser.Scene {
       const hint = this.add.bitmapText(x + 10, y + h - 14, "font-dim", `←→ comprar o vender · ↑↓ piedra · ${keyName("confirm")} confirmar (mantén: varias) · ${keyName("cancel")} salir`);
       box.add([cursor, info, footer, hint]);
       this.openBox(box, VIEW_W / 2, y + h / 2);
+      this.hideNeeds();
       this.shopState = { townId, box, rows, cursor, pick, info, footer, col, index: 0, side: 0, resolve, x, y, w, sold: {} };
+      this.tutorialEvent("shop");
       // Arranca donde haya algo que hacer: vender lo que llevas, o comprar lo que aquí sobra.
       const carried = rows.findIndex((r) => cargoOf(this.registry, r.good) > 0);
       if (carried >= 0) { this.shopState.index = carried; this.shopState.side = 1; }
@@ -823,6 +1059,7 @@ export class UIScene extends Phaser.Scene {
       return;
     }
     if (!buying) s.sold[row.good] = (s.sold[row.good] ?? 0) + 1;
+    this.tutorialEvent(buying ? "buy" : "sell");
     sfx(this, buying ? "gem" : "coins-sell", { volume: 0.5 });
     tone(this, "pickup");
     const t = this.add.bitmapText(cell.x, row.y - 2, buying ? "font-red" : "font-gold", buying ? `-${res.price}` : `+${res.price}`)
@@ -964,9 +1201,12 @@ export class UIScene extends Phaser.Scene {
       });
       box.add(this.add.rectangle(16, 31, VIEW_W - 32, 1, 0x8c5e13).setOrigin(0, 0));
       box.add(this.add.bitmapText(VIEW_W - 22, VIEW_H - 24, "font-dim", `←→ pestañas · ${keyName("cancel")} volver`).setOrigin(1, 0));
+      // Con el tutorial andando: se puede saltar (dos veces J, para no saltarlo sin querer).
+      const skip = tutorialStep(this.registry) >= 0 ? this.add.bitmapText(22, VIEW_H - 24, "font-gold", `${keyName("confirm")} saltar tutorial`) : null;
+      if (skip) box.add(skip);
       const page = this.add.container(0, 0);
       box.add(page);
-      this.pauseState = { box: outer, panel: box, veil, tabs, tabTexts, page, index: 0, resolve, def };
+      this.pauseState = { box: outer, panel: box, veil, tabs, tabTexts, page, index: 0, resolve, def, skip, skipArmed: false };
       this.drawPause();
       this.openBox(box);
     });
@@ -1154,9 +1394,20 @@ export class UIScene extends Phaser.Scene {
         const lvl = heatLevel(localHeat(reg, { kind: "town", town: t.id }));
         add(this.add.image(440, y - 1, `ui-eye-${lvl}`).setOrigin(0, 0));
       });
-      txt(24, 184, "Los precios cambian cada día: lo que sobra baja, lo que falta sube.", "font-dim");
-      txt(24, 196, "Nadie te paga más que la Corona. Vender sube el calor del pueblo.", "font-dim");
-      txt(24, 208, "Los rumores de la gente traen noticias frescas.", "font-dim");
+      // El cartel "HOY EN …" del pueblo donde estás, para volver a verlo.
+      if (p.def.kind === "town") {
+        txt(24, 174, `HOY EN ${TOWNS[p.def.town].name.toUpperCase()}`, "font-gold");
+        let hx = 24;
+        for (const r of this.needsRows(p.def.town)) {
+          if (hx + textWidth(r.text) + 12 > VIEW_W - 24) break;
+          if (r.good) { add(this.add.image(hx, 185, `gem-${r.good}`).setOrigin(0, 0)); hx += 12; }
+          txt(hx, 186, r.text, r.font);
+          hx += textWidth(r.text) + 12;
+        }
+      }
+      txt(24, 204, "Los precios cambian cada día: lo que sobra baja, lo que falta sube.", "font-dim");
+      txt(24, 216, "Nadie te paga más que la Corona. Vender sube el calor del pueblo.", "font-dim");
+      txt(24, 228, "Los rumores de la gente traen noticias frescas.", "font-dim");
     } else {
       // Dos grupos iguales: WASD + J K L, o flechas + Z X C. En celular, los botones.
       const rows = touch.on ? [
@@ -1189,6 +1440,19 @@ export class UIScene extends Phaser.Scene {
 
   updatePause() {
     const p = this.pauseState;
+    if (p.skip && tutorialStep(this.registry) >= 0 && (this.controls.pressed("confirm") || this.controls.pressed("interact"))) {
+      if (!p.skipArmed) {
+        p.skipArmed = true;
+        p.skip.setText(`¿Saltar el tutorial? ${keyName("confirm")} otra vez`).setFont("font-red");
+        tone(this, "select");
+      } else {
+        const w = this.scene.get("world");
+        if (w?.sys.isActive() && w.endTutorial) w.endTutorial(true);
+        else { setTutorialStep(this.registry, -1); this.hideTutorial(); }
+        p.skip.setText("Tutorial saltado").setFont("font-dim");
+        tone(this, "confirm");
+      }
+    }
     if (this.controls.pressed("right")) { p.index = (p.index + 1) % p.tabs.length; tone(this, "select"); this.drawPause(); }
     if (this.controls.pressed("left")) { p.index = (p.index + p.tabs.length - 1) % p.tabs.length; tone(this, "select"); this.drawPause(); }
     if (this.controls.pressed("pause") || this.controls.pressed("cancel")) {
@@ -1229,11 +1493,16 @@ export class UIScene extends Phaser.Scene {
 
   update(time, delta) {
     this.controls.update();
+    // La línea de objetivo no se asoma por detrás de las ventanas grandes.
+    const big = this.mode === "shop" || this.mode === "stash" || this.mode === "pause" || this.mode === "boat" || this.mode === "report";
+    this.goalText.setVisible(!big);
+    this.leadText.setVisible(!big);
     if (this.mode === "dialog" && this.dialog) this.updateDialog(delta);
     else if (this.mode === "choice" && this.choice) this.updateChoice();
     else if (this.mode === "shop" && this.shopState) this.updateShop();
     else if (this.mode === "pause" && this.pauseState) this.updatePause();
     else if (this.mode === "stash" && this.stashState) this.updateStash();
     else if (this.mode === "boat" && this.boatState) this.updateBoat();
+    else if (this.mode === "report" && this.report) this.updateReport();
   }
 }
