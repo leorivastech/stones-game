@@ -72,6 +72,7 @@ export class WorldScene extends Phaser.Scene {
     this.waySigns = [];
     this.wayNear = null;
     this.tutArrow = null;
+    this.contractBoardImg = null;
   }
 
   create(data) {
@@ -384,8 +385,13 @@ export class WorldScene extends Phaser.Scene {
 
   /** Cuánto más rápido vas con la yegua en una ruta (herraduras: ×1.2). */
   horseSpeed() {
+    return this.def.kind === "route" ? this.horseFactor() : 1;
+  }
+
+  /** El paso de la yegua donde sea (los letreros de un pueblo calculan la ruta que sigue). */
+  horseFactor() {
     const reg = this.registry;
-    if (this.def.kind !== "route" || !partyHas(reg, "horse")) return 1;
+    if (!partyHas(reg, "horse")) return 1;
     return hasUpgrade(reg, "horseshoes") ? 1.2 : 1.1;
   }
 
@@ -516,6 +522,7 @@ export class WorldScene extends Phaser.Scene {
     this.updateHorse();
     this.updateBarrier(dt);
     this.ui.prompt(target && this.player.state === "move" ? target.label : null);
+    if (this.contractBoardImg && this.boardDay !== day(this.registry)) this.refreshContractBoard();
     this.updateGuides();
     this.checkExits();
   }
@@ -1842,11 +1849,22 @@ export class WorldScene extends Phaser.Scene {
     this.contractBoardImg = img;
     this.interactables.push({
       x: px, y: py + 4, r: 20, label: "Contratos",
-      act: () => this.runModal(async () => {
+      // `act` ya corre dentro de runModal (update): otro runModal aquí no abriría nada.
+      act: async () => {
         await this.ui.contractBoard(town);
-        img.setFrame(any() ? 1 : 0);
-      }),
+        this.refreshContractBoard();
+      },
     });
+    this.boardDay = day(reg);
+  }
+
+  /** El dibujo del tablón (con o sin papeles): al tomar un contrato y al cambiar el día. */
+  refreshContractBoard() {
+    const img = this.contractBoardImg;
+    if (!img?.active || this.def.kind !== "town") return;
+    const reg = this.registry;
+    this.boardDay = day(reg);
+    img.setFrame(contractBoard(reg, this.def.town).some((o) => !o.taken) ? 1 : 0);
   }
 
   /** Posadero: aquí se queda tu gente (cobra por día) y se oyen los rumores más confiables. */
@@ -1864,7 +1882,7 @@ export class WorldScene extends Phaser.Scene {
       { label: `Dormir · ${INN_SLEEP} oro`, disabled: gold(reg) < INN_SLEEP, note: online.on ? "Te curas (en línea el día no se salta)" : "Te curas y despiertas a las 7 del día siguiente" },
       { label: "Ahora no" },
     ]);
-    if (bed === 0) await this.ui.contractBoard(this.def.town);
+    if (bed === 0) { await this.ui.contractBoard(this.def.town); this.refreshContractBoard(); }
     if (bed === 1) await this.sleepAtInn();
     for (const who of guests) {
       const fee = lodgingFee(reg, who);
@@ -2236,7 +2254,11 @@ export class WorldScene extends Phaser.Scene {
       name = TOWNS[other].name;
       hours = this.walkHours(dest);
     }
-    return { name, hours, label: `${name}${hours ? ` · ~${hours} h a pie` : ""}` };
+    return { name, hours, label: `${name}${hours ? ` · ~${hours} h ${this.howYouGo()}` : ""}` };
+  }
+
+  howYouGo() {
+    return this.horseFactor() > 1 ? "con la yegua" : "a pie";
   }
 
   /** Horas del juego para cruzar una ruta caminando (de boca a boca, con las vueltas del camino). */
@@ -2245,7 +2267,7 @@ export class WorldScene extends Phaser.Scene {
     if (mouths.length < 2) return 0;
     const [a, b] = mouths;
     const tiles = Math.hypot(a.x + a.w / 2 - (b.x + b.w / 2), a.y + a.h / 2 - (b.y + b.h / 2));
-    const seconds = (tiles * TILE * 1.5) / (PLAYER.walk * (partyHas(this.registry, "horse") ? 1.1 : 1));
+    const seconds = (tiles * TILE * 1.5) / (PLAYER.walk * this.horseFactor());
     const secondsPerDay = online.on ? (online.dayMs ?? 180000) / 1000 : DAY_SECONDS;
     return Math.max(1, Math.round((seconds * 24) / secondsPerDay));
   }
@@ -2296,7 +2318,7 @@ export class WorldScene extends Phaser.Scene {
     for (const s of this.waySigns) if (Math.hypot(s.x - p.x, s.y - p.y) < 48) near = s;
     if (near && this.wayNear !== near) {
       const h = near.info.hours;
-      const eta = h ? `, ~${h} h a pie · llegas hacia las ${Math.round(hourOf(this.registry) + h) % 24} h` : "";
+      const eta = h ? `, ~${h} h ${this.howYouGo()} · llegas hacia las ${Math.round(hourOf(this.registry) + h) % 24} h` : "";
       this.ui.toast(`→ ${near.info.name}${eta}`, "font-gold");
     }
     if (near) this.wayNear = near;

@@ -45,7 +45,7 @@ Ilícito y chico. Eventos de ruta rápidos (retén, asalto, confiscación), no t
 ## Motivo (decidido por ahora)
 
 El padre del caminante le debía **500 al Gremio**. Murió el invierno pasado y la deuda es tuya.
-Cada diez días pasa un cobrador. Pagarla es la primera meta; después el mundo sigue (no hay final
+Cada siete días pasa un cobrador (cuota de 40; si no pagas, vuelve antes y, a la tercera falta, manda matones). Pagarla es la primera meta; después el mundo sigue (no hay final
 forzoso). No hay misiones ni pedidos: compras y vendes donde conviene.
 
 ## Pregunta dramática pendiente

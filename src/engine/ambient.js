@@ -28,6 +28,8 @@ const DEFAULT_CELLS = new Set([".", ",", "x", "t", "o", "O", "b", "f", "|", "h",
 
 // Mapas de bosque aunque su bioma sea templado.
 const FOREST_MAPS = new Set(["mossgrove"]);
+/** Donde salen luciérnagas de noche: selva, bosque y la pradera templada (Ruta 1, Ashfen, Ruta 4). */
+const GLOW_BIOMES = new Set(["tropical", "forest", "temperate"]);
 
 const rand = (a, b) => a + Math.random() * (b - a);
 /** Aparece y se desvanece en los extremos de la vida (t 0→1). */
@@ -146,7 +148,7 @@ export class Ambient {
     S.forest = [leaves(["amb-leaf-green", "amb-leaf-green", "amb-leaf-amber"], 13, 500)];
     S.temperate = [pollen(7, 780)];
     S.mountain = [pollen(5, 1100), leaves(["amb-leaf-amber", "amb-leaf-green"], 3, 2200)];
-    // Luciérnagas de noche (selva y bosque): prenden y apagan despacio, por encima del velo.
+    // Luciérnagas de noche (selva, bosque y pradera): prenden y apagan despacio, por encima del velo.
     this.fireflies = this.emitter("amb-firefly", {
       frequency: 170, lifespan: { min: 2800, max: 4400 },
       speedX: { min: -6, max: 6 }, speedY: { min: -6, max: 4 },
@@ -188,7 +190,7 @@ export class Ambient {
   capParticles() {
     const fixed = this.sparks.reduce((n, e) => n + e.maxAliveParticles, 0) + this.kick.maxAliveParticles;
     for (const [k, list] of Object.entries(this.sets)) {
-      const glow = (k === "tropical" || k === "forest") && this.fireflies ? [this.fireflies] : [];
+      const glow = GLOW_BIOMES.has(k) && this.fireflies ? [this.fireflies] : [];
       const scaled = [...list, ...glow];
       const total = scaled.reduce((n, e) => n + e.maxAliveParticles, 0);
       const room = AMBIENT.maxParticles - fixed;
@@ -280,7 +282,7 @@ export class Ambient {
       this.checkIn = 500;
       this.select(this.biomeHere());
       const night = this.isNight();
-      const glow = night && (this.active === "tropical" || this.active === "forest");
+      const glow = night && GLOW_BIOMES.has(this.active);
       if (glow !== this.glowOn) {
         this.glowOn = glow;
         if (glow) {

@@ -33,7 +33,7 @@ En línea (varias personas): `npm run online` → http://127.0.0.1:5190/?online=
 | Estado de la partida (guardar, deuda, fama, refugios, tu gente) | `src/state.js` + `src/world.js` |
 | Refugios (mapas chicos) | `src/maps/refugios.js` |
 | Qué está decidido / construido / pendiente | `studio/panorama.md` |
-| Música, ambientes y efectos | `public/assets/music/`, `ambience/`, `sfx/` — cuál suena dónde: `src/music.js`; créditos: `public/assets/CREDITS.md` |
+| Música, ambientes y efectos (hechos con IA local) | `public/assets/music-ia/` y `public/assets/sfx-ia/` — cuál suena dónde y qué variante: `src/audio-ia.js` (lo leen `src/music.js` y `src/sfx.js`); cómo se generaron y el catálogo: `studio/musica/ia/`. Quedan unos pocos efectos viejos en `public/assets/sfx/` (créditos: `public/assets/CREDITS.md`) |
 | Escuchar y elegir música | http://127.0.0.1:5181/escuchar.html — guía en `studio/musica/README.md` |
 | Modo en línea (servidor, chat, voz, mundo compartido) | `server/` + `src/net/` — cómo se juega y se arranca: `studio/online.md` |
 | Trailer (grabar el juego + voz + HyperFrames) | `trailer/` — skill `trailer-juego` |

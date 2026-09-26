@@ -25,6 +25,8 @@ import {
 } from "../state.js";
 
 const D = 20000;
+/** Líneas de objetivo a la derecha del HUD, como mucho (más taparían el mapa). */
+const HUD_LINES = 3;
 const PANEL_SRC = { "ui-dark": [panelDark, 5], "ui-paper": [panelPaper, 5], "ui-tag": [panelTag, 3] };
 /** Ancho par: al centrar, la mitad cae en píxel entero. */
 const even = (n) => Math.ceil(n / 2) * 2;
@@ -202,6 +204,10 @@ export class UIScene extends Phaser.Scene {
       for (const t of this.contractTexts) t.setText("");
       return;
     }
+    // Candidatas (texto, letra, prioridad; menos = más importante). Se ven 3 como mucho, para que la
+    // columna no tape el mapa: contrato que vence hoy > cobrador en ≤2 días > suceso aquí > contrato >
+    // cobrador lejos > lo que ocupan. Se dibujan en su orden de siempre (cobrador, contratos, pista, suceso).
+    const lines = [];
     const d = debt(reg);
     if (d.owed > 0) {
       const left = d.due - day(reg);
@@ -209,32 +215,33 @@ export class UIScene extends Phaser.Scene {
       // Deuda con dientes: las faltas se ven (y los matones, si ya te esperan).
       const missed = d.missed ?? 0;
       const warn = thugsPending(reg) ? " · ¡matones!" : missed ? ` · ${missed} ${missed === 1 ? "falta" : "faltas"}` : "";
-      this.goalText.setText(`${when} · deuda ${d.owed}${warn}`).setFont(left <= 2 || missed >= 2 ? "font-red" : "font-o");
-    } else {
-      this.goalText.setText("");
+      const urgent = left <= 2 || missed >= 2 || thugsPending(reg);
+      lines.push({ obj: this.goalText, text: `${when} · deuda ${d.owed}${warn}`, font: urgent ? "font-red" : "font-o", prio: urgent ? 1 : 4 });
     }
-    const lead = bestLead(reg, this.def?.kind === "town" ? this.def.town : null);
-    this.leadText.setText(lead ? `Ocupan ${GOODS[lead.good].short.toLowerCase()} en ${TOWNS[lead.town].name}` : "");
-    let y = this.goalText.text ? 51 : 40;
     // Contratos, el que vence antes primero.
     const list = [...contracts(reg)].sort((a, b) => a.due - b.due);
     this.contractTexts.forEach((t, i) => {
       const c = list[i];
-      if (!c) { t.setText(""); return; }
+      if (!c) return;
       const left = contractDaysLeft(reg, c);
       const have = contractCarried(reg, c);
       const when = left <= 0 ? "vence hoy" : `quedan ${left} d`;
-      t.setText(`Contrato: ${have}/${c.qty} ${GOODS[c.good].short} → ${TOWNS[c.to].name} · ${when}`)
-        .setFont(left <= 0 ? "font-red" : have >= c.qty ? "font-green" : "font-o").setY(y);
-      y += 11;
+      lines.push({ obj: t, text: `Contrato: ${have}/${c.qty} ${GOODS[c.good].short} → ${TOWNS[c.to].name} · ${when}`, font: left <= 0 ? "font-red" : have >= c.qty ? "font-green" : "font-o", prio: left <= 0 ? 0 : 3 });
     });
-    this.leadText.setY(y);
-    if (this.leadText.text) y += 11;
+    const lead = bestLead(reg, this.def?.kind === "town" ? this.def.town : null);
+    if (lead) lines.push({ obj: this.leadText, text: `Ocupan ${GOODS[lead.good].short.toLowerCase()} en ${TOWNS[lead.town].name}`, font: "font-green", prio: 5 });
     // Un suceso en este pueblo: una línea corta con lo que le queda.
     const here = this.def?.kind === "town" ? this.def.town : null;
     const ev = here ? eventList(reg).find((e) => e.town === here) : null;
-    this.eventText.setText(ev ? `${ev.label} · quedan ${ev.days} d` : "").setY(y);
-    if (this.eventText.text) y += 11;
+    if (ev) lines.push({ obj: this.eventText, text: `${ev.label} · quedan ${ev.days} d`, font: "font-gold", prio: 2 });
+    const shown = new Set([...lines].sort((a, b) => a.prio - b.prio).slice(0, HUD_LINES).map((l) => l.obj));
+    let y = 40;
+    for (const l of lines) {
+      if (!shown.has(l.obj)) continue;
+      l.obj.setText(l.text).setFont(l.font).setY(y);
+      y += 11;
+    }
+    for (const t of [this.goalText, ...this.contractTexts, this.leadText, this.eventText]) if (!shown.has(t)) t.setText("");
     // Hasta dónde llegan las líneas del HUD: el cartel "HOY EN …" se pone debajo.
     this.goalBottom = y;
   }
@@ -1731,6 +1738,7 @@ export class UIScene extends Phaser.Scene {
         ["Rodar (tocar) · correr (mantener) · salir", "B"],
         ["Agacharse · esconderse en pasto alto", "C"],
         ["Beber tónico (2 corazones)", "T"],
+        ["Golpe cargado (empuja más)", "mantén A y suelta"],
         ["Pausa y mapa", "II"],
         ["Bajar un escalón", "caminar hacia abajo"],
       ] : [
@@ -1739,6 +1747,7 @@ export class UIScene extends Phaser.Scene {
         ["Rodar (tocar) · correr (mantener) · salir", "K  o  X"],
         ["Agacharse · esconderse en pasto alto", "L  o  C"],
         ["Beber tónico (2 corazones)", "I  o  V"],
+        ["Golpe cargado (empuja más)", "mantén J y suelta"],
         ["Pausa y mapa", "ESC  o  P"],
         ["Bajar un escalón", "caminar hacia abajo"],
       ];
@@ -1748,7 +1757,7 @@ export class UIScene extends Phaser.Scene {
         txt(VIEW_W - 26 - textWidth(b), 58 + i * 14, b, "font-gold");
       });
       txt(24, 180, "Control: A acción · B rodar · X agacharse · Y tónico · Start pausa", "font-dim");
-      txt(24, 196, "Guardias: revisan si llevas piedras a la vista.", "font-dim");
+      txt(24, 196, "Guardias: revisan si llevas piedras a la vista; su escudo para los golpes de frente.", "font-dim");
       txt(24, 208, "Bandidos: te arrancan piedras; recógelas antes que ellos.", "font-dim");
     }
   }
