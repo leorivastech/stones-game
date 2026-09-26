@@ -78,8 +78,8 @@ export const MAP_ZONA = {
   mossgrove: "mossgrove",
 };
 
-/** Stingers: nombre → variante elegida (stinger-<nombre>-<n>.ogg, ~6 s). */
-export const STINGERS = { llegada: 2, fama: 3, cobrador: 3, redada: 2, ko: 3, amanecer: 3, anochecer: 1 };
+/** Stingers: nombre → variante elegida (stinger-<nombre>-<n>.ogg, ~6 s; misión 4 s y deuda 5 s). */
+export const STINGERS = { llegada: 2, fama: 3, cobrador: 3, redada: 2, ko: 3, amanecer: 3, anochecer: 1, mision: 2, deuda: 1 };
 export const STINGER_VOLUME = 0.32;
 
 export const musicUrl = (zona, capa, n) => `${MUSIC_DIR}${zona}-${capa}-${n}.ogg`;
@@ -90,7 +90,7 @@ export const sfxUrl = (file) => `${SFX_DIR}${file}.ogg`;
  * Ambientes (clave que declaran los mapas → loop IA de 3-5 s). `vol` ya lleva la corrección de
  * sonoridad (los loops IA vienen a pico -3 dB, ~8 dB más fuertes que los de antes a -26 LUFS) y
  * que suenan dos copias desfasadas para tapar la costura del loop. `noche`: otro loop de noche.
- * `cave` no tiene equivalente IA: sigue el de antes.
+ * `cave`: goteo con eco de 10 s (tanda 2, 26-sep).
  */
 export const AMBIENTES = {
   jungle: { file: "aves-bosque-1", vol: 0.12, noche: { file: "grillos-noche-2", vol: 0.14 } },
@@ -98,12 +98,12 @@ export const AMBIENTES = {
   snow: { file: "nieve-viento-1", vol: 0.13 },
   sea: { file: "agua-orilla-1", vol: 0.14 },
   fire: { file: "fogata-1", vol: 0.45 },
-  cave: { url: "assets/ambience/cave.ogg", vol: 0.55, viejo: true },
+  cave: { file: "cueva-goteo-2", vol: 0.8 }, // goteo escaso: -36.5 LUFS contra -26.6 del de antes
 };
 
 /**
  * Efectos: clave que usa el juego → archivos IA (se elige uno al azar). `gain` corrige el volumen
- * que pide el juego. Lo que no está aquí sigue con la muestra de antes (ver OLD_SFX en sfx.js).
+ * que pide el juego (calculado contra la muestra de antes que reemplaza). Todo el audio del juego es IA.
  */
 export const SFX_IA = {
   coins: { files: ["moneda-pagar-1", "moneda-pagar-2"] }, // pagar: mejoras, cuotas, deuda, posada
@@ -127,10 +127,64 @@ export const SFX_IA = {
   seal: { files: ["sello-1", "sello-2"] },
   shop: { files: ["tienda-abrir-1", "tienda-abrir-2"] },
   gust: { files: ["viento-rafaga-1", "viento-rafaga-2"] },
+  // Tanda 2 (26-sep): reemplazan las muestras CC0 de antes, con las mismas claves. `gain`: la mitad de la
+  // diferencia de sonoridad contra la muestra vieja (algunas viejas eran casi inaudibles, como `draw`).
+  // Descartadas por CLAP o por oído: armadura-moverse-2, flecha-clavar-3, muerte-criatura-3, cerrojo-1,
+  // ui-error-2, ui-ok-2, curar-3, saltar-2, rodar-2 (salió muda), recoger-* (las tres con CLAP < 0).
+  armor: { files: ["armadura-golpe-1", "armadura-golpe-2", "armadura-moverse-1"], gain: 0.75 },
+  "arrow-hit": { files: ["flecha-clavar-1", "flecha-clavar-2"], gain: 1.4 },
+  coin: { files: ["moneda-chica-1", "moneda-chica-2", "moneda-chica-3"], gain: 1.6 },
+  die: { files: ["muerte-criatura-1", "muerte-criatura-2"], gain: 0.75 },
+  lever: { files: ["palanca-2"], gain: 0.5 },
+  splash: { files: ["chapuzon-1", "chapuzon-2"], gain: 0.55 },
+  swing: { files: ["baston-ligero-1", "baston-ligero-2"] },
+  swing2: { files: ["baston-pesado-1", "baston-pesado-2"], gain: 0.75 },
+  latch: { files: ["cerrojo-2"], gain: 1.6 },
+  sack: { files: ["costal-1", "costal-2"], gain: 0.9 },
+  chop: { files: ["hachazo-1", "hachazo-2"], gain: 1.5 },
+  draw: { files: ["desenvainar-1", "desenvainar-2"], gain: 0.5 },
+  "ui-move": { files: ["ui-mover-1"] },
+  "ui-ok": { files: ["ui-ok-1", "ui-ok-3"], gain: 0.9 },
+  "ui-error": { files: ["ui-error-1", "ui-error-3"], gain: 0.7 },
+  // Los que eran tonos de 8 bits (los toca `tone()` por TONOS, abajo).
+  success: { files: ["ui-exito-2", "ui-exito-3"] },
+  heal: { files: ["curar-1", "curar-2"] },
+  alert: { files: ["alerta-1", "alerta-2", "alerta-3"] },
+  suspect: { files: ["sospecha-1", "sospecha-2"] },
+  roll: { files: ["rodar-1"] },
+  cut: { files: ["cortar-pasto-1", "cortar-pasto-2"] },
+  jump: { files: ["saltar-1"] },
+  land: { files: ["aterrizar-1", "aterrizar-2"] },
+  charge: { files: ["cargar-1", "cargar-2"] },
+};
+
+/**
+ * Tonos (`tone(scene, nombre)`, antes sintetizados en 8 bits) → [claves de SFX_IA, volumen]. Se elige una
+ * al azar con un poco de variación de tono. `text` (el tecleo del diálogo, 18 ms cada 3 letras) sigue
+ * sintetizado a propósito: una muestra tan corta y tan seguida suena peor que el blip.
+ */
+export const TONOS = {
+  swing: [["swing", "swing2"], 0.35],
+  hit: [["hit"], 0.5],
+  bump: [["bump"], 0.5],
+  hurt: [["hurt"], 0.5],
+  select: [["ui-move"], 0.3],
+  confirm: [["ui-ok"], 0.4],
+  deny: [["ui-error"], 0.4],
+  pickup: [["coin"], 0.35], // como antes: la moneda (las muestras `recoger` salieron mal)
+  chest: [["success"], 0.4],
+  heart: [["heal"], 0.4],
+  alert: [["alert"], 0.4],
+  suspect: [["suspect"], 0.3],
+  roll: [["roll"], 0.3],
+  cut: [["cut"], 0.35],
+  jump: [["jump"], 0.25],
+  land: [["land"], 0.25],
+  charge: [["charge"], 0.35],
 };
 
 /** Claves de efecto que ahora son un stinger (se tocan con `stinger()`, que baja la música). */
-export const SFX_STINGER = { "jingle-fame": "fama" };
+export const SFX_STINGER = { "jingle-fame": "fama", "jingle-mission": "mision", "jingle-free": "deuda" };
 
 /** Pasos por suelo (la clave que usa `footstep`) → cortes IA; `gain`: el pasto IA sale más fuerte. */
 export const PASOS = {

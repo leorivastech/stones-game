@@ -109,8 +109,22 @@ STINGERS = {
     "ko": ("short soft defeat sting, descending sad flute and strings, falling down, gentle loss, fades out", 70, "A minor"),
     "amanecer": ("short sunrise sting, rising harp glissando and soft flute, dawn, hopeful, light, waking up", 90, "F major"),
     "anochecer": ("short nightfall sting, descending soft chimes and low strings, dusk, calm, settling down", 76, "D minor"),
+    # 26-sep (tanda 2): los jingles que eran muestras CC0 (jingle-mission, jingle-free).
+    "mision": ("very short quest complete jingle, plucked harp and glockenspiel quick rising arpeggio resolving on the tonic, "
+               "small success, cheerful, bright, then silence", 120, "C major"),
+    "deuda": ("short triumphant freedom fanfare, bright trumpets and french horns with timpani roll and rising strings, "
+              "debt finally paid, liberation, celebratory, resolves grandly on the tonic, then silence", 100, "D major"),
 }
 STINGER_VARIANTS = 3
+# Segundos que quedan de cada stinger al convertir (ACE no baja de ~10 s). Por omisión 6; los jingles cortos 4-5.
+STINGER_RECORTE = {"mision": 4, "deuda": 5}
+
+
+def recorte_stinger(stem):
+    """stinger-<nombre>-<n> → segundos a los que se recorta (None si no es stinger)."""
+    if not stem.startswith("stinger-"):
+        return None
+    return STINGER_RECORTE.get(stem[len("stinger-"):].rsplit("-", 1)[0], 6)
 
 # ---- Efectos (MOSS): (prompt, segundos, variantes) ------------------------------------------------------------
 SFX = {
@@ -139,7 +153,37 @@ SFX = {
     "campana-pueblo": ("A single church tower bell ringing once, town bell, medium distance, short tail.", 3.0, 2),
     "pergamino": ("A parchment scroll being unrolled, paper rustling, short, dry.", 1.5, 2),
     "sello": ("A wax seal stamp pressed firmly on paper with a thump, short, dry.", 1.0, 2),
+    # ---- tanda 2 (26-sep): reemplazan las muestras CC0 viejas y los tonos de 8 bits ----
+    "armadura-moverse": ("Metal plate armor and chainmail rattling as a knight turns and starts to move, short clanking, dry, close.", 1.5, 2),
+    "armadura-golpe": ("A wooden staff striking a steel shield and plate armor, single metallic clang, short, dry.", 1.0, 2),
+    "flecha-clavar": ("An arrow thudding into a wooden post, single sharp thunk with a short wobble, dry, close.", 1.0, 3),
+    "moneda-chica": ("A single small gold coin clinking, tiny bright metallic tink, short, dry, close.", 1.0, 3),
+    "muerte-criatura": ("A small monster creature's short dying squeal and whimper, no words, fading, dry, close.", 1.5, 3),
+    "palanca": ("A heavy iron lever being pulled down with a mechanical clunk and ratchet, short, dry.", 1.5, 2),
+    "chapuzon": ("A splash of something dropping into water, single splash, short, close.", 1.5, 2),
+    "baston-ligero": ("A quick light swish of a thin wooden stick swung through the air, fast whoosh, short, dry.", 1.0, 2),
+    "baston-pesado": ("A heavy wooden quarterstaff swung hard through the air, deep whoosh, short, dry.", 1.0, 2),
+    "cerrojo": ("A metal door latch bolt sliding and clicking shut, short mechanical click, dry, close.", 1.0, 2),
+    "costal": ("A heavy sack of stones dropped on the ground, dull thud with rustle of cloth, short, dry.", 1.0, 2),
+    "hachazo": ("A single axe chop into wood, sharp wooden thunk, short, dry, close.", 1.0, 2),
+    "desenvainar": ("A sword being drawn from its sheath, metallic scrape and ring, short, dry.", 1.5, 2),
+    "ui-mover": ("A soft short wooden click, subtle menu cursor tick, very short, dry, close.", 1.0, 3),
+    "ui-ok": ("A short bright confirmation chime, two soft rising bell notes, clean, dry.", 1.0, 3),
+    "ui-error": ("A short low dull buzz and wooden knock, error denied sound, dry, close.", 1.0, 3),
+    "recoger": ("Picking up a small item, quick light pop with a tiny bright chime, short, dry.", 1.0, 3),
+    "alerta": ("A sudden sharp short metallic ping of alarm, a guard noticing something, bright, short.", 1.0, 3),
+    "curar": ("A gentle magical healing shimmer, soft rising sparkling chimes, warm, short.", 1.5, 3),
+    "ui-exito": ("A short cheerful success jingle, three quick rising bright bell notes, clean, dry.", 1.5, 3),
+    "sospecha": ("A short soft rising questioning whistle, curious huh, no words, dry.", 1.0, 2),
+    "rodar": ("A quick body roll on dirt, cloth and leather rustling with a soft thump, short, dry.", 1.0, 2),
+    "cortar-pasto": ("A quick swish cutting through tall grass, leaves rustling and snapping, short, dry, close.", 1.0, 2),
+    "saltar": ("A light quick jump, short cloth rustle and soft whoosh, dry, close.", 1.0, 2),
+    "aterrizar": ("Boots landing softly on dirt after a small jump, single soft thud, short, dry.", 1.0, 2),
+    "cargar": ("A rising whoosh building up energy, wooden staff spinning faster, short, dry.", 1.5, 2),
+    "cueva-goteo": ("Water drops dripping slowly in a large stone cave, echoing drips, deep quiet reverb, no wind, no music.", 10.0, 2),
 }
+# Loops de ambiente (llevan fundido corto en las orillas; music.js toca dos copias desfasadas).
+LOOPS = {"fogata", "agua-orilla", "grillos-noche", "nieve-viento", "arena-viento", "aves-bosque", "cueva-goteo"}
 # Pasos: se generan 2 clips de 4 s con varios pasos y se cortan en 4 variantes cada uno (ver convertir).
 STEP_SURFACES = {
     "paso-pasto": "Slow walking footsteps on grass, one step per second, boots on soft grass, dry, close, no other sounds.",
@@ -229,7 +273,8 @@ def cmd_musica(jobs, only, lm):
         print("nada que hacer")
         return
     print(f"[ace] {len(jobs)} clips por hacer", flush=True)
-    esperar_gpu(2600)
+    necesito = 2600 if lm else 1400   # sin el LM 0.6B el pico baja ~1.2 GB
+    esperar_gpu(necesito)
     t0 = time.time()
     dit = AceStepHandler()
     status, ok = dit.initialize_service(project_root=str(AUDIO / "ACE-Step-1.5"), config_path="acestep-v15-turbo",
@@ -250,15 +295,15 @@ def cmd_musica(jobs, only, lm):
     # uno por uno: con el tope de 3 GB el guardia de VRAM de ACE-Step baja el lote a 1 y se pierde la 2.ª semilla
     for j in jobs:
         try:
-            _musica_clip(j, dit, llm, out, sf, torch, GenerationParams, GenerationConfig, generate_music)
+            _musica_clip(j, dit, llm, out, sf, torch, GenerationParams, GenerationConfig, generate_music, necesito)
         except Exception as e:  # noqa: BLE001  — un clip malo no para la corrida
             print(f"FALLÓ {j['id']}: {type(e).__name__}: {e}"[:300], flush=True)
             anotar(dict(j, ok=False, error=f"{type(e).__name__}: {e}"[:300], modelo="ACE-Step-1.5"))
     print(f"[ace] total {time.time() - t0:.0f} s", flush=True)
 
 
-def _musica_clip(j, dit, llm, out, sf, torch, GenerationParams, GenerationConfig, generate_music):
-        esperar_gpu(2600)
+def _musica_clip(j, dit, llm, out, sf, torch, GenerationParams, GenerationConfig, generate_music, necesito=2600):
+        esperar_gpu(necesito)
         print(f"--- {j['id']} (GPU libre {gpu_free_mb()} MB)", flush=True)
         params = GenerationParams(caption=j["caption"], lyrics="[Instrumental]", instrumental=True, bpm=j["bpm"], keyscale=j["key"],
                                   timesignature=j["ts"], duration=j["dur"], seed=j["seed"], thinking=llm is not None,
@@ -289,7 +334,7 @@ def _musica_clip(j, dit, llm, out, sf, torch, GenerationParams, GenerationConfig
             f.unlink()
         try:
             MUSIC_OUT.mkdir(parents=True, exist_ok=True)
-            convertir_musica(out / f"{j['id']}.wav", MUSIC_OUT / f"{j['id']}.ogg", recorte=6 if j["id"].startswith("stinger-") else None)
+            convertir_musica(out / f"{j['id']}.wav", MUSIC_OUT / f"{j['id']}.ogg", recorte=recorte_stinger(j["id"]))
             cmd_catalogo()
         except Exception as e:  # noqa: BLE001
             print(f"  conversión falló {j['id']}: {e}"[:300], flush=True)
@@ -307,7 +352,52 @@ def sfx_jobs():
     return jobs
 
 
-def cmd_sfx(only, steps, quant, cap_gb):
+def moss_poca_vram(pipe, torch):
+    """MOSS en ~0.5 GB de VRAM (26-sep: el bot de actas deja fijos 3.9 GB y Lumi 1 GB; sólo quedan ~2 GB).
+
+    - DiT en bf16 (sin int8): las piezas chicas y los buffers viven en la GPU; cada uno de los bloques de
+      `dit.blocks` se sube justo antes de usarse desde una copia fijada en RAM y se suelta después.
+    - VAE (DAC, 371 M) decodifica en la CPU: nunca sube a la GPU.
+    - `load_models_to_device` queda sin efecto (lo manejan los ganchos).
+    """
+    eng = pipe.engine
+    dit = eng.dit
+    blocks = dit.blocks
+    dit.blocks = torch.nn.ModuleList()
+    dit.to("cuda")                       # todo menos los bloques
+    dit.blocks = blocks
+    for blk in blocks:
+        for mod in blk.modules():
+            for bn, b in list(mod._buffers.items()):
+                if b is not None:
+                    mod._buffers[bn] = b.to("cuda")
+        cpu = {}
+        for pn, prm in blk.named_parameters():
+            cpu[pn] = prm.data.to(torch.bfloat16).contiguous().pin_memory()
+            prm.data = cpu[pn]
+
+        def pre(m, args, _cpu=cpu):
+            for pn, prm in m.named_parameters():
+                prm.data = _cpu[pn].to("cuda", non_blocking=True)
+
+        def post(m, args, out, _cpu=cpu):
+            for pn, prm in m.named_parameters():
+                prm.data = _cpu[pn]
+            return out
+        blk.register_forward_pre_hook(pre)
+        blk.register_forward_hook(post)
+    eng.load_models_to_device = lambda names=[]: None
+    vae = eng.vae.to("cpu").float()
+    dec = vae.decode                    # ya trae el recorte a _DECODE_SECONDS de gen_moss_sfx
+
+    def decode_cpu(z):
+        with torch.autocast("cuda", enabled=False), torch.no_grad():
+            return dec(z.detach().to("cpu", torch.float32))
+    vae.decode = decode_cpu
+    return pipe
+
+
+def cmd_sfx(only, steps, quant, cap_gb, bajo=False):
     os.environ.setdefault("TORCHDYNAMO_DISABLE", "1")
     sys.path.insert(0, str(AUDIO / "scripts"))
     import soundfile as sf
@@ -328,12 +418,16 @@ def cmd_sfx(only, steps, quant, cap_gb):
         print("nada que hacer")
         return
     print(f"[moss] {len(jobs)} clips por hacer", flush=True)
+    if bajo:
+        cap_gb, quant = 0.9, "none"
     esperar_gpu(int(cap_gb * 1024) + 200)
     total = torch.cuda.get_device_properties(0).total_memory / 2**30
     torch.cuda.set_per_process_memory_fraction(min(1.0, cap_gb / total))
     t0 = time.time()
     pipe = moss.load_pipe(None if quant == "none" else quant)
-    print(f"[moss] cargado en {time.time() - t0:.1f} s (quant={quant}, tope {cap_gb} GB)", flush=True)
+    if bajo:
+        moss_poca_vram(pipe, torch)
+    print(f"[moss] cargado en {time.time() - t0:.1f} s (quant={quant}, tope {cap_gb} GB, poca_vram={bajo})", flush=True)
     for j in jobs:
         try:
             _sfx_clip(j, pipe, moss, sf, torch, out, steps, quant, cap_gb)
@@ -355,7 +449,10 @@ def _sfx_clip(j, pipe, moss, sf, torch, out, steps, quant, cap_gb):
                              sigma_shift=5.0, seed=j["seed"])
                 break
             except torch.OutOfMemoryError:
-                pipe.engine.load_models_to_device([])
+                try:
+                    pipe.engine.load_models_to_device([])
+                except Exception:  # noqa: BLE001
+                    pass
                 torch.cuda.empty_cache()
                 print(f"OOM en {j['id']} (GPU libre {gpu_free_mb()} MB); reintento {intento + 1} en 30 s", flush=True)
                 time.sleep(30)
@@ -364,7 +461,7 @@ def _sfx_clip(j, pipe, moss, sf, torch, out, steps, quant, cap_gb):
             anotar(dict(j, ok=False, error="OOM", modelo="MOSS-SoundEffect-v2.0"))
             return
         sf.write(out / f"{j['id']}.wav", audio[0].float().cpu().numpy().T, pipe.sample_rate)
-        anotar(dict(j, ok=True, modelo="MOSS-SoundEffect-v2.0", pasos_difusion=steps, quant=quant, segundos_gpu=round(dt, 1),
+        anotar(dict(j, ok=True, modelo="MOSS-SoundEffect-v2.0", pasos_difusion=steps, quant=quant, poca_vram=cap_gb < 1, segundos_gpu=round(dt, 1),
                     vram_max_mb=round(torch.cuda.max_memory_allocated() / 2**20)))
         print(f"  ok {j['id']} {dt:.1f} s", flush=True)
         try:
@@ -399,7 +496,8 @@ def convertir_musica(src, dst, recorte=None):
     tmp = dst.with_suffix(".trim.wav")
     ff("-i", str(src), "-af", ",".join(filtros), str(tmp))
     d = ffprobe_dur(tmp)
-    ff("-i", str(tmp), "-af", f"afade=t=in:st=0:d=0.2,afade=t=out:st={max(0, d - 0.2):.2f}:d=0.2,loudnorm=I=-18:TP=-1.5:LRA=11",
+    fo = 0.7 if recorte and recorte < 6 else 0.2   # los jingles de 4-5 s se cortan a media cola: fundido más largo
+    ff("-i", str(tmp), "-af", f"afade=t=in:st=0:d=0.2,afade=t=out:st={max(0, d - fo):.2f}:d={fo},loudnorm=I=-18:TP=-1.5:LRA=11",
        "-ar", "44100", "-ac", "2", "-c:a", "libvorbis", "-q:a", "5", str(dst))
     tmp.unlink()
 
@@ -459,18 +557,24 @@ def cmd_convertir():
         if dst.exists():
             continue
         try:
-            convertir_musica(w, dst, recorte=6 if w.stem.startswith("stinger-") else None)
+            convertir_musica(w, dst, recorte=recorte_stinger(w.stem))
             print("ogg", dst.name, ffprobe_dur(dst), "s")
         except Exception as e:  # noqa: BLE001
             print("FALLÓ", w.name, e)
-    loops = {"fogata", "agua-orilla", "grillos-noche", "nieve-viento", "arena-viento", "aves-bosque"}
+    loops = LOOPS
     for w in sorted((TMP / "sfx").glob("*.wav")):
         if "-corte" in w.stem:
             continue
         if "-lote" in w.stem:
             nombre, lote = w.stem.rsplit("-lote", 1)
-            cortes = cortar_pasos(w, w.stem)
             base = (int(lote) - 1) * STEP_VARIANTS
+            if all((SFX_OUT / f"{nombre}-{base + k + 1}.ogg").exists() for k in range(STEP_VARIANTS)):
+                continue               # ya cortado (y así no hace falta numpy en el python del sistema)
+            try:
+                cortes = cortar_pasos(w, w.stem)
+            except Exception as e:  # noqa: BLE001  (paso-pasto-lote1 nunca dio cortes buenos; sin numpy tampoco)
+                print("FALLÓ", w.name, e)
+                continue
             for k, c in enumerate(cortes):
                 dst = SFX_OUT / f"{nombre}-{base + k + 1}.ogg"
                 if not dst.exists():
@@ -515,8 +619,10 @@ def cmd_clap():
             raw = subprocess.run(["ffmpeg", "-v", "quiet", "-ss", str(o), "-t", "10", "-i", str(path), "-ac", "1", "-ar", "48000",
                                   "-f", "f32le", "-"], capture_output=True).stdout
             x = np.frombuffer(raw, dtype=np.float32).copy()
-            if len(x) < 24000:
+            if len(x) < 2400:          # < 50 ms: no hay nada que medir
                 continue
+            if len(x) < 48000:         # clips cortos (golpes, menú): se rellenan con silencio hasta 1 s
+                x = np.concatenate([x, np.zeros(48000 - len(x), dtype=np.float32)])
             with torch.no_grad():
                 e = model.get_audio_features(**proc(audio=[x], sampling_rate=48000, return_tensors="pt"))
             embs.append(torch.nn.functional.normalize(e, dim=-1))
@@ -634,6 +740,8 @@ def main():
     ap.add_argument("--steps", type=int, default=100, help="pasos de difusión de MOSS (oficial: 100)")
     ap.add_argument("--quant", default="int8", help="MOSS: int8 | none")
     ap.add_argument("--cap-gb", type=float, default=2.6, help="MOSS: tope de VRAM del proceso")
+    ap.add_argument("--poca-vram", action="store_true",
+                    help="MOSS con bloques del DiT subidos de a uno y VAE en CPU (~0.5 GB); también STONES_POCA_VRAM=1")
     a = ap.parse_args()
     only = set(a.ids)
     if a.etapa == "todo":
@@ -644,11 +752,11 @@ def main():
         for j in sfx_jobs():
             print(j["id"], j["s"], "s")
     elif a.etapa == "musica":
-        cmd_musica(music_jobs(), only, lm=not a.sin_lm)
+        cmd_musica(music_jobs(), only, lm=not (a.sin_lm or os.environ.get("STONES_SIN_LM") == "1"))
     elif a.etapa == "stingers":
-        cmd_musica(stinger_jobs(), only, lm=not a.sin_lm)
+        cmd_musica(stinger_jobs(), only, lm=not (a.sin_lm or os.environ.get("STONES_SIN_LM") == "1"))
     elif a.etapa == "sfx":
-        cmd_sfx(only, a.steps, a.quant, a.cap_gb)
+        cmd_sfx(only, a.steps, a.quant, a.cap_gb, bajo=a.poca_vram or os.environ.get("STONES_POCA_VRAM") == "1")
     elif a.etapa == "convertir":
         cmd_convertir()
     elif a.etapa == "clap":

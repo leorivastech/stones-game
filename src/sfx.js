@@ -1,50 +1,23 @@
 /**
- * Efectos. Casi todo es propio, generado con IA local (MOSS-SoundEffect v2; qué archivo es cada clave:
- * SFX_IA y PASOS en src/audio-ia.js, archivos en public/assets/sfx-ia/). Lo que no tiene equivalente
- * IA sigue con la muestra CC0 de antes (OLD_SFX; créditos en public/assets/CREDITS.md), y los tonos
- * de 8 bits sintetizados (WebAudio) quedan para menú, texto, salto y alertas.
+ * Efectos. Todo es propio, generado con IA local (MOSS-SoundEffect v2; qué archivo es cada clave:
+ * SFX_IA, TONOS y PASOS en src/audio-ia.js, archivos en public/assets/sfx-ia/). Los jingles son
+ * stingers de ACE-Step (SFX_STINGER). Sólo el tecleo del diálogo (`tone(scene, "text")`) sigue
+ * sintetizado con WebAudio; los demás tonos de 8 bits quedan de respaldo por si una muestra no cargó.
  * Todo pasa por el bus de efectos (setVolume("sfx", v) de music.js).
  */
 
-import { SFX_IA, SFX_STINGER, PASOS, sfxUrl } from "./audio-ia.js";
+import { SFX_IA, SFX_STINGER, TONOS, PASOS, sfxUrl } from "./audio-ia.js";
 import { duckMusic, restoreMusic, getVolume, stinger, preloadMusic } from "./music.js";
 
 export { setVolume, getVolume, setTension, stinger } from "./music.js";
 
-// Muestras de antes que siguen sonando (no hay equivalente IA). Clave = `sfx-<nombre>`.
-const OLD_SFX = {
-  draw: "assets/proto/sfx/draw.mp3",
-  latch: "assets/proto/sfx/latch.mp3",
-  sack: "assets/proto/sfx/sack.mp3",
-  chop: "assets/proto/sfx/chop.mp3",
-};
-for (const n of [
-  "arrow-hit", "swing", "swing2", "armor", "die", "lever", "splash", "coin",
-  "ui-move", "ui-ok", "ui-error", "jingle-mission", "jingle-free",
-]) OLD_SFX[n] = `assets/sfx/${n}.ogg`;
-
-export const SFX = OLD_SFX;
-
 /** Claves sin muestra propia que suenan con otra: el cuchillo del bandido silba como una flecha. */
 const SFX_ALIAS = { knife: "bow" };
-
-/** Tonos que suenan con muestra: [nombres posibles, volumen]. Se elige una al azar. */
-const SAMPLE_TONES = {
-  swing: [["swing", "swing2"], 0.35],
-  hit: [["hit"], 0.5],
-  bump: [["bump"], 0.5],
-  hurt: [["hurt"], 0.5],
-  select: [["ui-move"], 0.3],
-  confirm: [["ui-ok"], 0.4],
-  deny: [["ui-error"], 0.4],
-  pickup: [["coin"], 0.35],
-};
 
 const iaKey = (file) => `sfx-ia-${file}`;
 const pickOne = (list) => list[Math.floor(Math.random() * list.length)];
 
 export function preloadSfx(scene) {
-  for (const [name, url] of Object.entries(OLD_SFX)) scene.load.audio(`sfx-${name}`, url);
   const files = new Set();
   for (const { files: f } of [...Object.values(SFX_IA), ...Object.values(PASOS)]) f.forEach((x) => files.add(x));
   for (const f of files) scene.load.audio(iaKey(f), sfxUrl(f));
@@ -53,8 +26,7 @@ export function preloadSfx(scene) {
 
 function hasSample(scene, name) {
   const ia = SFX_IA[name];
-  if (ia) return ia.files.some((f) => scene.cache.audio.exists(iaKey(f)));
-  return scene.cache.audio.exists(`sfx-${name}`);
+  return Boolean(ia) && ia.files.some((f) => scene.cache.audio.exists(iaKey(f)));
 }
 
 export function sfx(scene, name, extra = {}) {
@@ -66,7 +38,8 @@ export function sfx(scene, name, extra = {}) {
   }
   name = SFX_ALIAS[name] ?? name;
   const ia = SFX_IA[name];
-  const key = ia ? iaKey(pickOne(ia.files)) : `sfx-${name}`;
+  if (!ia) return;
+  const key = iaKey(pickOne(ia.files));
   if (!scene.cache.audio.exists(key)) return;
   const volume = (extra.volume ?? 0.55) * (ia?.gain ?? 1) * getVolume("sfx");
   scene.sound.play(key, { ...extra, volume });
@@ -92,6 +65,7 @@ export function footstep(scene, ground, volume = 0.16) {
   scene.sound.play(key, { volume: volume * set.gain * getVolume("sfx"), detune: (Math.random() - 0.5) * 300 });
 }
 
+/** Tonos de 8 bits: `text` siempre; los demás sólo si su muestra IA no cargó. */
 const TONES = {
   swing: [{ type: "square", f0: 520, f1: 180, dur: 0.07, vol: 0.05 }, { type: "noise", dur: 0.06, vol: 0.05 }],
   hit: [{ type: "square", f0: 220, f1: 60, dur: 0.1, vol: 0.09 }, { type: "noise", dur: 0.08, vol: 0.08 }],
@@ -116,7 +90,7 @@ const TONES = {
 let noiseBuffer = null;
 
 export function tone(scene, name) {
-  const sample = SAMPLE_TONES[name];
+  const sample = TONOS[name];
   if (sample && (globalThis.__captureSfx || sample[0].every((n) => hasSample(scene, n)))) {
     sfxVary(scene, sample[0], sample[1], 80);
     return;

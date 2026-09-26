@@ -1018,5 +1018,907 @@
   "top1": "viento-rafaga",
   "sim_top1": 0.267,
   "duracion": 1.15
+ },
+ "music-ia/stinger-deuda-1.ogg": {
+  "etiqueta": "short triumphant freedom fanfare",
+  "sim_propio": 0.225,
+  "puesto": 9,
+  "top1": "verdelume/calma",
+  "sim_top1": 0.386,
+  "prob_voz": 0.989,
+  "duracion": 5.1
+ },
+ "music-ia/stinger-deuda-2.ogg": {
+  "etiqueta": "short triumphant freedom fanfare",
+  "sim_propio": 0.136,
+  "puesto": 22,
+  "top1": "verdelume/calma",
+  "sim_top1": 0.403,
+  "prob_voz": 1.0,
+  "duracion": 5.1
+ },
+ "music-ia/stinger-deuda-3.ogg": {
+  "etiqueta": "short triumphant freedom fanfare",
+  "sim_propio": 0.191,
+  "puesto": 16,
+  "top1": "title/calma",
+  "sim_top1": 0.446,
+  "prob_voz": 0.999,
+  "duracion": 5.1
+ },
+ "music-ia/stinger-mision-1.ogg": {
+  "etiqueta": "very short quest complete jingle",
+  "sim_propio": 0.174,
+  "puesto": 15,
+  "top1": "verdelume/calma",
+  "sim_top1": 0.293,
+  "prob_voz": 0.992,
+  "duracion": 4.1
+ },
+ "music-ia/stinger-mision-2.ogg": {
+  "etiqueta": "very short quest complete jingle",
+  "sim_propio": 0.189,
+  "puesto": 13,
+  "top1": "verdelume/tension",
+  "sim_top1": 0.342,
+  "prob_voz": 0.424,
+  "duracion": 4.1
+ },
+ "music-ia/stinger-mision-3.ogg": {
+  "etiqueta": "very short quest complete jingle",
+  "sim_propio": 0.188,
+  "puesto": 20,
+  "top1": "verdelume/tension",
+  "sim_top1": 0.328,
+  "prob_voz": 0.288,
+  "duracion": 4.1
+ },
+ "sfx-ia/armadura-golpe-1.ogg": {
+  "etiqueta": "A wooden staff striking a steel shield and plate armor",
+  "sim_propio": 0.444,
+  "puesto": 1,
+  "top1": "armadura-golpe",
+  "sim_top1": 0.444,
+  "duracion": 0.68
+ },
+ "sfx-ia/armadura-moverse-1.ogg": {
+  "etiqueta": "Metal plate armor and chainmail rattling as a knight turns and starts to move",
+  "sim_propio": 0.21,
+  "puesto": 4,
+  "top1": "armadura-golpe",
+  "sim_top1": 0.382,
+  "duracion": 1.44
+ },
+ "sfx-ia/armadura-moverse-2.ogg": {
+  "etiqueta": "Metal plate armor and chainmail rattling as a knight turns and starts to move",
+  "sim_propio": 0.056,
+  "puesto": 11,
+  "top1": "armadura-golpe",
+  "sim_top1": 0.395,
+  "duracion": 1.48
+ },
+ "sfx-ia/aterrizar-2.ogg": {
+  "etiqueta": "Boots landing softly on dirt after a small jump",
+  "sim_propio": 0.162,
+  "puesto": 4,
+  "top1": "paso-piedra",
+  "sim_top1": 0.204,
+  "duracion": 0.51
+ },
+ "sfx-ia/baston-pesado-1.ogg": {
+  "etiqueta": "A heavy wooden quarterstaff swung hard through the air",
+  "sim_propio": 0.213,
+  "puesto": 4,
+  "top1": "golpe-baston",
+  "sim_top1": 0.301,
+  "duracion": 0.54
+ },
+ "sfx-ia/baston-pesado-2.ogg": {
+  "etiqueta": "A heavy wooden quarterstaff swung hard through the air",
+  "sim_propio": 0.421,
+  "puesto": 1,
+  "top1": "baston-pesado",
+  "sim_top1": 0.421,
+  "duracion": 0.71
+ },
+ "sfx-ia/cargar-1.ogg": {
+  "etiqueta": "A rising whoosh building up energy",
+  "sim_propio": 0.374,
+  "puesto": 1,
+  "top1": "cargar",
+  "sim_top1": 0.374,
+  "duracion": 1.22
+ },
+ "sfx-ia/cargar-2.ogg": {
+  "etiqueta": "A rising whoosh building up energy",
+  "sim_propio": 0.309,
+  "puesto": 2,
+  "top1": "viento-rafaga",
+  "sim_top1": 0.404,
+  "duracion": 1.39
+ },
+ "sfx-ia/cerrojo-1.ogg": {
+  "etiqueta": "A metal door latch bolt sliding and clicking shut",
+  "sim_propio": 0.01,
+  "puesto": 16,
+  "top1": "cueva-goteo",
+  "sim_top1": 0.24,
+  "duracion": 0.66
+ },
+ "sfx-ia/cerrojo-2.ogg": {
+  "etiqueta": "A metal door latch bolt sliding and clicking shut",
+  "sim_propio": 0.144,
+  "puesto": 9,
+  "top1": "armadura-golpe",
+  "sim_top1": 0.245,
+  "duracion": 0.81
+ },
+ "sfx-ia/chapuzon-1.ogg": {
+  "etiqueta": "A splash of something dropping into water",
+  "sim_propio": 0.223,
+  "puesto": 2,
+  "top1": "cueva-goteo",
+  "sim_top1": 0.38,
+  "duracion": 0.51
+ },
+ "sfx-ia/chapuzon-2.ogg": {
+  "etiqueta": "A splash of something dropping into water",
+  "sim_propio": 0.265,
+  "puesto": 2,
+  "top1": "cueva-goteo",
+  "sim_top1": 0.372,
+  "duracion": 0.67
+ },
+ "sfx-ia/costal-1.ogg": {
+  "etiqueta": "A heavy sack of stones dropped on the ground",
+  "sim_propio": 0.394,
+  "puesto": 1,
+  "top1": "costal",
+  "sim_top1": 0.394,
+  "duracion": 0.77
+ },
+ "sfx-ia/costal-2.ogg": {
+  "etiqueta": "A heavy sack of stones dropped on the ground",
+  "sim_propio": 0.451,
+  "puesto": 1,
+  "top1": "costal",
+  "sim_top1": 0.451,
+  "duracion": 1.0
+ },
+ "sfx-ia/cueva-goteo-1.ogg": {
+  "etiqueta": "Water drops dripping slowly in a large stone cave",
+  "sim_propio": 0.355,
+  "puesto": 2,
+  "top1": "fogata",
+  "sim_top1": 0.512,
+  "duracion": 10.0
+ },
+ "sfx-ia/cueva-goteo-2.ogg": {
+  "etiqueta": "Water drops dripping slowly in a large stone cave",
+  "sim_propio": 0.509,
+  "puesto": 1,
+  "top1": "cueva-goteo",
+  "sim_top1": 0.509,
+  "duracion": 10.0
+ },
+ "sfx-ia/curar-1.ogg": {
+  "etiqueta": "A gentle magical healing shimmer",
+  "sim_propio": 0.071,
+  "puesto": 8,
+  "top1": "aves-bosque",
+  "sim_top1": 0.255,
+  "duracion": 1.44
+ },
+ "sfx-ia/curar-2.ogg": {
+  "etiqueta": "A gentle magical healing shimmer",
+  "sim_propio": 0.083,
+  "puesto": 8,
+  "top1": "aves-bosque",
+  "sim_top1": 0.323,
+  "duracion": 1.5
+ },
+ "sfx-ia/curar-3.ogg": {
+  "etiqueta": "A gentle magical healing shimmer",
+  "sim_propio": 0.017,
+  "puesto": 13,
+  "top1": "aves-bosque",
+  "sim_top1": 0.291,
+  "duracion": 1.47
+ },
+ "sfx-ia/desenvainar-1.ogg": {
+  "etiqueta": "A sword being drawn from its sheath",
+  "sim_propio": 0.468,
+  "puesto": 1,
+  "top1": "desenvainar",
+  "sim_top1": 0.468,
+  "duracion": 0.87
+ },
+ "sfx-ia/desenvainar-2.ogg": {
+  "etiqueta": "A sword being drawn from its sheath",
+  "sim_propio": 0.503,
+  "puesto": 1,
+  "top1": "desenvainar",
+  "sim_top1": 0.503,
+  "duracion": 0.56
+ },
+ "sfx-ia/moneda-chica-1.ogg": {
+  "etiqueta": "A single small gold coin clinking",
+  "sim_propio": 0.321,
+  "puesto": 3,
+  "top1": "moneda-vender",
+  "sim_top1": 0.52,
+  "duracion": 0.52
+ },
+ "sfx-ia/moneda-chica-2.ogg": {
+  "etiqueta": "A single small gold coin clinking",
+  "sim_propio": 0.262,
+  "puesto": 4,
+  "top1": "moneda-pagar",
+  "sim_top1": 0.422,
+  "duracion": 1.0
+ },
+ "sfx-ia/muerte-criatura-1.ogg": {
+  "etiqueta": "A small monster creature's short dying squeal and whimper",
+  "sim_propio": 0.316,
+  "puesto": 1,
+  "top1": "muerte-criatura",
+  "sim_top1": 0.316,
+  "duracion": 1.5
+ },
+ "sfx-ia/muerte-criatura-2.ogg": {
+  "etiqueta": "A small monster creature's short dying squeal and whimper",
+  "sim_propio": 0.161,
+  "puesto": 3,
+  "top1": "curar",
+  "sim_top1": 0.218,
+  "duracion": 1.48
+ },
+ "sfx-ia/muerte-criatura-3.ogg": {
+  "etiqueta": "A small monster creature's short dying squeal and whimper",
+  "sim_propio": 0.1,
+  "puesto": 13,
+  "top1": "dano-jugador",
+  "sim_top1": 0.206,
+  "duracion": 0.88
+ },
+ "sfx-ia/palanca-1.ogg": {
+  "etiqueta": "A heavy iron lever being pulled down with a mechanical clunk and ratchet",
+  "sim_propio": 0.035,
+  "puesto": 14,
+  "top1": "escorpion",
+  "sim_top1": 0.143,
+  "duracion": 1.38
+ },
+ "sfx-ia/palanca-2.ogg": {
+  "etiqueta": "A heavy iron lever being pulled down with a mechanical clunk and ratchet",
+  "sim_propio": 0.049,
+  "puesto": 10,
+  "top1": "armadura-golpe",
+  "sim_top1": 0.247,
+  "duracion": 0.71
+ },
+ "sfx-ia/rodar-1.ogg": {
+  "etiqueta": "A quick body roll on dirt",
+  "sim_propio": 0.135,
+  "puesto": 12,
+  "top1": "cortar-pasto",
+  "sim_top1": 0.295,
+  "duracion": 0.65
+ },
+ "sfx-ia/saltar-1.ogg": {
+  "etiqueta": "A light quick jump",
+  "sim_propio": 0.082,
+  "puesto": 14,
+  "top1": "cortar-pasto",
+  "sim_top1": 0.276,
+  "duracion": 0.61
+ },
+ "sfx-ia/saltar-2.ogg": {
+  "etiqueta": "A light quick jump",
+  "sim_propio": 0.053,
+  "puesto": 21,
+  "top1": "cortar-pasto",
+  "sim_top1": 0.195,
+  "duracion": 0.92
+ },
+ "sfx-ia/sospecha-1.ogg": {
+  "etiqueta": "A short soft rising questioning whistle",
+  "sim_propio": 0.199,
+  "puesto": 1,
+  "top1": "sospecha",
+  "sim_top1": 0.199,
+  "duracion": 0.58
+ },
+ "sfx-ia/ui-error-1.ogg": {
+  "etiqueta": "A short low dull buzz and wooden knock",
+  "sim_propio": 0.072,
+  "puesto": 8,
+  "top1": "cuerno-guardia",
+  "sim_top1": 0.175,
+  "duracion": 0.88
+ },
+ "sfx-ia/ui-error-2.ogg": {
+  "etiqueta": "A short low dull buzz and wooden knock",
+  "sim_propio": -0.104,
+  "puesto": 30,
+  "top1": "rodar",
+  "sim_top1": 0.153,
+  "duracion": 1.0
+ },
+ "sfx-ia/ui-error-3.ogg": {
+  "etiqueta": "A short low dull buzz and wooden knock",
+  "sim_propio": 0.094,
+  "puesto": 9,
+  "top1": "flecha",
+  "sim_top1": 0.198,
+  "duracion": 0.82
+ },
+ "sfx-ia/ui-exito-1.ogg": {
+  "etiqueta": "A short cheerful success jingle",
+  "sim_propio": -0.005,
+  "puesto": 26,
+  "top1": "curar",
+  "sim_top1": 0.288,
+  "duracion": 1.28
+ },
+ "sfx-ia/ui-exito-2.ogg": {
+  "etiqueta": "A short cheerful success jingle",
+  "sim_propio": 0.029,
+  "puesto": 22,
+  "top1": "curar",
+  "sim_top1": 0.172,
+  "duracion": 1.4
+ },
+ "sfx-ia/ui-exito-3.ogg": {
+  "etiqueta": "A short cheerful success jingle",
+  "sim_propio": 0.093,
+  "puesto": 11,
+  "top1": "cargar",
+  "sim_top1": 0.236,
+  "duracion": 1.5
+ },
+ "sfx-ia/ui-ok-1.ogg": {
+  "etiqueta": "A short bright confirmation chime",
+  "sim_propio": 0.175,
+  "puesto": 6,
+  "top1": "cuerno-guardia",
+  "sim_top1": 0.205,
+  "duracion": 0.7
+ },
+ "sfx-ia/ui-ok-2.ogg": {
+  "etiqueta": "A short bright confirmation chime",
+  "sim_propio": 0.06,
+  "puesto": 12,
+  "top1": "campana-pueblo",
+  "sim_top1": 0.318,
+  "duracion": 1.0
+ },
+ "sfx-ia/ui-ok-3.ogg": {
+  "etiqueta": "A short bright confirmation chime",
+  "sim_propio": 0.1,
+  "puesto": 7,
+  "top1": "curar",
+  "sim_top1": 0.297,
+  "duracion": 1.0
+ },
+ "sfx-ia/alerta-1.ogg": {
+  "etiqueta": "A sudden sharp short metallic ping of alarm",
+  "sim_propio": 0.162,
+  "puesto": 3,
+  "top1": "armadura-golpe",
+  "sim_top1": 0.225,
+  "duracion": 0.21
+ },
+ "sfx-ia/alerta-2.ogg": {
+  "etiqueta": "A sudden sharp short metallic ping of alarm",
+  "sim_propio": 0.214,
+  "puesto": 1,
+  "top1": "alerta",
+  "sim_top1": 0.214,
+  "duracion": 0.48
+ },
+ "sfx-ia/alerta-3.ogg": {
+  "etiqueta": "A sudden sharp short metallic ping of alarm",
+  "sim_propio": 0.257,
+  "puesto": 2,
+  "top1": "ui-error",
+  "sim_top1": 0.311,
+  "duracion": 0.25
+ },
+ "sfx-ia/armadura-golpe-2.ogg": {
+  "etiqueta": "A wooden staff striking a steel shield and plate armor",
+  "sim_propio": 0.424,
+  "puesto": 1,
+  "top1": "armadura-golpe",
+  "sim_top1": 0.424,
+  "duracion": 0.48
+ },
+ "sfx-ia/aterrizar-1.ogg": {
+  "etiqueta": "Boots landing softly on dirt after a small jump",
+  "sim_propio": 0.271,
+  "puesto": 2,
+  "top1": "costal",
+  "sim_top1": 0.34,
+  "duracion": 0.29
+ },
+ "sfx-ia/baston-ligero-1.ogg": {
+  "etiqueta": "A quick light swish of a thin wooden stick swung through the air",
+  "sim_propio": 0.363,
+  "puesto": 2,
+  "top1": "golpe-baston",
+  "sim_top1": 0.382,
+  "duracion": 0.2
+ },
+ "sfx-ia/baston-ligero-2.ogg": {
+  "etiqueta": "A quick light swish of a thin wooden stick swung through the air",
+  "sim_propio": 0.334,
+  "puesto": 4,
+  "top1": "golpe-baston",
+  "sim_top1": 0.394,
+  "duracion": 0.32
+ },
+ "sfx-ia/cortar-pasto-1.ogg": {
+  "etiqueta": "A quick swish cutting through tall grass",
+  "sim_propio": 0.199,
+  "puesto": 1,
+  "top1": "cortar-pasto",
+  "sim_top1": 0.199,
+  "duracion": 0.18
+ },
+ "sfx-ia/cortar-pasto-2.ogg": {
+  "etiqueta": "A quick swish cutting through tall grass",
+  "sim_propio": 0.278,
+  "puesto": 1,
+  "top1": "cortar-pasto",
+  "sim_top1": 0.278,
+  "duracion": 0.28
+ },
+ "sfx-ia/dano-jugador-1.ogg": {
+  "etiqueta": "A short male grunt of pain",
+  "sim_propio": 0.246,
+  "puesto": 1,
+  "top1": "dano-jugador",
+  "sim_top1": 0.246,
+  "duracion": 0.4
+ },
+ "sfx-ia/dano-jugador-2.ogg": {
+  "etiqueta": "A short male grunt of pain",
+  "sim_propio": 0.353,
+  "puesto": 1,
+  "top1": "dano-jugador",
+  "sim_top1": 0.353,
+  "duracion": 0.27
+ },
+ "sfx-ia/flecha-1.ogg": {
+  "etiqueta": "An arrow shot from a bow",
+  "sim_propio": 0.088,
+  "puesto": 9,
+  "top1": "armadura-golpe",
+  "sim_top1": 0.37,
+  "duracion": 0.37
+ },
+ "sfx-ia/flecha-2.ogg": {
+  "etiqueta": "An arrow shot from a bow",
+  "sim_propio": 0.203,
+  "puesto": 11,
+  "top1": "armadura-golpe",
+  "sim_top1": 0.469,
+  "duracion": 0.21
+ },
+ "sfx-ia/flecha-clavar-1.ogg": {
+  "etiqueta": "An arrow thudding into a wooden post",
+  "sim_propio": 0.286,
+  "puesto": 3,
+  "top1": "costal",
+  "sim_top1": 0.383,
+  "duracion": 0.23
+ },
+ "sfx-ia/flecha-clavar-2.ogg": {
+  "etiqueta": "An arrow thudding into a wooden post",
+  "sim_propio": 0.21,
+  "puesto": 6,
+  "top1": "baston-pesado",
+  "sim_top1": 0.299,
+  "duracion": 0.21
+ },
+ "sfx-ia/flecha-clavar-3.ogg": {
+  "etiqueta": "An arrow thudding into a wooden post",
+  "sim_propio": 0.166,
+  "puesto": 2,
+  "top1": "cueva-goteo",
+  "sim_top1": 0.312,
+  "duracion": 0.15
+ },
+ "sfx-ia/golpe-baston-1.ogg": {
+  "etiqueta": "A quick wooden staff swing whoosh through the air",
+  "sim_propio": 0.391,
+  "puesto": 1,
+  "top1": "golpe-baston",
+  "sim_top1": 0.391,
+  "duracion": 0.3
+ },
+ "sfx-ia/golpe-baston-2.ogg": {
+  "etiqueta": "A quick wooden staff swing whoosh through the air",
+  "sim_propio": 0.291,
+  "puesto": 3,
+  "top1": "baston-pesado",
+  "sim_top1": 0.33,
+  "duracion": 0.42
+ },
+ "sfx-ia/hachazo-1.ogg": {
+  "etiqueta": "A single axe chop into wood",
+  "sim_propio": 0.207,
+  "puesto": 7,
+  "top1": "sello",
+  "sim_top1": 0.34,
+  "duracion": 0.29
+ },
+ "sfx-ia/hachazo-2.ogg": {
+  "etiqueta": "A single axe chop into wood",
+  "sim_propio": 0.282,
+  "puesto": 6,
+  "top1": "flecha-clavar",
+  "sim_top1": 0.38,
+  "duracion": 0.14
+ },
+ "sfx-ia/moneda-chica-3.ogg": {
+  "etiqueta": "A single small gold coin clinking",
+  "sim_propio": 0.369,
+  "puesto": 3,
+  "top1": "moneda-vender",
+  "sim_top1": 0.512,
+  "duracion": 0.48
+ },
+ "sfx-ia/paso-arena-1.ogg": {
+  "etiqueta": "footsteps on sand",
+  "sim_propio": 0.036,
+  "puesto": 14,
+  "top1": "cortar-pasto",
+  "sim_top1": 0.273,
+  "duracion": 0.27
+ },
+ "sfx-ia/paso-arena-2.ogg": {
+  "etiqueta": "footsteps on sand",
+  "sim_propio": 0.016,
+  "puesto": 21,
+  "top1": "cortar-pasto",
+  "sim_top1": 0.241,
+  "duracion": 0.27
+ },
+ "sfx-ia/paso-arena-3.ogg": {
+  "etiqueta": "footsteps on sand",
+  "sim_propio": 0.04,
+  "puesto": 12,
+  "top1": "cortar-pasto",
+  "sim_top1": 0.22,
+  "duracion": 0.16
+ },
+ "sfx-ia/paso-arena-4.ogg": {
+  "etiqueta": "footsteps on sand",
+  "sim_propio": 0.218,
+  "puesto": 6,
+  "top1": "paso-piedra",
+  "sim_top1": 0.297,
+  "duracion": 0.24
+ },
+ "sfx-ia/paso-arena-5.ogg": {
+  "etiqueta": "footsteps on sand",
+  "sim_propio": -0.07,
+  "puesto": 32,
+  "top1": "cueva-goteo",
+  "sim_top1": 0.225,
+  "duracion": 0.23
+ },
+ "sfx-ia/paso-arena-6.ogg": {
+  "etiqueta": "footsteps on sand",
+  "sim_propio": -0.141,
+  "puesto": 43,
+  "top1": "cortar-pasto",
+  "sim_top1": 0.217,
+  "duracion": 0.13
+ },
+ "sfx-ia/paso-arena-7.ogg": {
+  "etiqueta": "footsteps on sand",
+  "sim_propio": -0.164,
+  "puesto": 44,
+  "top1": "armadura-golpe",
+  "sim_top1": 0.203,
+  "duracion": 0.1
+ },
+ "sfx-ia/paso-arena-8.ogg": {
+  "etiqueta": "footsteps on sand",
+  "sim_propio": -0.164,
+  "puesto": 43,
+  "top1": "moneda-vender",
+  "sim_top1": 0.131,
+  "duracion": 0.11
+ },
+ "sfx-ia/paso-madera-1.ogg": {
+  "etiqueta": "footsteps on wood",
+  "sim_propio": 0.188,
+  "puesto": 6,
+  "top1": "sello",
+  "sim_top1": 0.289,
+  "duracion": 0.45
+ },
+ "sfx-ia/paso-madera-2.ogg": {
+  "etiqueta": "footsteps on wood",
+  "sim_propio": 0.131,
+  "puesto": 9,
+  "top1": "sello",
+  "sim_top1": 0.396,
+  "duracion": 0.45
+ },
+ "sfx-ia/paso-madera-3.ogg": {
+  "etiqueta": "footsteps on wood",
+  "sim_propio": 0.108,
+  "puesto": 8,
+  "top1": "sello",
+  "sim_top1": 0.35,
+  "duracion": 0.45
+ },
+ "sfx-ia/paso-madera-4.ogg": {
+  "etiqueta": "footsteps on wood",
+  "sim_propio": 0.199,
+  "puesto": 5,
+  "top1": "aterrizar",
+  "sim_top1": 0.31,
+  "duracion": 0.45
+ },
+ "sfx-ia/paso-madera-5.ogg": {
+  "etiqueta": "footsteps on wood",
+  "sim_propio": 0.171,
+  "puesto": 7,
+  "top1": "costal",
+  "sim_top1": 0.282,
+  "duracion": 0.18
+ },
+ "sfx-ia/paso-madera-6.ogg": {
+  "etiqueta": "footsteps on wood",
+  "sim_propio": 0.139,
+  "puesto": 10,
+  "top1": "costal",
+  "sim_top1": 0.346,
+  "duracion": 0.23
+ },
+ "sfx-ia/paso-madera-7.ogg": {
+  "etiqueta": "footsteps on wood",
+  "sim_propio": 0.123,
+  "puesto": 11,
+  "top1": "sello",
+  "sim_top1": 0.336,
+  "duracion": 0.17
+ },
+ "sfx-ia/paso-madera-8.ogg": {
+  "etiqueta": "footsteps on wood",
+  "sim_propio": 0.079,
+  "puesto": 18,
+  "top1": "sello",
+  "sim_top1": 0.294,
+  "duracion": 0.19
+ },
+ "sfx-ia/paso-nieve-1.ogg": {
+  "etiqueta": "footsteps on snow",
+  "sim_propio": 0.312,
+  "puesto": 1,
+  "top1": "paso-nieve",
+  "sim_top1": 0.312,
+  "duracion": 0.27
+ },
+ "sfx-ia/paso-nieve-2.ogg": {
+  "etiqueta": "footsteps on snow",
+  "sim_propio": 0.391,
+  "puesto": 1,
+  "top1": "paso-nieve",
+  "sim_top1": 0.391,
+  "duracion": 0.45
+ },
+ "sfx-ia/paso-nieve-3.ogg": {
+  "etiqueta": "footsteps on snow",
+  "sim_propio": 0.3,
+  "puesto": 1,
+  "top1": "paso-nieve",
+  "sim_top1": 0.3,
+  "duracion": 0.34
+ },
+ "sfx-ia/paso-nieve-4.ogg": {
+  "etiqueta": "footsteps on snow",
+  "sim_propio": 0.21,
+  "puesto": 1,
+  "top1": "paso-nieve",
+  "sim_top1": 0.21,
+  "duracion": 0.27
+ },
+ "sfx-ia/paso-nieve-5.ogg": {
+  "etiqueta": "footsteps on snow",
+  "sim_propio": -0.004,
+  "puesto": 26,
+  "top1": "costal",
+  "sim_top1": 0.346,
+  "duracion": 0.23
+ },
+ "sfx-ia/paso-nieve-6.ogg": {
+  "etiqueta": "footsteps on snow",
+  "sim_propio": 0.333,
+  "puesto": 1,
+  "top1": "paso-nieve",
+  "sim_top1": 0.333,
+  "duracion": 0.45
+ },
+ "sfx-ia/paso-nieve-7.ogg": {
+  "etiqueta": "footsteps on snow",
+  "sim_propio": 0.205,
+  "puesto": 1,
+  "top1": "paso-nieve",
+  "sim_top1": 0.205,
+  "duracion": 0.33
+ },
+ "sfx-ia/paso-nieve-8.ogg": {
+  "etiqueta": "footsteps on snow",
+  "sim_propio": 0.275,
+  "puesto": 2,
+  "top1": "paso-piedra",
+  "sim_top1": 0.288,
+  "duracion": 0.44
+ },
+ "sfx-ia/paso-pasto-5.ogg": {
+  "etiqueta": "footsteps on grass",
+  "sim_propio": 0.117,
+  "puesto": 13,
+  "top1": "cortar-pasto",
+  "sim_top1": 0.291,
+  "duracion": 0.45
+ },
+ "sfx-ia/paso-pasto-6.ogg": {
+  "etiqueta": "footsteps on grass",
+  "sim_propio": 0.131,
+  "puesto": 7,
+  "top1": "costal",
+  "sim_top1": 0.267,
+  "duracion": 0.29
+ },
+ "sfx-ia/paso-pasto-7.ogg": {
+  "etiqueta": "footsteps on grass",
+  "sim_propio": 0.138,
+  "puesto": 8,
+  "top1": "costal",
+  "sim_top1": 0.331,
+  "duracion": 0.45
+ },
+ "sfx-ia/paso-pasto-8.ogg": {
+  "etiqueta": "footsteps on grass",
+  "sim_propio": 0.097,
+  "puesto": 14,
+  "top1": "costal",
+  "sim_top1": 0.319,
+  "duracion": 0.27
+ },
+ "sfx-ia/paso-piedra-1.ogg": {
+  "etiqueta": "footsteps on stone",
+  "sim_propio": 0.314,
+  "puesto": 1,
+  "top1": "paso-piedra",
+  "sim_top1": 0.314,
+  "duracion": 0.45
+ },
+ "sfx-ia/paso-piedra-2.ogg": {
+  "etiqueta": "footsteps on stone",
+  "sim_propio": 0.188,
+  "puesto": 7,
+  "top1": "costal",
+  "sim_top1": 0.323,
+  "duracion": 0.3
+ },
+ "sfx-ia/paso-piedra-3.ogg": {
+  "etiqueta": "footsteps on stone",
+  "sim_propio": 0.242,
+  "puesto": 2,
+  "top1": "costal",
+  "sim_top1": 0.302,
+  "duracion": 0.41
+ },
+ "sfx-ia/paso-piedra-4.ogg": {
+  "etiqueta": "footsteps on stone",
+  "sim_propio": 0.239,
+  "puesto": 2,
+  "top1": "aterrizar",
+  "sim_top1": 0.263,
+  "duracion": 0.42
+ },
+ "sfx-ia/paso-piedra-5.ogg": {
+  "etiqueta": "footsteps on stone",
+  "sim_propio": 0.277,
+  "puesto": 3,
+  "top1": "aterrizar",
+  "sim_top1": 0.357,
+  "duracion": 0.28
+ },
+ "sfx-ia/paso-piedra-6.ogg": {
+  "etiqueta": "footsteps on stone",
+  "sim_propio": 0.271,
+  "puesto": 3,
+  "top1": "costal",
+  "sim_top1": 0.38,
+  "duracion": 0.3
+ },
+ "sfx-ia/paso-piedra-7.ogg": {
+  "etiqueta": "footsteps on stone",
+  "sim_propio": 0.292,
+  "puesto": 3,
+  "top1": "costal",
+  "sim_top1": 0.452,
+  "duracion": 0.38
+ },
+ "sfx-ia/paso-piedra-8.ogg": {
+  "etiqueta": "footsteps on stone",
+  "sim_propio": 0.28,
+  "puesto": 3,
+  "top1": "costal",
+  "sim_top1": 0.439,
+  "duracion": 0.41
+ },
+ "sfx-ia/recoger-1.ogg": {
+  "etiqueta": "Picking up a small item",
+  "sim_propio": -0.071,
+  "puesto": 35,
+  "top1": "armadura-golpe",
+  "sim_top1": 0.327,
+  "duracion": 0.16
+ },
+ "sfx-ia/recoger-2.ogg": {
+  "etiqueta": "Picking up a small item",
+  "sim_propio": -0.018,
+  "puesto": 27,
+  "top1": "cueva-goteo",
+  "sim_top1": 0.314,
+  "duracion": 0.15
+ },
+ "sfx-ia/recoger-3.ogg": {
+  "etiqueta": "Picking up a small item",
+  "sim_propio": -0.064,
+  "puesto": 31,
+  "top1": "armadura-golpe",
+  "sim_top1": 0.245,
+  "duracion": 0.13
+ },
+ "sfx-ia/sello-1.ogg": {
+  "etiqueta": "A wax seal stamp pressed firmly on paper with a thump",
+  "sim_propio": 0.264,
+  "puesto": 4,
+  "top1": "costal",
+  "sim_top1": 0.429,
+  "duracion": 0.22
+ },
+ "sfx-ia/sospecha-2.ogg": {
+  "etiqueta": "A short soft rising questioning whistle",
+  "sim_propio": 0.156,
+  "puesto": 6,
+  "top1": "nieve-viento",
+  "sim_top1": 0.22,
+  "duracion": 0.42
+ },
+ "sfx-ia/ui-mover-1.ogg": {
+  "etiqueta": "A soft short wooden click",
+  "sim_propio": 0.076,
+  "puesto": 18,
+  "top1": "flecha-clavar",
+  "sim_top1": 0.213,
+  "duracion": 0.27
+ },
+ "sfx-ia/ui-mover-2.ogg": {
+  "etiqueta": "A soft short wooden click",
+  "sim_propio": 0.159,
+  "puesto": 5,
+  "top1": "alerta",
+  "sim_top1": 0.199,
+  "duracion": 0.14
+ },
+ "sfx-ia/ui-mover-3.ogg": {
+  "etiqueta": "A soft short wooden click",
+  "sim_propio": 0.015,
+  "puesto": 14,
+  "top1": "cueva-goteo",
+  "sim_top1": 0.354,
+  "duracion": 0.16
  }
 }

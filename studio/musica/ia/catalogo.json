@@ -1,6 +1,6 @@
 {
- "generado": "2026-09-26 01:44",
- "archivos": 161,
+ "generado": "2026-09-26 15:54",
+ "archivos": 230,
  "items": [
   {
    "archivo": "public/assets/music-ia/ashfen-calma-1.ogg",
@@ -1063,6 +1063,66 @@
    "clap_prob_voz": 1.0
   },
   {
+   "archivo": "public/assets/music-ia/stinger-deuda-1.ogg",
+   "tipo": "stinger",
+   "zona": "stinger",
+   "capa": "deuda",
+   "variante": 1,
+   "bpm": 100,
+   "tonalidad": "D major",
+   "prompt": "short triumphant freedom fanfare, bright trumpets and french horns with timpani roll and rising strings, debt finally paid, liberation, celebratory, resolves grandly on the tonic, then silence, pixel-art fantasy RPG game jingle, instrumental, no vocals, short, ends cleanly",
+   "semilla": 381,
+   "modelo": "ACE-Step-1.5",
+   "lm": false,
+   "duracion_s": 5.1,
+   "segundos_gpu": 9.2,
+   "kb": 115,
+   "clap_sim": 0.225,
+   "clap_puesto": 9,
+   "clap_top1": "verdelume/calma",
+   "clap_prob_voz": 0.989
+  },
+  {
+   "archivo": "public/assets/music-ia/stinger-deuda-2.ogg",
+   "tipo": "stinger",
+   "zona": "stinger",
+   "capa": "deuda",
+   "variante": 2,
+   "bpm": 100,
+   "tonalidad": "D major",
+   "prompt": "short triumphant freedom fanfare, bright trumpets and french horns with timpani roll and rising strings, debt finally paid, liberation, celebratory, resolves grandly on the tonic, then silence, pixel-art fantasy RPG game jingle, instrumental, no vocals, short, ends cleanly",
+   "semilla": 382,
+   "modelo": "ACE-Step-1.5",
+   "lm": false,
+   "duracion_s": 5.1,
+   "segundos_gpu": 9.8,
+   "kb": 104,
+   "clap_sim": 0.136,
+   "clap_puesto": 22,
+   "clap_top1": "verdelume/calma",
+   "clap_prob_voz": 1.0
+  },
+  {
+   "archivo": "public/assets/music-ia/stinger-deuda-3.ogg",
+   "tipo": "stinger",
+   "zona": "stinger",
+   "capa": "deuda",
+   "variante": 3,
+   "bpm": 100,
+   "tonalidad": "D major",
+   "prompt": "short triumphant freedom fanfare, bright trumpets and french horns with timpani roll and rising strings, debt finally paid, liberation, celebratory, resolves grandly on the tonic, then silence, pixel-art fantasy RPG game jingle, instrumental, no vocals, short, ends cleanly",
+   "semilla": 383,
+   "modelo": "ACE-Step-1.5",
+   "lm": false,
+   "duracion_s": 5.1,
+   "segundos_gpu": 8.2,
+   "kb": 109,
+   "clap_sim": 0.191,
+   "clap_puesto": 16,
+   "clap_top1": "title/calma",
+   "clap_prob_voz": 0.999
+  },
+  {
    "archivo": "public/assets/music-ia/stinger-fama-1.ogg",
    "tipo": "stinger",
    "zona": "stinger",
@@ -1241,6 +1301,66 @@
    "clap_puesto": 12,
    "clap_top1": "title/calma",
    "clap_prob_voz": 1.0
+  },
+  {
+   "archivo": "public/assets/music-ia/stinger-mision-1.ogg",
+   "tipo": "stinger",
+   "zona": "stinger",
+   "capa": "mision",
+   "variante": 1,
+   "bpm": 120,
+   "tonalidad": "C major",
+   "prompt": "very short quest complete jingle, plucked harp and glockenspiel quick rising arpeggio resolving on the tonic, small success, cheerful, bright, then silence, pixel-art fantasy RPG game jingle, instrumental, no vocals, short, ends cleanly",
+   "semilla": 371,
+   "modelo": "ACE-Step-1.5",
+   "lm": false,
+   "duracion_s": 4.1,
+   "segundos_gpu": 15.1,
+   "kb": 75,
+   "clap_sim": 0.174,
+   "clap_puesto": 15,
+   "clap_top1": "verdelume/calma",
+   "clap_prob_voz": 0.992
+  },
+  {
+   "archivo": "public/assets/music-ia/stinger-mision-2.ogg",
+   "tipo": "stinger",
+   "zona": "stinger",
+   "capa": "mision",
+   "variante": 2,
+   "bpm": 120,
+   "tonalidad": "C major",
+   "prompt": "very short quest complete jingle, plucked harp and glockenspiel quick rising arpeggio resolving on the tonic, small success, cheerful, bright, then silence, pixel-art fantasy RPG game jingle, instrumental, no vocals, short, ends cleanly",
+   "semilla": 372,
+   "modelo": "ACE-Step-1.5",
+   "lm": false,
+   "duracion_s": 4.1,
+   "segundos_gpu": 20.8,
+   "kb": 83,
+   "clap_sim": 0.189,
+   "clap_puesto": 13,
+   "clap_top1": "verdelume/tension",
+   "clap_prob_voz": 0.424
+  },
+  {
+   "archivo": "public/assets/music-ia/stinger-mision-3.ogg",
+   "tipo": "stinger",
+   "zona": "stinger",
+   "capa": "mision",
+   "variante": 3,
+   "bpm": 120,
+   "tonalidad": "C major",
+   "prompt": "very short quest complete jingle, plucked harp and glockenspiel quick rising arpeggio resolving on the tonic, small success, cheerful, bright, then silence, pixel-art fantasy RPG game jingle, instrumental, no vocals, short, ends cleanly",
+   "semilla": 373,
+   "modelo": "ACE-Step-1.5",
+   "lm": false,
+   "duracion_s": 4.1,
+   "segundos_gpu": 7.8,
+   "kb": 83,
+   "clap_sim": 0.188,
+   "clap_puesto": 20,
+   "clap_top1": "verdelume/tension",
+   "clap_prob_voz": 0.288
   },
   {
    "archivo": "public/assets/music-ia/stinger-redada-1.ogg",
@@ -1555,6 +1675,54 @@
    "clap_top1": "cuerno-guardia"
   },
   {
+   "archivo": "public/assets/sfx-ia/alerta-1.ogg",
+   "tipo": "sfx",
+   "nombre": "alerta",
+   "variante": 1,
+   "prompt": "A sudden sharp short metallic ping of alarm, a guard noticing something, bright, short.",
+   "semilla": 921,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.21,
+   "segundos_gpu": 112.2,
+   "kb": 6,
+   "clap_sim": 0.162,
+   "clap_puesto": 3,
+   "clap_top1": "armadura-golpe"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/alerta-2.ogg",
+   "tipo": "sfx",
+   "nombre": "alerta",
+   "variante": 2,
+   "prompt": "A sudden sharp short metallic ping of alarm, a guard noticing something, bright, short.",
+   "semilla": 922,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.48,
+   "segundos_gpu": 111.3,
+   "kb": 9,
+   "clap_sim": 0.214,
+   "clap_puesto": 1,
+   "clap_top1": "alerta"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/alerta-3.ogg",
+   "tipo": "sfx",
+   "nombre": "alerta",
+   "variante": 3,
+   "prompt": "A sudden sharp short metallic ping of alarm, a guard noticing something, bright, short.",
+   "semilla": 923,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.25,
+   "segundos_gpu": 111.0,
+   "kb": 6,
+   "clap_sim": 0.257,
+   "clap_puesto": 2,
+   "clap_top1": "ui-error"
+  },
+  {
    "archivo": "public/assets/sfx-ia/arena-viento-1.ogg",
    "tipo": "sfx",
    "nombre": "arena-viento",
@@ -1585,6 +1753,102 @@
    "clap_sim": 0.158,
    "clap_puesto": 6,
    "clap_top1": "paso-arena"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/armadura-golpe-1.ogg",
+   "tipo": "sfx",
+   "nombre": "armadura-golpe",
+   "variante": 1,
+   "prompt": "A wooden staff striking a steel shield and plate armor, single metallic clang, short, dry.",
+   "semilla": 761,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.68,
+   "segundos_gpu": 92.8,
+   "kb": 10,
+   "clap_sim": 0.444,
+   "clap_puesto": 1,
+   "clap_top1": "armadura-golpe"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/armadura-golpe-2.ogg",
+   "tipo": "sfx",
+   "nombre": "armadura-golpe",
+   "variante": 2,
+   "prompt": "A wooden staff striking a steel shield and plate armor, single metallic clang, short, dry.",
+   "semilla": 762,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.48,
+   "segundos_gpu": 94.7,
+   "kb": 8,
+   "clap_sim": 0.424,
+   "clap_puesto": 1,
+   "clap_top1": "armadura-golpe"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/armadura-moverse-1.ogg",
+   "tipo": "sfx",
+   "nombre": "armadura-moverse",
+   "variante": 1,
+   "prompt": "Metal plate armor and chainmail rattling as a knight turns and starts to move, short clanking, dry, close.",
+   "semilla": 751,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 1.44,
+   "segundos_gpu": 101.9,
+   "kb": 18,
+   "clap_sim": 0.21,
+   "clap_puesto": 4,
+   "clap_top1": "armadura-golpe"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/armadura-moverse-2.ogg",
+   "tipo": "sfx",
+   "nombre": "armadura-moverse",
+   "variante": 2,
+   "prompt": "Metal plate armor and chainmail rattling as a knight turns and starts to move, short clanking, dry, close.",
+   "semilla": 752,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 1.48,
+   "segundos_gpu": 100.2,
+   "kb": 18,
+   "clap_sim": 0.056,
+   "clap_puesto": 11,
+   "clap_top1": "armadura-golpe"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/aterrizar-1.ogg",
+   "tipo": "sfx",
+   "nombre": "aterrizar",
+   "variante": 1,
+   "prompt": "Boots landing softly on dirt after a small jump, single soft thud, short, dry.",
+   "semilla": 991,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.29,
+   "segundos_gpu": 111.5,
+   "kb": 7,
+   "clap_sim": 0.271,
+   "clap_puesto": 2,
+   "clap_top1": "costal"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/aterrizar-2.ogg",
+   "tipo": "sfx",
+   "nombre": "aterrizar",
+   "variante": 2,
+   "prompt": "Boots landing softly on dirt after a small jump, single soft thud, short, dry.",
+   "semilla": 992,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.51,
+   "segundos_gpu": 113.0,
+   "kb": 8,
+   "clap_sim": 0.162,
+   "clap_puesto": 4,
+   "clap_top1": "paso-piedra"
   },
   {
    "archivo": "public/assets/sfx-ia/aves-bosque-1.ogg",
@@ -1619,6 +1883,70 @@
    "clap_top1": "aves-bosque"
   },
   {
+   "archivo": "public/assets/sfx-ia/baston-ligero-1.ogg",
+   "tipo": "sfx",
+   "nombre": "baston-ligero",
+   "variante": 1,
+   "prompt": "A quick light swish of a thin wooden stick swung through the air, fast whoosh, short, dry.",
+   "semilla": 821,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.2,
+   "segundos_gpu": 112.2,
+   "kb": 6,
+   "clap_sim": 0.363,
+   "clap_puesto": 2,
+   "clap_top1": "golpe-baston"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/baston-ligero-2.ogg",
+   "tipo": "sfx",
+   "nombre": "baston-ligero",
+   "variante": 2,
+   "prompt": "A quick light swish of a thin wooden stick swung through the air, fast whoosh, short, dry.",
+   "semilla": 822,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.32,
+   "segundos_gpu": 117.3,
+   "kb": 6,
+   "clap_sim": 0.334,
+   "clap_puesto": 4,
+   "clap_top1": "golpe-baston"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/baston-pesado-1.ogg",
+   "tipo": "sfx",
+   "nombre": "baston-pesado",
+   "variante": 1,
+   "prompt": "A heavy wooden quarterstaff swung hard through the air, deep whoosh, short, dry.",
+   "semilla": 831,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.54,
+   "segundos_gpu": 111.4,
+   "kb": 8,
+   "clap_sim": 0.213,
+   "clap_puesto": 4,
+   "clap_top1": "golpe-baston"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/baston-pesado-2.ogg",
+   "tipo": "sfx",
+   "nombre": "baston-pesado",
+   "variante": 2,
+   "prompt": "A heavy wooden quarterstaff swung hard through the air, deep whoosh, short, dry.",
+   "semilla": 832,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.71,
+   "segundos_gpu": 115.1,
+   "kb": 9,
+   "clap_sim": 0.421,
+   "clap_puesto": 1,
+   "clap_top1": "baston-pesado"
+  },
+  {
    "archivo": "public/assets/sfx-ia/campana-pueblo-1.ogg",
    "tipo": "sfx",
    "nombre": "campana-pueblo",
@@ -1649,6 +1977,102 @@
    "clap_sim": 0.286,
    "clap_puesto": 1,
    "clap_top1": "campana-pueblo"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/cargar-1.ogg",
+   "tipo": "sfx",
+   "nombre": "cargar",
+   "variante": 1,
+   "prompt": "A rising whoosh building up energy, wooden staff spinning faster, short, dry.",
+   "semilla": 1001,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 1.22,
+   "segundos_gpu": 112.5,
+   "kb": 15,
+   "clap_sim": 0.374,
+   "clap_puesto": 1,
+   "clap_top1": "cargar"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/cargar-2.ogg",
+   "tipo": "sfx",
+   "nombre": "cargar",
+   "variante": 2,
+   "prompt": "A rising whoosh building up energy, wooden staff spinning faster, short, dry.",
+   "semilla": 1002,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 1.39,
+   "segundos_gpu": 112.3,
+   "kb": 17,
+   "clap_sim": 0.309,
+   "clap_puesto": 2,
+   "clap_top1": "viento-rafaga"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/cerrojo-1.ogg",
+   "tipo": "sfx",
+   "nombre": "cerrojo",
+   "variante": 1,
+   "prompt": "A metal door latch bolt sliding and clicking shut, short mechanical click, dry, close.",
+   "semilla": 841,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.66,
+   "segundos_gpu": 116.0,
+   "kb": 10,
+   "clap_sim": 0.01,
+   "clap_puesto": 16,
+   "clap_top1": "cueva-goteo"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/cerrojo-2.ogg",
+   "tipo": "sfx",
+   "nombre": "cerrojo",
+   "variante": 2,
+   "prompt": "A metal door latch bolt sliding and clicking shut, short mechanical click, dry, close.",
+   "semilla": 842,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.81,
+   "segundos_gpu": 115.3,
+   "kb": 11,
+   "clap_sim": 0.144,
+   "clap_puesto": 9,
+   "clap_top1": "armadura-golpe"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/chapuzon-1.ogg",
+   "tipo": "sfx",
+   "nombre": "chapuzon",
+   "variante": 1,
+   "prompt": "A splash of something dropping into water, single splash, short, close.",
+   "semilla": 811,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.51,
+   "segundos_gpu": 129.5,
+   "kb": 11,
+   "clap_sim": 0.223,
+   "clap_puesto": 2,
+   "clap_top1": "cueva-goteo"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/chapuzon-2.ogg",
+   "tipo": "sfx",
+   "nombre": "chapuzon",
+   "variante": 2,
+   "prompt": "A splash of something dropping into water, single splash, short, close.",
+   "semilla": 812,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.67,
+   "segundos_gpu": 117.1,
+   "kb": 12,
+   "clap_sim": 0.265,
+   "clap_puesto": 2,
+   "clap_top1": "cueva-goteo"
   },
   {
    "archivo": "public/assets/sfx-ia/cofre-abrir-1.ogg",
@@ -1683,6 +2107,70 @@
    "clap_top1": "grillos-noche"
   },
   {
+   "archivo": "public/assets/sfx-ia/cortar-pasto-1.ogg",
+   "tipo": "sfx",
+   "nombre": "cortar-pasto",
+   "variante": 1,
+   "prompt": "A quick swish cutting through tall grass, leaves rustling and snapping, short, dry, close.",
+   "semilla": 971,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.18,
+   "segundos_gpu": 111.9,
+   "kb": 6,
+   "clap_sim": 0.199,
+   "clap_puesto": 1,
+   "clap_top1": "cortar-pasto"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/cortar-pasto-2.ogg",
+   "tipo": "sfx",
+   "nombre": "cortar-pasto",
+   "variante": 2,
+   "prompt": "A quick swish cutting through tall grass, leaves rustling and snapping, short, dry, close.",
+   "semilla": 972,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.28,
+   "segundos_gpu": 111.1,
+   "kb": 6,
+   "clap_sim": 0.278,
+   "clap_puesto": 1,
+   "clap_top1": "cortar-pasto"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/costal-1.ogg",
+   "tipo": "sfx",
+   "nombre": "costal",
+   "variante": 1,
+   "prompt": "A heavy sack of stones dropped on the ground, dull thud with rustle of cloth, short, dry.",
+   "semilla": 851,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.77,
+   "segundos_gpu": 112.6,
+   "kb": 12,
+   "clap_sim": 0.394,
+   "clap_puesto": 1,
+   "clap_top1": "costal"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/costal-2.ogg",
+   "tipo": "sfx",
+   "nombre": "costal",
+   "variante": 2,
+   "prompt": "A heavy sack of stones dropped on the ground, dull thud with rustle of cloth, short, dry.",
+   "semilla": 852,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 1.0,
+   "segundos_gpu": 115.7,
+   "kb": 14,
+   "clap_sim": 0.451,
+   "clap_puesto": 1,
+   "clap_top1": "costal"
+  },
+  {
    "archivo": "public/assets/sfx-ia/cuerno-guardia-1.ogg",
    "tipo": "sfx",
    "nombre": "cuerno-guardia",
@@ -1715,6 +2203,86 @@
    "clap_top1": "cuerno-guardia"
   },
   {
+   "archivo": "public/assets/sfx-ia/cueva-goteo-1.ogg",
+   "tipo": "sfx",
+   "nombre": "cueva-goteo",
+   "variante": 1,
+   "prompt": "Water drops dripping slowly in a large stone cave, echoing drips, deep quiet reverb, no wind, no music.",
+   "semilla": 1011,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 10.0,
+   "segundos_gpu": 121.5,
+   "kb": 129,
+   "clap_sim": 0.355,
+   "clap_puesto": 2,
+   "clap_top1": "fogata"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/cueva-goteo-2.ogg",
+   "tipo": "sfx",
+   "nombre": "cueva-goteo",
+   "variante": 2,
+   "prompt": "Water drops dripping slowly in a large stone cave, echoing drips, deep quiet reverb, no wind, no music.",
+   "semilla": 1012,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 10.0,
+   "segundos_gpu": 121.0,
+   "kb": 124,
+   "clap_sim": 0.509,
+   "clap_puesto": 1,
+   "clap_top1": "cueva-goteo"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/curar-1.ogg",
+   "tipo": "sfx",
+   "nombre": "curar",
+   "variante": 1,
+   "prompt": "A gentle magical healing shimmer, soft rising sparkling chimes, warm, short.",
+   "semilla": 931,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 1.44,
+   "segundos_gpu": 111.8,
+   "kb": 19,
+   "clap_sim": 0.071,
+   "clap_puesto": 8,
+   "clap_top1": "aves-bosque"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/curar-2.ogg",
+   "tipo": "sfx",
+   "nombre": "curar",
+   "variante": 2,
+   "prompt": "A gentle magical healing shimmer, soft rising sparkling chimes, warm, short.",
+   "semilla": 932,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 1.5,
+   "segundos_gpu": 112.7,
+   "kb": 20,
+   "clap_sim": 0.083,
+   "clap_puesto": 8,
+   "clap_top1": "aves-bosque"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/curar-3.ogg",
+   "tipo": "sfx",
+   "nombre": "curar",
+   "variante": 3,
+   "prompt": "A gentle magical healing shimmer, soft rising sparkling chimes, warm, short.",
+   "semilla": 933,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 1.47,
+   "segundos_gpu": 112.7,
+   "kb": 19,
+   "clap_sim": 0.017,
+   "clap_puesto": 13,
+   "clap_top1": "aves-bosque"
+  },
+  {
    "archivo": "public/assets/sfx-ia/dano-jugador-1.ogg",
    "tipo": "sfx",
    "nombre": "dano-jugador",
@@ -1726,9 +2294,9 @@
    "duracion_s": 0.4,
    "segundos_gpu": 65.7,
    "kb": 8,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.246,
+   "clap_puesto": 1,
+   "clap_top1": "dano-jugador"
   },
   {
    "archivo": "public/assets/sfx-ia/dano-jugador-2.ogg",
@@ -1742,9 +2310,41 @@
    "duracion_s": 0.27,
    "segundos_gpu": 65.7,
    "kb": 6,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.353,
+   "clap_puesto": 1,
+   "clap_top1": "dano-jugador"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/desenvainar-1.ogg",
+   "tipo": "sfx",
+   "nombre": "desenvainar",
+   "variante": 1,
+   "prompt": "A sword being drawn from its sheath, metallic scrape and ring, short, dry.",
+   "semilla": 871,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.87,
+   "segundos_gpu": 122.1,
+   "kb": 11,
+   "clap_sim": 0.468,
+   "clap_puesto": 1,
+   "clap_top1": "desenvainar"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/desenvainar-2.ogg",
+   "tipo": "sfx",
+   "nombre": "desenvainar",
+   "variante": 2,
+   "prompt": "A sword being drawn from its sheath, metallic scrape and ring, short, dry.",
+   "semilla": 872,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.56,
+   "segundos_gpu": 114.5,
+   "kb": 9,
+   "clap_sim": 0.503,
+   "clap_puesto": 1,
+   "clap_top1": "desenvainar"
   },
   {
    "archivo": "public/assets/sfx-ia/escorpion-1.ogg",
@@ -1790,9 +2390,9 @@
    "duracion_s": 0.37,
    "segundos_gpu": 61.2,
    "kb": 7,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.088,
+   "clap_puesto": 9,
+   "clap_top1": "armadura-golpe"
   },
   {
    "archivo": "public/assets/sfx-ia/flecha-2.ogg",
@@ -1806,9 +2406,57 @@
    "duracion_s": 0.21,
    "segundos_gpu": 61.5,
    "kb": 6,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.203,
+   "clap_puesto": 11,
+   "clap_top1": "armadura-golpe"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/flecha-clavar-1.ogg",
+   "tipo": "sfx",
+   "nombre": "flecha-clavar",
+   "variante": 1,
+   "prompt": "An arrow thudding into a wooden post, single sharp thunk with a short wobble, dry, close.",
+   "semilla": 771,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.23,
+   "segundos_gpu": 94.7,
+   "kb": 6,
+   "clap_sim": 0.286,
+   "clap_puesto": 3,
+   "clap_top1": "costal"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/flecha-clavar-2.ogg",
+   "tipo": "sfx",
+   "nombre": "flecha-clavar",
+   "variante": 2,
+   "prompt": "An arrow thudding into a wooden post, single sharp thunk with a short wobble, dry, close.",
+   "semilla": 772,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.21,
+   "segundos_gpu": 98.5,
+   "kb": 6,
+   "clap_sim": 0.21,
+   "clap_puesto": 6,
+   "clap_top1": "baston-pesado"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/flecha-clavar-3.ogg",
+   "tipo": "sfx",
+   "nombre": "flecha-clavar",
+   "variante": 3,
+   "prompt": "An arrow thudding into a wooden post, single sharp thunk with a short wobble, dry, close.",
+   "semilla": 773,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.15,
+   "segundos_gpu": 160.4,
+   "kb": 5,
+   "clap_sim": 0.166,
+   "clap_puesto": 2,
+   "clap_top1": "cueva-goteo"
   },
   {
    "archivo": "public/assets/sfx-ia/fogata-1.ogg",
@@ -1854,9 +2502,9 @@
    "duracion_s": 0.3,
    "segundos_gpu": 65.7,
    "kb": 6,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.391,
+   "clap_puesto": 1,
+   "clap_top1": "golpe-baston"
   },
   {
    "archivo": "public/assets/sfx-ia/golpe-baston-2.ogg",
@@ -1870,9 +2518,9 @@
    "duracion_s": 0.42,
    "segundos_gpu": 65.9,
    "kb": 7,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.291,
+   "clap_puesto": 3,
+   "clap_top1": "baston-pesado"
   },
   {
    "archivo": "public/assets/sfx-ia/grillos-noche-1.ogg",
@@ -1905,6 +2553,38 @@
    "clap_sim": 0.247,
    "clap_puesto": 1,
    "clap_top1": "grillos-noche"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/hachazo-1.ogg",
+   "tipo": "sfx",
+   "nombre": "hachazo",
+   "variante": 1,
+   "prompt": "A single axe chop into wood, sharp wooden thunk, short, dry, close.",
+   "semilla": 861,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.29,
+   "segundos_gpu": 113.2,
+   "kb": 6,
+   "clap_sim": 0.207,
+   "clap_puesto": 7,
+   "clap_top1": "sello"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/hachazo-2.ogg",
+   "tipo": "sfx",
+   "nombre": "hachazo",
+   "variante": 2,
+   "prompt": "A single axe chop into wood, sharp wooden thunk, short, dry, close.",
+   "semilla": 862,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.14,
+   "segundos_gpu": 113.7,
+   "kb": 5,
+   "clap_sim": 0.282,
+   "clap_puesto": 6,
+   "clap_top1": "flecha-clavar"
   },
   {
    "archivo": "public/assets/sfx-ia/impacto-2.ogg",
@@ -1985,6 +2665,54 @@
    "clap_sim": 0.287,
    "clap_puesto": 1,
    "clap_top1": "lobo-grunido"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/moneda-chica-1.ogg",
+   "tipo": "sfx",
+   "nombre": "moneda-chica",
+   "variante": 1,
+   "prompt": "A single small gold coin clinking, tiny bright metallic tink, short, dry, close.",
+   "semilla": 781,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.52,
+   "segundos_gpu": 98.9,
+   "kb": 10,
+   "clap_sim": 0.321,
+   "clap_puesto": 3,
+   "clap_top1": "moneda-vender"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/moneda-chica-2.ogg",
+   "tipo": "sfx",
+   "nombre": "moneda-chica",
+   "variante": 2,
+   "prompt": "A single small gold coin clinking, tiny bright metallic tink, short, dry, close.",
+   "semilla": 782,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 1.0,
+   "segundos_gpu": 101.6,
+   "kb": 16,
+   "clap_sim": 0.262,
+   "clap_puesto": 4,
+   "clap_top1": "moneda-pagar"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/moneda-chica-3.ogg",
+   "tipo": "sfx",
+   "nombre": "moneda-chica",
+   "variante": 3,
+   "prompt": "A single small gold coin clinking, tiny bright metallic tink, short, dry, close.",
+   "semilla": 783,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.48,
+   "segundos_gpu": 93.4,
+   "kb": 9,
+   "clap_sim": 0.369,
+   "clap_puesto": 3,
+   "clap_top1": "moneda-vender"
   },
   {
    "archivo": "public/assets/sfx-ia/moneda-comprar-1.ogg",
@@ -2083,6 +2811,54 @@
    "clap_top1": "moneda-vender"
   },
   {
+   "archivo": "public/assets/sfx-ia/muerte-criatura-1.ogg",
+   "tipo": "sfx",
+   "nombre": "muerte-criatura",
+   "variante": 1,
+   "prompt": "A small monster creature's short dying squeal and whimper, no words, fading, dry, close.",
+   "semilla": 791,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 1.5,
+   "segundos_gpu": 98.1,
+   "kb": 18,
+   "clap_sim": 0.316,
+   "clap_puesto": 1,
+   "clap_top1": "muerte-criatura"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/muerte-criatura-2.ogg",
+   "tipo": "sfx",
+   "nombre": "muerte-criatura",
+   "variante": 2,
+   "prompt": "A small monster creature's short dying squeal and whimper, no words, fading, dry, close.",
+   "semilla": 792,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 1.48,
+   "segundos_gpu": 95.4,
+   "kb": 19,
+   "clap_sim": 0.161,
+   "clap_puesto": 3,
+   "clap_top1": "curar"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/muerte-criatura-3.ogg",
+   "tipo": "sfx",
+   "nombre": "muerte-criatura",
+   "variante": 3,
+   "prompt": "A small monster creature's short dying squeal and whimper, no words, fading, dry, close.",
+   "semilla": 793,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.88,
+   "segundos_gpu": 110.5,
+   "kb": 13,
+   "clap_sim": 0.1,
+   "clap_puesto": 13,
+   "clap_top1": "dano-jugador"
+  },
+  {
    "archivo": "public/assets/sfx-ia/nieve-viento-1.ogg",
    "tipo": "sfx",
    "nombre": "nieve-viento",
@@ -2115,6 +2891,38 @@
    "clap_top1": "paso-pasto"
   },
   {
+   "archivo": "public/assets/sfx-ia/palanca-1.ogg",
+   "tipo": "sfx",
+   "nombre": "palanca",
+   "variante": 1,
+   "prompt": "A heavy iron lever being pulled down with a mechanical clunk and ratchet, short, dry.",
+   "semilla": 801,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 1.38,
+   "segundos_gpu": 128.9,
+   "kb": 23,
+   "clap_sim": 0.035,
+   "clap_puesto": 14,
+   "clap_top1": "escorpion"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/palanca-2.ogg",
+   "tipo": "sfx",
+   "nombre": "palanca",
+   "variante": 2,
+   "prompt": "A heavy iron lever being pulled down with a mechanical clunk and ratchet, short, dry.",
+   "semilla": 802,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.71,
+   "segundos_gpu": 155.5,
+   "kb": 11,
+   "clap_sim": 0.049,
+   "clap_puesto": 10,
+   "clap_top1": "armadura-golpe"
+  },
+  {
    "archivo": "public/assets/sfx-ia/paso-arena-1.ogg",
    "tipo": "sfx",
    "nombre": "paso-arena",
@@ -2126,9 +2934,9 @@
    "duracion_s": 0.27,
    "segundos_gpu": 60.9,
    "kb": 7,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.036,
+   "clap_puesto": 14,
+   "clap_top1": "cortar-pasto"
   },
   {
    "archivo": "public/assets/sfx-ia/paso-arena-2.ogg",
@@ -2142,9 +2950,9 @@
    "duracion_s": 0.27,
    "segundos_gpu": 60.9,
    "kb": 7,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.016,
+   "clap_puesto": 21,
+   "clap_top1": "cortar-pasto"
   },
   {
    "archivo": "public/assets/sfx-ia/paso-arena-3.ogg",
@@ -2158,9 +2966,9 @@
    "duracion_s": 0.16,
    "segundos_gpu": 60.9,
    "kb": 5,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.04,
+   "clap_puesto": 12,
+   "clap_top1": "cortar-pasto"
   },
   {
    "archivo": "public/assets/sfx-ia/paso-arena-4.ogg",
@@ -2174,9 +2982,9 @@
    "duracion_s": 0.24,
    "segundos_gpu": 60.9,
    "kb": 6,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.218,
+   "clap_puesto": 6,
+   "clap_top1": "paso-piedra"
   },
   {
    "archivo": "public/assets/sfx-ia/paso-arena-5.ogg",
@@ -2190,9 +2998,9 @@
    "duracion_s": 0.23,
    "segundos_gpu": 61.6,
    "kb": 6,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": -0.07,
+   "clap_puesto": 32,
+   "clap_top1": "cueva-goteo"
   },
   {
    "archivo": "public/assets/sfx-ia/paso-arena-6.ogg",
@@ -2206,9 +3014,9 @@
    "duracion_s": 0.13,
    "segundos_gpu": 61.6,
    "kb": 5,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": -0.141,
+   "clap_puesto": 43,
+   "clap_top1": "cortar-pasto"
   },
   {
    "archivo": "public/assets/sfx-ia/paso-arena-7.ogg",
@@ -2222,9 +3030,9 @@
    "duracion_s": 0.1,
    "segundos_gpu": 61.6,
    "kb": 5,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": -0.164,
+   "clap_puesto": 44,
+   "clap_top1": "armadura-golpe"
   },
   {
    "archivo": "public/assets/sfx-ia/paso-arena-8.ogg",
@@ -2238,9 +3046,9 @@
    "duracion_s": 0.11,
    "segundos_gpu": 61.6,
    "kb": 5,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": -0.164,
+   "clap_puesto": 43,
+   "clap_top1": "moneda-vender"
   },
   {
    "archivo": "public/assets/sfx-ia/paso-madera-1.ogg",
@@ -2254,9 +3062,9 @@
    "duracion_s": 0.45,
    "segundos_gpu": 60.9,
    "kb": 8,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.188,
+   "clap_puesto": 6,
+   "clap_top1": "sello"
   },
   {
    "archivo": "public/assets/sfx-ia/paso-madera-2.ogg",
@@ -2270,9 +3078,9 @@
    "duracion_s": 0.45,
    "segundos_gpu": 60.9,
    "kb": 8,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.131,
+   "clap_puesto": 9,
+   "clap_top1": "sello"
   },
   {
    "archivo": "public/assets/sfx-ia/paso-madera-3.ogg",
@@ -2286,9 +3094,9 @@
    "duracion_s": 0.45,
    "segundos_gpu": 60.9,
    "kb": 8,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.108,
+   "clap_puesto": 8,
+   "clap_top1": "sello"
   },
   {
    "archivo": "public/assets/sfx-ia/paso-madera-4.ogg",
@@ -2302,9 +3110,9 @@
    "duracion_s": 0.45,
    "segundos_gpu": 60.9,
    "kb": 8,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.199,
+   "clap_puesto": 5,
+   "clap_top1": "aterrizar"
   },
   {
    "archivo": "public/assets/sfx-ia/paso-madera-5.ogg",
@@ -2318,9 +3126,9 @@
    "duracion_s": 0.18,
    "segundos_gpu": 60.9,
    "kb": 5,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.171,
+   "clap_puesto": 7,
+   "clap_top1": "costal"
   },
   {
    "archivo": "public/assets/sfx-ia/paso-madera-6.ogg",
@@ -2334,9 +3142,9 @@
    "duracion_s": 0.23,
    "segundos_gpu": 60.9,
    "kb": 6,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.139,
+   "clap_puesto": 10,
+   "clap_top1": "costal"
   },
   {
    "archivo": "public/assets/sfx-ia/paso-madera-7.ogg",
@@ -2350,9 +3158,9 @@
    "duracion_s": 0.17,
    "segundos_gpu": 60.9,
    "kb": 5,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.123,
+   "clap_puesto": 11,
+   "clap_top1": "sello"
   },
   {
    "archivo": "public/assets/sfx-ia/paso-madera-8.ogg",
@@ -2366,9 +3174,9 @@
    "duracion_s": 0.19,
    "segundos_gpu": 60.9,
    "kb": 5,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.079,
+   "clap_puesto": 18,
+   "clap_top1": "sello"
   },
   {
    "archivo": "public/assets/sfx-ia/paso-nieve-1.ogg",
@@ -2382,9 +3190,9 @@
    "duracion_s": 0.27,
    "segundos_gpu": 61.4,
    "kb": 7,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.312,
+   "clap_puesto": 1,
+   "clap_top1": "paso-nieve"
   },
   {
    "archivo": "public/assets/sfx-ia/paso-nieve-2.ogg",
@@ -2398,9 +3206,9 @@
    "duracion_s": 0.45,
    "segundos_gpu": 61.4,
    "kb": 9,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.391,
+   "clap_puesto": 1,
+   "clap_top1": "paso-nieve"
   },
   {
    "archivo": "public/assets/sfx-ia/paso-nieve-3.ogg",
@@ -2414,9 +3222,9 @@
    "duracion_s": 0.34,
    "segundos_gpu": 61.4,
    "kb": 8,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.3,
+   "clap_puesto": 1,
+   "clap_top1": "paso-nieve"
   },
   {
    "archivo": "public/assets/sfx-ia/paso-nieve-4.ogg",
@@ -2430,9 +3238,9 @@
    "duracion_s": 0.27,
    "segundos_gpu": 61.4,
    "kb": 7,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.21,
+   "clap_puesto": 1,
+   "clap_top1": "paso-nieve"
   },
   {
    "archivo": "public/assets/sfx-ia/paso-nieve-5.ogg",
@@ -2446,9 +3254,9 @@
    "duracion_s": 0.23,
    "segundos_gpu": 60.9,
    "kb": 6,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": -0.004,
+   "clap_puesto": 26,
+   "clap_top1": "costal"
   },
   {
    "archivo": "public/assets/sfx-ia/paso-nieve-6.ogg",
@@ -2462,9 +3270,9 @@
    "duracion_s": 0.45,
    "segundos_gpu": 60.9,
    "kb": 9,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.333,
+   "clap_puesto": 1,
+   "clap_top1": "paso-nieve"
   },
   {
    "archivo": "public/assets/sfx-ia/paso-nieve-7.ogg",
@@ -2478,9 +3286,9 @@
    "duracion_s": 0.33,
    "segundos_gpu": 60.9,
    "kb": 8,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.205,
+   "clap_puesto": 1,
+   "clap_top1": "paso-nieve"
   },
   {
    "archivo": "public/assets/sfx-ia/paso-nieve-8.ogg",
@@ -2494,9 +3302,9 @@
    "duracion_s": 0.44,
    "segundos_gpu": 60.9,
    "kb": 9,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.275,
+   "clap_puesto": 2,
+   "clap_top1": "paso-piedra"
   },
   {
    "archivo": "public/assets/sfx-ia/paso-pasto-5.ogg",
@@ -2510,9 +3318,9 @@
    "duracion_s": 0.45,
    "segundos_gpu": 61.3,
    "kb": 8,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.117,
+   "clap_puesto": 13,
+   "clap_top1": "cortar-pasto"
   },
   {
    "archivo": "public/assets/sfx-ia/paso-pasto-6.ogg",
@@ -2526,9 +3334,9 @@
    "duracion_s": 0.29,
    "segundos_gpu": 61.3,
    "kb": 7,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.131,
+   "clap_puesto": 7,
+   "clap_top1": "costal"
   },
   {
    "archivo": "public/assets/sfx-ia/paso-pasto-7.ogg",
@@ -2542,9 +3350,9 @@
    "duracion_s": 0.45,
    "segundos_gpu": 61.3,
    "kb": 8,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.138,
+   "clap_puesto": 8,
+   "clap_top1": "costal"
   },
   {
    "archivo": "public/assets/sfx-ia/paso-pasto-8.ogg",
@@ -2558,9 +3366,9 @@
    "duracion_s": 0.27,
    "segundos_gpu": 61.3,
    "kb": 6,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.097,
+   "clap_puesto": 14,
+   "clap_top1": "costal"
   },
   {
    "archivo": "public/assets/sfx-ia/paso-piedra-1.ogg",
@@ -2574,9 +3382,9 @@
    "duracion_s": 0.45,
    "segundos_gpu": 61.3,
    "kb": 8,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.314,
+   "clap_puesto": 1,
+   "clap_top1": "paso-piedra"
   },
   {
    "archivo": "public/assets/sfx-ia/paso-piedra-2.ogg",
@@ -2590,9 +3398,9 @@
    "duracion_s": 0.3,
    "segundos_gpu": 61.3,
    "kb": 7,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.188,
+   "clap_puesto": 7,
+   "clap_top1": "costal"
   },
   {
    "archivo": "public/assets/sfx-ia/paso-piedra-3.ogg",
@@ -2606,9 +3414,9 @@
    "duracion_s": 0.41,
    "segundos_gpu": 61.3,
    "kb": 8,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.242,
+   "clap_puesto": 2,
+   "clap_top1": "costal"
   },
   {
    "archivo": "public/assets/sfx-ia/paso-piedra-4.ogg",
@@ -2622,9 +3430,9 @@
    "duracion_s": 0.42,
    "segundos_gpu": 61.3,
    "kb": 8,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.239,
+   "clap_puesto": 2,
+   "clap_top1": "aterrizar"
   },
   {
    "archivo": "public/assets/sfx-ia/paso-piedra-5.ogg",
@@ -2638,9 +3446,9 @@
    "duracion_s": 0.28,
    "segundos_gpu": 60.7,
    "kb": 7,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.277,
+   "clap_puesto": 3,
+   "clap_top1": "aterrizar"
   },
   {
    "archivo": "public/assets/sfx-ia/paso-piedra-6.ogg",
@@ -2654,9 +3462,9 @@
    "duracion_s": 0.3,
    "segundos_gpu": 60.7,
    "kb": 8,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.271,
+   "clap_puesto": 3,
+   "clap_top1": "costal"
   },
   {
    "archivo": "public/assets/sfx-ia/paso-piedra-7.ogg",
@@ -2670,9 +3478,9 @@
    "duracion_s": 0.38,
    "segundos_gpu": 60.7,
    "kb": 8,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.292,
+   "clap_puesto": 3,
+   "clap_top1": "costal"
   },
   {
    "archivo": "public/assets/sfx-ia/paso-piedra-8.ogg",
@@ -2686,9 +3494,9 @@
    "duracion_s": 0.41,
    "segundos_gpu": 60.7,
    "kb": 8,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.28,
+   "clap_puesto": 3,
+   "clap_top1": "costal"
   },
   {
    "archivo": "public/assets/sfx-ia/pergamino-1.ogg",
@@ -2755,6 +3563,54 @@
    "clap_top1": "puerta-madera"
   },
   {
+   "archivo": "public/assets/sfx-ia/recoger-1.ogg",
+   "tipo": "sfx",
+   "nombre": "recoger",
+   "variante": 1,
+   "prompt": "Picking up a small item, quick light pop with a tiny bright chime, short, dry.",
+   "semilla": 911,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.16,
+   "segundos_gpu": 111.1,
+   "kb": 5,
+   "clap_sim": -0.071,
+   "clap_puesto": 35,
+   "clap_top1": "armadura-golpe"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/recoger-2.ogg",
+   "tipo": "sfx",
+   "nombre": "recoger",
+   "variante": 2,
+   "prompt": "Picking up a small item, quick light pop with a tiny bright chime, short, dry.",
+   "semilla": 912,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.15,
+   "segundos_gpu": 112.1,
+   "kb": 5,
+   "clap_sim": -0.018,
+   "clap_puesto": 27,
+   "clap_top1": "cueva-goteo"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/recoger-3.ogg",
+   "tipo": "sfx",
+   "nombre": "recoger",
+   "variante": 3,
+   "prompt": "Picking up a small item, quick light pop with a tiny bright chime, short, dry.",
+   "semilla": 913,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.13,
+   "segundos_gpu": 111.5,
+   "kb": 5,
+   "clap_sim": -0.064,
+   "clap_puesto": 31,
+   "clap_top1": "armadura-golpe"
+  },
+  {
    "archivo": "public/assets/sfx-ia/relincho-1.ogg",
    "tipo": "sfx",
    "nombre": "relincho",
@@ -2787,6 +3643,54 @@
    "clap_top1": "viento-rafaga"
   },
   {
+   "archivo": "public/assets/sfx-ia/rodar-1.ogg",
+   "tipo": "sfx",
+   "nombre": "rodar",
+   "variante": 1,
+   "prompt": "A quick body roll on dirt, cloth and leather rustling with a soft thump, short, dry.",
+   "semilla": 961,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.65,
+   "segundos_gpu": 112.0,
+   "kb": 10,
+   "clap_sim": 0.135,
+   "clap_puesto": 12,
+   "clap_top1": "cortar-pasto"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/saltar-1.ogg",
+   "tipo": "sfx",
+   "nombre": "saltar",
+   "variante": 1,
+   "prompt": "A light quick jump, short cloth rustle and soft whoosh, dry, close.",
+   "semilla": 981,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.61,
+   "segundos_gpu": 111.4,
+   "kb": 9,
+   "clap_sim": 0.082,
+   "clap_puesto": 14,
+   "clap_top1": "cortar-pasto"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/saltar-2.ogg",
+   "tipo": "sfx",
+   "nombre": "saltar",
+   "variante": 2,
+   "prompt": "A light quick jump, short cloth rustle and soft whoosh, dry, close.",
+   "semilla": 982,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.92,
+   "segundos_gpu": 111.3,
+   "kb": 12,
+   "clap_sim": 0.053,
+   "clap_puesto": 21,
+   "clap_top1": "cortar-pasto"
+  },
+  {
    "archivo": "public/assets/sfx-ia/sello-1.ogg",
    "tipo": "sfx",
    "nombre": "sello",
@@ -2798,9 +3702,9 @@
    "duracion_s": 0.22,
    "segundos_gpu": 60.9,
    "kb": 6,
-   "clap_sim": null,
-   "clap_puesto": null,
-   "clap_top1": null
+   "clap_sim": 0.264,
+   "clap_puesto": 4,
+   "clap_top1": "costal"
   },
   {
    "archivo": "public/assets/sfx-ia/sello-2.ogg",
@@ -2817,6 +3721,38 @@
    "clap_sim": 0.167,
    "clap_puesto": 2,
    "clap_top1": "impacto"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/sospecha-1.ogg",
+   "tipo": "sfx",
+   "nombre": "sospecha",
+   "variante": 1,
+   "prompt": "A short soft rising questioning whistle, curious huh, no words, dry.",
+   "semilla": 951,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.58,
+   "segundos_gpu": 111.2,
+   "kb": 9,
+   "clap_sim": 0.199,
+   "clap_puesto": 1,
+   "clap_top1": "sospecha"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/sospecha-2.ogg",
+   "tipo": "sfx",
+   "nombre": "sospecha",
+   "variante": 2,
+   "prompt": "A short soft rising questioning whistle, curious huh, no words, dry.",
+   "semilla": 952,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.42,
+   "segundos_gpu": 111.4,
+   "kb": 7,
+   "clap_sim": 0.156,
+   "clap_puesto": 6,
+   "clap_top1": "nieve-viento"
   },
   {
    "archivo": "public/assets/sfx-ia/tienda-abrir-1.ogg",
@@ -2849,6 +3785,198 @@
    "clap_sim": 0.274,
    "clap_puesto": 2,
    "clap_top1": "moneda-vender"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/ui-error-1.ogg",
+   "tipo": "sfx",
+   "nombre": "ui-error",
+   "variante": 1,
+   "prompt": "A short low dull buzz and wooden knock, error denied sound, dry, close.",
+   "semilla": 901,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.88,
+   "segundos_gpu": 112.5,
+   "kb": 12,
+   "clap_sim": 0.072,
+   "clap_puesto": 8,
+   "clap_top1": "cuerno-guardia"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/ui-error-2.ogg",
+   "tipo": "sfx",
+   "nombre": "ui-error",
+   "variante": 2,
+   "prompt": "A short low dull buzz and wooden knock, error denied sound, dry, close.",
+   "semilla": 902,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 1.0,
+   "segundos_gpu": 112.9,
+   "kb": 15,
+   "clap_sim": -0.104,
+   "clap_puesto": 30,
+   "clap_top1": "rodar"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/ui-error-3.ogg",
+   "tipo": "sfx",
+   "nombre": "ui-error",
+   "variante": 3,
+   "prompt": "A short low dull buzz and wooden knock, error denied sound, dry, close.",
+   "semilla": 903,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.82,
+   "segundos_gpu": 111.6,
+   "kb": 9,
+   "clap_sim": 0.094,
+   "clap_puesto": 9,
+   "clap_top1": "flecha"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/ui-exito-1.ogg",
+   "tipo": "sfx",
+   "nombre": "ui-exito",
+   "variante": 1,
+   "prompt": "A short cheerful success jingle, three quick rising bright bell notes, clean, dry.",
+   "semilla": 941,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 1.28,
+   "segundos_gpu": 112.3,
+   "kb": 13,
+   "clap_sim": -0.005,
+   "clap_puesto": 26,
+   "clap_top1": "curar"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/ui-exito-2.ogg",
+   "tipo": "sfx",
+   "nombre": "ui-exito",
+   "variante": 2,
+   "prompt": "A short cheerful success jingle, three quick rising bright bell notes, clean, dry.",
+   "semilla": 942,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 1.4,
+   "segundos_gpu": 111.8,
+   "kb": 16,
+   "clap_sim": 0.029,
+   "clap_puesto": 22,
+   "clap_top1": "curar"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/ui-exito-3.ogg",
+   "tipo": "sfx",
+   "nombre": "ui-exito",
+   "variante": 3,
+   "prompt": "A short cheerful success jingle, three quick rising bright bell notes, clean, dry.",
+   "semilla": 943,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 1.5,
+   "segundos_gpu": 112.1,
+   "kb": 18,
+   "clap_sim": 0.093,
+   "clap_puesto": 11,
+   "clap_top1": "cargar"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/ui-mover-1.ogg",
+   "tipo": "sfx",
+   "nombre": "ui-mover",
+   "variante": 1,
+   "prompt": "A soft short wooden click, subtle menu cursor tick, very short, dry, close.",
+   "semilla": 881,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.27,
+   "segundos_gpu": 101.3,
+   "kb": 6,
+   "clap_sim": 0.076,
+   "clap_puesto": 18,
+   "clap_top1": "flecha-clavar"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/ui-mover-2.ogg",
+   "tipo": "sfx",
+   "nombre": "ui-mover",
+   "variante": 2,
+   "prompt": "A soft short wooden click, subtle menu cursor tick, very short, dry, close.",
+   "semilla": 882,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.14,
+   "segundos_gpu": 115.1,
+   "kb": 5,
+   "clap_sim": 0.159,
+   "clap_puesto": 5,
+   "clap_top1": "alerta"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/ui-mover-3.ogg",
+   "tipo": "sfx",
+   "nombre": "ui-mover",
+   "variante": 3,
+   "prompt": "A soft short wooden click, subtle menu cursor tick, very short, dry, close.",
+   "semilla": 883,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.16,
+   "segundos_gpu": 118.4,
+   "kb": 5,
+   "clap_sim": 0.015,
+   "clap_puesto": 14,
+   "clap_top1": "cueva-goteo"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/ui-ok-1.ogg",
+   "tipo": "sfx",
+   "nombre": "ui-ok",
+   "variante": 1,
+   "prompt": "A short bright confirmation chime, two soft rising bell notes, clean, dry.",
+   "semilla": 891,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 0.7,
+   "segundos_gpu": 113.5,
+   "kb": 9,
+   "clap_sim": 0.175,
+   "clap_puesto": 6,
+   "clap_top1": "cuerno-guardia"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/ui-ok-2.ogg",
+   "tipo": "sfx",
+   "nombre": "ui-ok",
+   "variante": 2,
+   "prompt": "A short bright confirmation chime, two soft rising bell notes, clean, dry.",
+   "semilla": 892,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 1.0,
+   "segundos_gpu": 112.0,
+   "kb": 9,
+   "clap_sim": 0.06,
+   "clap_puesto": 12,
+   "clap_top1": "campana-pueblo"
+  },
+  {
+   "archivo": "public/assets/sfx-ia/ui-ok-3.ogg",
+   "tipo": "sfx",
+   "nombre": "ui-ok",
+   "variante": 3,
+   "prompt": "A short bright confirmation chime, two soft rising bell notes, clean, dry.",
+   "semilla": 893,
+   "modelo": "MOSS-SoundEffect-v2.0",
+   "pasos_difusion": 100,
+   "duracion_s": 1.0,
+   "segundos_gpu": 128.5,
+   "kb": 8,
+   "clap_sim": 0.1,
+   "clap_puesto": 7,
+   "clap_top1": "curar"
   },
   {
    "archivo": "public/assets/sfx-ia/viento-rafaga-1.ogg",

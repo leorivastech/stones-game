@@ -2,18 +2,23 @@
 
 ## Música y efectos propios (IA local)
 
-La música del juego (`music-ia/`: pistas por zona en capas calma/tensión, título y stingers) y casi
-todos los efectos y ambientes (`sfx-ia/`) son **propios de Stones**: se generaron en esta máquina, sin
-servicios de pago, con modelos de licencia abierta que no reclaman lo que generan:
+**Todo el audio que carga el juego es propio de Stones** (desde el 26-sep-2026): la música
+(`music-ia/`: pistas por zona en capas calma/tensión, título, stingers y jingles) y todos los efectos,
+tonos de interfaz y ambientes (`sfx-ia/`). Se generaron en esta máquina, sin servicios de pago, con
+modelos de licencia abierta que no reclaman lo que generan:
 
 - Música: **ACE-Step 1.5** (licencia MIT)
 - Efectos y ambientes: **MOSS-SoundEffect v2.0** (licencia Apache-2.0)
 
 Cómo se generaron (prompts, semillas, puntajes CLAP): `studio/musica/ia/` y `studio/musica/README.md`.
 
-## Lo de antes que sigue sonando
+El único sonido que no es una muestra es el tecleo de los diálogos: un blip de 18 ms sintetizado en el
+navegador (WebAudio), sin archivo.
 
-Todo es CC0 (dominio público; el crédito es cortesía). No queda nada CC-BY en el juego.
+## Archivos de antes que siguen en el repo (ya no suenan en el juego)
+
+Los usa el trailer (`trailer/`) y se pueden comparar en `escuchar.html` → «Antes». Todo es CC0
+(dominio público; el crédito es cortesía).
 
 ### Efectos
 

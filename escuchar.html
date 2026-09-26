@@ -50,7 +50,7 @@
   <p class="sub">Cada zona suena con dos capas a la vez (misma tonalidad y bpm): <b>calma</b> y <b>tensión</b>. En el juego la tensión sube con la persecución (1) y con el calor de la ruta (0.25 / 0.4). «Ambas» las toca juntas: mueve el deslizador para oír la mezcla. Puedes probar otras variantes en los selectores.</p>
   <div id="zonas"></div>
 
-  <h2>Stingers (clips de ~6 s)</h2>
+  <h2>Stingers y jingles (clips de 4-6 s)</h2>
   <div id="stingers"></div>
 
   <h2>Efectos IA</h2>
@@ -58,7 +58,7 @@
   <div class="grid" id="sfx"></div>
 
   <details>
-    <summary>Antes (música y efectos de OpenGameArt/Kenney, ya casi no suenan)</summary>
+    <summary>Antes (música y efectos de OpenGameArt/Kenney, ya no suenan en el juego)</summary>
     <div id="music"></div>
     <h2>Ambientes de antes</h2>
     <div class="grid" id="amb"></div>
@@ -67,7 +67,7 @@
   </details>
 </main>
 <script type="module">
-  import { ELEGIDAS, ZONAS, STINGERS, SFX_IA, SFX_STINGER, PASOS, AMBIENTES, musicUrl } from "/src/audio-ia.js";
+  import { ELEGIDAS, ZONAS, STINGERS, SFX_IA, SFX_STINGER, TONOS, PASOS, AMBIENTES, musicUrl } from "/src/audio-ia.js";
 
   const cat = (await (await fetch("studio/musica/ia/catalogo.json")).json()).items
     .map((i) => ({ ...i, url: i.archivo.replace(/^public\//, "") }));
@@ -214,6 +214,9 @@
     if (v.noche) use(v.noche.file, `ambiente ${k} (noche)`);
   }
   for (const [k, v] of Object.entries(SFX_STINGER)) use(`stinger-${v}`, k);
+  for (const [k, [keys]] of Object.entries(TONOS)) {
+    for (const key of keys) if (key !== k) SFX_IA[key]?.files.forEach((f) => use(f, `tono ${k}`));
+  }
   const sfxRoot = document.getElementById("sfx");
   for (const i of cat.filter((x) => x.tipo === "sfx").sort((a, b) => a.archivo.localeCompare(b.archivo, "es", { numeric: true }))) {
     const file = i.url.split("/").pop().replace(/\.ogg$/, "");
@@ -253,7 +256,7 @@
       root.appendChild(g);
     }
   } catch { /* sin candidatas de antes */ }
-  const AMB = { jungle: "Selva (pájaros)", desert: "Viento del desierto", snow: "Viento de nieve", cave: "Cueva (sigue en uso)", sea: "Olas (muelle)", fire: "Fogata" };
+  const AMB = { jungle: "Selva (pájaros)", desert: "Viento del desierto", snow: "Viento de nieve", cave: "Cueva", sea: "Olas (muelle)", fire: "Fogata" };
   const amb = document.getElementById("amb");
   for (const [k, name] of Object.entries(AMB)) {
     const d = document.createElement("div");

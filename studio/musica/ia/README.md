@@ -45,6 +45,46 @@ pkill -f "generar.py todo"; pkill -f "generar.py (musica|stingers|sfx|clap)"
 
 (Nunca matar procesos ajenos: el trabajador de Lumi `trabajador_musica.py` y el bot de actas también usan la GPU.)
 
+## Tanda 2 (26-sep tarde): todo el audio del juego es IA
+
+Objetivo (Leo): que no quede ningún archivo de audio viejo cargado por el juego. Se agregaron a `generar.py`
+(mismo script, reanudable) 27 efectos MOSS (64 clips, 2-3 variantes) y 2 jingles ACE-Step (6 clips):
+
+- Reemplazan muestras CC0: armadura (golpe y al moverse), flecha que se clava, moneda chica, muerte de
+  criatura, palanca, chapuzón, bastón ligero y pesado (`swing`/`swing2`), cerrojo, costal, hachazo,
+  desenvainar, menú (`ui-mover`, `ui-ok`, `ui-error`) y el ambiente de cueva (`cueva-goteo`, loop de 10 s).
+- Reemplazan tonos de 8 bits: `ui-exito` (tono `chest`), `recoger`, `curar` (tono `heart`), `alerta`,
+  `sospecha`, `rodar`, `cortar-pasto`, `saltar`, `aterrizar`, `cargar`. El tecleo del diálogo (`text`)
+  sigue sintetizado a propósito (18 ms cada 3 letras: una muestra suena peor).
+- Jingles: `stinger-mision-<n>` (4 s, antes `jingle-mission`) y `stinger-deuda-<n>` (5 s, antes
+  `jingle-free`). `STINGER_RECORTE` en `generar.py` fija el largo; los cortos llevan fundido de salida de 0.7 s.
+
+### Lanzamiento y la trampa de la VRAM
+
+- El bot de actas deja **3.9 GB fijos** (Whisper cargado todo el día) y el trabajador de Lumi 0.5-1 GB:
+  quedan ~2 GB libres, no alcanza para MOSS en INT8 (pico ~2.3 GB con el contexto de CUDA).
+- Modo nuevo **`--poca-vram`** (o `STONES_POCA_VRAM=1`): DiT en bf16 con cada bloque subido a la GPU justo
+  antes de usarse desde RAM fijada, y el VAE decodifica en la CPU. **~0.5 GB de VRAM**, ~95 s por clip
+  (130-160 s si la CPU está cargada) contra ~61 s del INT8.
+- Stingers **sin el LM 0.6B** (`STONES_SIN_LM=1`): con el LM, ACE-Step pedía más de lo libre y se quedó en
+  bucle de OOM. `mision-1` salió en la primera corrida; el resto en la segunda.
+- `setsid nohup` **no** sobrevivió a un reinicio de la sesión de Claude (13:45): se mata todo el grupo.
+  Se relanzó como unidad de systemd del usuario, que sí sobrevive:
+
+  ```bash
+  cd ~/Development/stones_Game/.claude/worktrees/pixel-remake
+  systemd-run --user --unit=stones-audio-ia2 --collect --working-directory=$PWD \
+    --setenv=STONES_SIN_LM=1 --setenv=STONES_POCA_VRAM=1 --setenv=PATH=$PATH --setenv=HOME=$HOME \
+    /bin/bash -c "exec python3 studio/musica/ia/generar.py todo >> studio/musica/ia/generar2.log 2>&1 < /dev/null"
+  systemctl --user status stones-audio-ia2     # ¿sigue?
+  ```
+
+- Resultado: **70 clips (64 efectos + 6 jingles) en 121 min de GPU**, 0 fallos del modelo; `rodar-2` salió
+  casi muda (pico −45 dB) y no tiene OGG. CLAP ahora también puntúa clips de < 0.5 s (se rellenan con
+  silencio hasta 1 s; antes se saltaban). Cuál quedó conectado y cuáles se descartaron: `../README.md`.
+- Log: `generar2.log`. El `impacto-1.wav` a medias de la tanda 1 sigue en `/tmp/stones-ia/sfx/` y da
+  «FALLÓ impacto-1.wav» en cada conversión: es inofensivo (no se usa).
+
 ## Qué hay
 
 - `generar.py` — el script (reutilizable). Etapas: `todo` (por defecto) · `musica` · `stingers` · `sfx` ·
