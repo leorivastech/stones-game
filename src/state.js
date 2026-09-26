@@ -476,7 +476,7 @@ export const TUTORIAL = [
   { id: "talk", text: "Habla con Brena, la comerciante" },
   { id: "buy", text: "Compra una piedra que SOBRA", alt: "Compra una piedra: la más barata" },
   { id: "north", text: "Sal por el norte hacia Valkeep" },
-  { id: "route", text: "Corre con {roll} · agáchate con {hide} en el pasto alto", done: "Bien. Sigue al norte hasta Valkeep" },
+  { id: "route", text: "Prueba: corre con {roll} · agáchate con {hide} en el pasto alto", done: "Bien. Sigue al norte hasta Valkeep, cuidado con la Corona" },
   { id: "sell", text: "Vende lo que OCUPAN: así ganas fama" },
 ];
 

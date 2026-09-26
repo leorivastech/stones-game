@@ -2378,6 +2378,17 @@ export class WorldScene extends Phaser.Scene {
       return;
     }
     if (next == null) return;
+    if (next === 3) {
+      // Primera ruta: antes de soltarte, qué es la Corona y qué te hace (Leo, 26-sep: el tutorial
+      // no explicaba a los guardias ni cómo escapar o esconderse).
+      this.ui.queueNotice(() => this.runModal(() => this.ui.say([
+        "En los caminos anda la Corona. Sus guardias revisan a quien lleva piedras de contrabando.",
+        "El ojo de arriba a la derecha es tu calor: mientras más se llena, más guardias salen y de más lejos te ven.",
+        "Si un guardia te ve con contrabando, te persigue: te quita las piedras o te pide un soborno.",
+        "Ahora corre y agáchate una vez para probar. Más adelante hay un guardia: te digo qué hacer.",
+      ])));
+      setFlag(reg, "lesson-crown");
+    }
     setTutorialStep(reg, next);
     saveGame(reg);
     this.ui.showTutorial(next, { done: next === 3 && this.tutorialHalf });
@@ -2422,7 +2433,51 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /** La flecha que rebota sobre el objetivo (o en el borde de la pantalla, apuntando hacia él). */
+  /**
+   * Lecciones de la Corona en el momento justo (una vez por partida): guardia a la vista, sospecha,
+   * persecución y retén. Salen en la primera ruta del tutorial y, si se saltó, igual la primera vez.
+   */
+  updateLessons() {
+    const reg = this.registry;
+    if (this.def.kind !== "route" || this.modal || !this.player) return;
+    if ((this.lessonTick = (this.lessonTick ?? 0) + 1) % 10) return;
+    const p = this.player;
+    const seen = (id) => flag(reg, id);
+    const guards = (this.enemies ?? []).filter((e) => e instanceof Guard && !e.dead);
+    const near = (e, r) => Math.hypot(e.x - p.x, e.y - p.y) < r;
+    const hide = keyName("hide");
+    const roll = keyName("roll");
+    if (!seen("lesson-guard") && guards.some((g) => !g.hostile && near(g, 150))) {
+      setFlag(reg, "lesson-guard");
+      this.runModal(() => this.ui.say([
+        "¡Un guardia de la Corona! La luz frente a él es lo que ve.",
+        `Para pasar sin que te vea: agáchate con ${hide} dentro del pasto alto y avanza despacio. Ahí no te ve.`,
+        `Si te ve y te persigue: mantén ${roll} para correr (gasta aguante, la barrita sobre tu cabeza) y sal de su vista.`,
+        "Cuando te pierda, escóndete otra vez en el pasto. Pelear con la Corona sube mucho tu calor.",
+      ]));
+      return;
+    }
+    if (!seen("lesson-suspect") && guards.some((g) => g.state === "suspect" || g.suspicion > 0.3)) {
+      setFlag(reg, "lesson-suspect");
+      this.ui.toast(`¡Sospecha! Agáchate (${hide}) en el pasto o aléjate de su luz`, "font-red");
+    }
+    if (!seen("lesson-chase") && guards.some((g) => g.hostile || g.state === "chase")) {
+      setFlag(reg, "lesson-chase");
+      this.ui.toast(`¡Te persigue! Mantén ${roll} para correr y escóndete cuando te pierda`, "font-red");
+    }
+    const b = this.barrier;
+    if (!seen("lesson-reten") && b && Math.hypot(b.cx - p.x, b.cy - p.y) < 130) {
+      setFlag(reg, "lesson-reten");
+      this.runModal(() => this.ui.say([
+        "Esto es un retén de la Corona: aquí revisan a todos los que pasan.",
+        "Si llevas contrabando puedes dejar que te lo quiten, pagar un soborno o dar media vuelta.",
+        "El ámbar es casi legal: sólo paga impuesto. Truco: rodea el retén agachado por el pasto alto.",
+      ]));
+    }
+  }
+
   updateTutorial() {
+    this.updateLessons();
     const reg = this.registry;
     const step = tutorialStep(reg);
     // Paso de la ruta: se cumple a medias corriendo y agachándote; luego, a Valkeep.
