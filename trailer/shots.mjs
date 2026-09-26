@@ -11,26 +11,34 @@
 
 const TOWNS = ["ashfen", "valkeep", "verdelume", "duneshade", "frostholm"];
 
-/** Arranca la partida en un mapa con un estado razonable y espera a que el mundo esté listo. */
+/**
+ * Arranca la partida en un mapa con un estado razonable y espera a que el mundo esté listo.
+ * Parte de `freshRun()` del juego (mercado, contratos, hora…) y encima pone `state`; las lecciones
+ * y el tutorial quedan vistos para que no salgan diálogos en medio de la toma.
+ * `hour` fija la hora (22 = noche con faroles, 18 = atardecer con sombras largas).
+ */
 async function startAt(page, map, entry = "start", state = {}) {
-  await page.evaluate(([map, entry, state, towns]) => {
+  await page.evaluate(async ([map, entry, state, towns]) => {
     const g = globalThis.__game;
+    const st = await import("/src/state.js");
     localStorage.clear();
-    const per = (v) => Object.fromEntries(towns.map((t) => [t, v]));
-    const title = g.scene.getScene("title");
-    title.registry.set({
-      gold: 140, cargo: { amber: 0, rune: 0, rain: 0, sun: 0, frost: 0 }, chill: 100, baseCapacity: 4,
-      reputation: 6, trips: 3, currentTown: "ashfen", lastRoute: null, day: 6, heat: per(0), mods: [],
-      seen: {}, rumors: [], debt: { owed: 420, due: 99, missed: 0 }, missions: [], missionsDone: {},
-      ordersDeclined: per(6), upgrades: { stashKit: false, horse: false, icebox: false, escort: false, hideout: false },
-      crew: {}, hp: 6, maxHp: 6, tonics: 0, stashes: {},
-      flags: { "hint-route": true, "visited-ashfen": true, "visited-valkeep": true, "visited-verdelume": true, "visited-duneshade": true, "visited-frostholm": true },
-      mapId: map, ...state,
+    const fresh = st.freshRun();
+    const flags = {
+      "hint-route": true, "met-ferry": true, "lesson-guard": true, "lesson-suspect": true, "lesson-chase": true,
+      "lesson-reten": true, "lesson-crown": true, "tutorial-crouch": true, "tutorial-ran": true,
+      ...Object.fromEntries(towns.map((t) => [`visited-${t}`, true])), ...(state.flags ?? {}),
+    };
+    g.registry.set({
+      ...fresh, gold: 180, reputation: 6, trips: 3, day: 6, hour: 11,
+      debt: { ...fresh.debt, due: 13 },
+      ...state,
+      flags, upgrades: { ...fresh.upgrades, ...(state.upgrades ?? {}) }, cargo: { ...fresh.cargo, ...(state.cargo ?? {}) },
+      mapId: map,
     });
     if (!g.scene.isActive("ui")) g.scene.start("ui");
     g.scene.stop("title");
     g.scene.start("world", { map, entry });
-  }, [map, entry, state, TOWNS]);
+  }, [map, entry, state, [...TOWNS, "mossgrove"]]);
   await page.waitForFunction((map) => {
     const w = globalThis.__game.scene.getScene("world");
     return w?.sys.isActive() && w.player && w.mapId === map && w.ui?.def;
@@ -80,12 +88,27 @@ const pan = (to, seconds, ease = "Sine.easeInOut") => ({
 /** Cambia de mapa a mitad de toma (el juego hace su fundido). */
 const goTo = (map, entry) => (page) => page.evaluate(([m, e]) => globalThis.__game.scene.getScene("world").scene.restart({ map: m, entry: e }), [map, entry]);
 
+/** Esconde sólo el HUD (vida, oro, avisos) y deja diálogos, avisos y ceremonias de la interfaz. */
+const hudOnly = (page, visible) => page.evaluate((v) => globalThis.__game.scene.getScene("ui").hud?.setVisible(v), visible);
+
+/** Acerca la cámara del mundo (entero: 2 = cada píxel del juego mide 2; sigue nítido). */
+const zoom = (page, z) => page.evaluate((z) => globalThis.__game.scene.getScene("world").cameras.main.setZoom(z), z);
+
+/** Cambia algo del registro a mitad de toma (hora, fama…). */
+const setReg = (key, value) => (page) => page.evaluate(([k, v]) => globalThis.__game.registry.set(k, v), [key, value]);
+
+/** Corre código dentro de la página a mitad de toma (recibe la escena del mundo). */
+const inWorld = (src) => (page) => page.evaluate((src) => {
+  // eslint-disable-next-line no-new-func
+  new Function("w", "g", src)(globalThis.__game.scene.getScene("world"), globalThis.__game);
+}, src);
+
 const cargo = (c) => ({ cargo: { amber: 0, rune: 0, rain: 0, sun: 0, frost: 0, ...c } });
 
 // ---------- tomas ----------
 
 export default {
-  url: "http://127.0.0.1:5181/",
+  url: process.env.GAME_URL ?? "http://127.0.0.1:5230/",
   size: [480, 270],
   out: [1920, 1080],
   fps: 30,
@@ -457,6 +480,241 @@ export default {
         await place(page, 20.5, 22.4, "right");
       },
       input: [{ at: 0.3, tap: "KeyE" }, { at: 1.3, tap: "KeyE" }, { at: 3.6, tap: "KeyE" }, { at: 5.2, tap: "KeyE" }],
+    },
+
+    // ======================= v4 (26-sep): lo nuevo =======================
+    // Noche con faroles, sombras largas, nieve y arena, golpe cargado, escudo, cuchillo, matones,
+    // carreta, gente viva, gráfica de precios, título nuevo, refugio escondido.
+    {
+      id: "v4-noche-ashfen",
+      seconds: 6,
+      seed: 41,
+      setup: async (page) => {
+        await startAt(page, "ashfen", "start", { hour: 21.6 });
+        await hud(page, false);
+        await place(page, 12, 17.4, "right");
+        await camAt(page, 20, 120);
+      },
+      input: [pan([180, 40], 5.8), { at: 0.2, down: "KeyD" }, { at: 5.9, up: "KeyD" }],
+    },
+    {
+      id: "v4-atardecer",
+      seconds: 6,
+      seed: 42,
+      // Ruta 1 al caer el sol: sombras largas de los árboles y el río brillando.
+      setup: async (page) => {
+        await startAt(page, "ruta1", "south", { hour: 18.1 });
+        await keepEnemies(page);
+        await hud(page, false);
+        await place(page, 22.5, 84, "up");
+      },
+      input: [{ at: 0.2, down: "KeyW" }, { at: 5.9, up: "KeyW" }],
+    },
+    {
+      id: "v4-nieve",
+      seconds: 5,
+      seed: 43,
+      setup: async (page) => {
+        await startAt(page, "frostholm", "start", { currentTown: "frostholm", hour: 10 });
+        await hud(page, false);
+        await place(page, 19.5, 17.6, "down");
+        await camAt(page, 80, 30);
+      },
+      input: [pan([80, 200], 4.8), { at: 0.3, down: "KeyS" }, { at: 4.9, up: "KeyS" }],
+    },
+    {
+      id: "v4-arena",
+      seconds: 5,
+      seed: 44,
+      setup: async (page) => {
+        await startAt(page, "duneshade", "start", { currentTown: "duneshade", hour: 15 });
+        await hud(page, false);
+        await place(page, 27, 20, "left");
+        await camAt(page, 160, 200);
+      },
+      input: [
+        pan([60, 60], 4.8),
+        { at: 0.1, run: inWorld("w.ambient.nextGust = 99999; w.ambient.sandGust.start(0, 2400);") },
+        { at: 2.6, run: inWorld("w.ambient.sandGust.start(0, 2200);") },
+        { at: 0.2, down: "KeyW" }, { at: 0.25, down: "KeyA" }, { at: 4.9, up: "KeyW" }, { at: 4.9, up: "KeyA" },
+      ],
+    },
+    {
+      id: "v4-cargado",
+      seconds: 4,
+      seed: 45,
+      // Golpe cargado: mantener J, brilla, y el barrido dorado manda a volar al jabalí.
+      setup: async (page) => {
+        await startAt(page, "ruta1", "south", { hour: 16 });
+        await page.evaluate(() => {
+          const w = globalThis.__game.scene.getScene("world");
+          for (const e of w.enemies) {
+            if (e.dead) continue;
+            if (e.spec.kind === "boar" && e.spec.y === 92) e.body.reset(23 * 16, 91.8 * 16);
+            else { e.dead = true; e.destroy(); }
+          }
+          w.enemies = w.enemies.filter((e) => !e.dead);
+        });
+        await hud(page, false);
+        await place(page, 18.6, 91.9, "right");
+        await zoom(page, 2);
+      },
+      input: [{ at: 0.3, down: "KeyJ" }, { at: 1.25, up: "KeyJ" }, { at: 2.4, tap: "KeyJ" }],
+    },
+    {
+      id: "v4-escudo",
+      seconds: 5,
+      seed: 46,
+      // Un guardia de la Corona para el golpe con el escudo (chispa y rebote) y se voltea contra ti.
+      setup: async (page) => {
+        await startAt(page, "ruta1", "south", { hour: 13, ...cargo({ sun: 2 }) });
+        await keepEnemies(page, "(e) => e.spec.kind === 'guard' && !e.spec.post && e.spec.y === 71");
+        await page.evaluate(() => {
+          const w = globalThis.__game.scene.getScene("world");
+          const e = w.enemies[0];
+          e.body.reset(22 * 16, 66 * 16);
+          e.facing = "down";
+        });
+        await hud(page, false);
+        await place(page, 22, 68.2, "up");
+      },
+      input: [{ at: 0.3, tap: "KeyJ" }, { at: 1.1, tap: "KeyJ" }, { at: 2.0, down: "KeyK" }, { at: 2.0, down: "KeyS" }, { at: 4.9, up: "KeyS" }, { at: 4.9, up: "KeyK" }],
+    },
+    {
+      id: "v4-cuchillo",
+      seconds: 5,
+      seed: 47,
+      // Un bandido de la pradera ve la carga y lanza el cuchillo; el jugador rueda y le pega.
+      setup: async (page) => {
+        await startAt(page, "ruta1", "south", { hour: 14, ...cargo({ amber: 3 }) });
+        await keepEnemies(page, "(e) => e.spec.kind === 'bandit' && e.spec.x === 8");
+        await page.evaluate(() => {
+          const w = globalThis.__game.scene.getScene("world");
+          const e = w.enemies[0];
+          e.home = { x: 24 * 16, y: 91.8 * 16 };
+          e.body.reset(e.home.x, e.home.y);
+          e.facing = "left";
+          Math.random = () => 0.1;
+        });
+        await hud(page, false);
+        await place(page, 18.6, 91.9, "right");
+        await zoom(page, 2);
+        await page.evaluate(() => globalThis.__game.scene.getScene("world").enemies[0].setState("chase"));
+      },
+      input: [{ at: 1.3, tap: "KeyK" }, { at: 2.2, tap: "KeyJ" }, { at: 2.6, tap: "KeyJ" }, { at: 3.0, tap: "KeyJ" }, { at: 3.5, tap: "KeyJ" }],
+    },
+    {
+      id: "v4-matones",
+      seconds: 6,
+      seed: 48,
+      // La deuda con dientes: dos matones del Gremio salen a cobrar.
+      setup: async (page) => {
+        await startAt(page, "ruta1", "south", { hour: 17, debt: { owed: 500, due: 9, missed: 3, thugs: true } });
+        await keepEnemies(page);
+        await hud(page, false);
+        await place(page, 22.5, 90, "up");
+      },
+      input: [{ at: 0.1, down: "KeyW" }, { at: 0.8, up: "KeyW" }, ...[2.2, 2.6, 3.0, 3.6, 4.0, 4.6, 5.0].map((at) => ({ at, tap: "KeyJ" }))],
+    },
+    {
+      id: "v4-carreta",
+      seconds: 6,
+      seed: 49,
+      setup: async (page) => {
+        await startAt(page, "ruta3", "west", { hour: 17.7, upgrades: { escort: true, horse: true, cart: true } });
+        await keepEnemies(page);
+        await hud(page, false);
+        await place(page, 47, 17.2, "right");
+        await page.evaluate(() => {
+          const w = globalThis.__game.scene.getScene("world");
+          w.horse?.setPosition(w.player.x - 40, w.player.y);
+          w.escort?.sprite.setPosition(w.player.x - 70, w.player.y);
+        });
+      },
+      input: [{ at: 0.2, down: "KeyD" }, { at: 5.9, up: "KeyD" }],
+    },
+    {
+      id: "v4-herrero",
+      seconds: 5,
+      seed: 50,
+      // Ashfen de día: Oskar martilla en el yunque y la gente camina.
+      setup: async (page) => {
+        await startAt(page, "ashfen", "start", { hour: 10 });
+        await hud(page, false);
+        await place(page, 22, 20, "right");
+        await zoom(page, 2);
+        await camAt(page, 250, 160);
+      },
+      input: [pan([300, 150], 4.8)],
+    },
+    {
+      id: "v4-grafica",
+      seconds: 6,
+      seed: 51,
+      // Mercado con la mini gráfica de precios de los últimos días.
+      setup: async (page) => {
+        const log = {};
+        const base = { amber: 30, rune: 42, rain: 27, sun: 35, frost: 51 };
+        const wig = [0, 6, -4, 9, 3, 12, 7];
+        for (const [k, b] of Object.entries(base)) log[k] = wig.map((d, i) => ({ day: i, p: b + (k === "sun" ? d * 2 : k === "frost" ? -d : d) }));
+        await startAt(page, "duneshade", "start", { currentTown: "duneshade", gold: 260, day: 6, hour: 12, priceLog: { duneshade: log }, ...cargo({ rain: 2 }) });
+        await hud(page, true);
+        await place(page, 21.3, 11.6, "up");
+      },
+      input: [
+        { at: 0.3, tap: "KeyE" }, { at: 1.3, tap: "KeyE" },
+        { at: 2.0, tap: "ArrowDown" }, { at: 2.6, tap: "ArrowDown" }, { at: 3.2, tap: "ArrowDown" }, { at: 3.8, tap: "ArrowDown" },
+      ],
+    },
+    {
+      id: "v4-titulo-nuevo",
+      seconds: 5,
+      seed: 52,
+      // Ceremonia de fama: "Nuevo título · Mercader de sombra" en Verdelume de noche.
+      setup: async (page) => {
+        await startAt(page, "verdelume", "start", { currentTown: "verdelume", hour: 21, reputation: 9 });
+        await hud(page, true);
+      },
+      input: [{ at: 0.6, run: setReg("reputation", 10) }],
+    },
+    {
+      id: "v4-vereda",
+      seconds: 6,
+      seed: 53,
+      // Refugio escondido de la Ruta 1: cortar el arbusto, la vereda entre los árboles y la puerta.
+      setup: async (page) => {
+        await startAt(page, "ruta1", "south", { hour: 17.6 });
+        await keepEnemies(page);
+        await hud(page, true);
+        await hudOnly(page, false);
+        await place(page, 30.5, 73.2, "up");
+        await zoom(page, 2);
+      },
+      input: [
+        { at: 0.3, tap: "KeyJ" }, { at: 0.9, down: "KeyW" }, { at: 1.6, up: "KeyW" }, { at: 1.6, down: "KeyD" }, { at: 2.2, up: "KeyD" },
+        { at: 2.2, down: "KeyW" }, { at: 3.0, up: "KeyW" }, { at: 3.0, down: "KeyA" }, { at: 3.6, up: "KeyA" }, { at: 3.8, tap: "KeyE" },
+      ],
+    },
+    {
+      id: "v4-barca",
+      seconds: 8,
+      seed: 54,
+      setup: async (page) => {
+        await startAt(page, "frostholm", "start", { currentTown: "frostholm", gold: 60, hour: 17.8 });
+        await hud(page, true);
+        await hudOnly(page, false);
+        await place(page, 20.5, 22.4, "right");
+      },
+      input: [{ at: 0.3, tap: "KeyE" }, { at: 1.3, tap: "KeyE" }, { at: 3.6, tap: "KeyE" }, { at: 5.2, tap: "KeyE" }],
+    },
+    {
+      id: "v4-titulo",
+      seconds: 9,
+      seed: 55,
+      setup: async (page) => {
+        await page.waitForTimeout(800);
+        await page.evaluate(() => globalThis.__game.scene.getScene("title").cameras.cameras[1].setVisible(false));
+      },
     },
 
     // ---------- Cierre ----------

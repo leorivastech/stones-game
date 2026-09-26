@@ -1,0 +1,563 @@
+{
+ "_ayuda": "Trailer v4 (26-sep): teaser al estilo v3 con lo nuevo (noche, Corona, contratos, refugios escondidos, en línea). Tomas 'leo-*' = recortes de la grabación de Leo (~/Downloads/2026-09-26 14-00-27.mp4, sin barra del navegador ni franjas, escalada con neighbor); 'v4-*' = shots.mjs. Música: ruta-desierto-tension-2 (IA del juego, 107.7 bpm): tramo A = inicio; tramo B = desde 43.10 s (el silencio antes de la subida, con la tarjeta ¿TE ATREVES?) y la subida en 45.35 s. Cortes en golpes de assets/beats.json de esa pista. `python3 build.py guion-v4.json`.",
+ "title": "Stones — teaser v4",
+ "size": [
+  1920,
+  1080
+ ],
+ "fps": 30,
+ "voice": {
+  "voice": "es-MX-JorgeNeural",
+  "rate": "-6%",
+  "pitch": "-8Hz",
+  "tight": true
+ },
+ "flash": {
+  "opacity": 1,
+  "dur": 0.45
+ },
+ "letters": true,
+ "lines": {
+  "w1": "Cae la noche en el golfo.",
+  "w2": "La Corona vigila cada camino.",
+  "w3": "Toma contratos. Vende caro.",
+  "w4": "Busca refugios escondidos.",
+  "w5": "Y ahora, juega con tus amigos.",
+  "w6": "¿Te atreves?",
+  "w7": "Stones."
+ },
+ "audio": {
+  "music": [
+   {
+    "src": "../public/assets/music-ia/ruta-desierto-tension-2.ogg",
+    "from": 0,
+    "to": 22.639,
+    "mediaStart": 0.07,
+    "volume": 0.85,
+    "fadeIn": 0.05,
+    "fadeOut": 0.2
+   },
+   {
+    "src": "../public/assets/music-ia/ruta-desierto-tension-2.ogg",
+    "from": 22.439,
+    "to": "end",
+    "mediaStart": 42.896,
+    "volume": 0.95,
+    "fadeIn": 0.05,
+    "fadeOut": 2.5
+   }
+  ],
+  "duck": 0.5,
+  "sfxAlias": {
+   "coins": "../public/assets/sfx-ia/moneda-pagar-1.ogg",
+   "coins-sell": "../public/assets/sfx-ia/moneda-vender-1.ogg",
+   "gem": "../public/assets/sfx-ia/moneda-comprar-1.ogg",
+   "hit": "../public/assets/sfx-ia/golpe-baston-1.ogg",
+   "bump": "../public/assets/sfx-ia/impacto-2.ogg",
+   "hurt": "../public/assets/sfx-ia/dano-jugador-1.ogg",
+   "chest": "../public/assets/sfx-ia/cofre-abrir-1.ogg",
+   "door-open": "../public/assets/sfx-ia/puerta-madera-2.ogg",
+   "horse": "../public/assets/sfx-ia/relincho-1.ogg",
+   "horn": "../public/assets/sfx-ia/cuerno-guardia-1.ogg",
+   "boar": "../public/assets/sfx-ia/jabali-grunido-1.ogg",
+   "growl": "../public/assets/sfx-ia/lobo-grunido-1.ogg",
+   "wolf": "../public/assets/sfx-ia/lobo-grunido-1.ogg",
+   "scorpion": "../public/assets/sfx-ia/escorpion-1.ogg",
+   "bow": "../public/assets/sfx-ia/flecha-1.ogg",
+   "bell": "../public/assets/sfx-ia/campana-pueblo-1.ogg",
+   "scroll": "../public/assets/sfx-ia/pergamino-1.ogg",
+   "seal": "../public/assets/sfx-ia/sello-1.ogg",
+   "shop": "../public/assets/sfx-ia/tienda-abrir-1.ogg",
+   "gust": "../public/assets/sfx-ia/viento-rafaga-1.ogg",
+   "armor": "../public/assets/sfx-ia/armadura-golpe-1.ogg",
+   "arrow-hit": "../public/assets/sfx-ia/flecha-clavar-1.ogg",
+   "coin": "../public/assets/sfx-ia/moneda-chica-1.ogg",
+   "die": "../public/assets/sfx-ia/muerte-criatura-1.ogg",
+   "lever": "../public/assets/sfx-ia/palanca-1.ogg",
+   "splash": "../public/assets/sfx-ia/chapuzon-1.ogg",
+   "swing": "../public/assets/sfx-ia/baston-ligero-1.ogg",
+   "swing2": "../public/assets/sfx-ia/baston-pesado-1.ogg",
+   "latch": "../public/assets/sfx-ia/cerrojo-1.ogg",
+   "sack": "../public/assets/sfx-ia/costal-1.ogg",
+   "chop": "../public/assets/sfx-ia/hachazo-1.ogg",
+   "draw": "../public/assets/sfx-ia/desenvainar-1.ogg",
+   "ui-move": "../public/assets/sfx-ia/ui-mover-1.ogg",
+   "ui-ok": "../public/assets/sfx-ia/ui-ok-1.ogg",
+   "step-grass": "../public/assets/sfx-ia/paso-pasto-5.ogg",
+   "step-stone": "../public/assets/sfx-ia/paso-piedra-1.ogg",
+   "step-wood": "../public/assets/sfx-ia/paso-madera-1.ogg",
+   "step-sand": "../public/assets/sfx-ia/paso-arena-1.ogg",
+   "step-snow": "../public/assets/sfx-ia/paso-nieve-1.ogg"
+  },
+  "sfxDirs": [
+   "../public/assets/sfx",
+   "../public/assets/proto/sfx"
+  ],
+  "sfxGain": 0.9,
+  "stepGain": 0.35,
+  "skipSfx": [
+   "ui-move",
+   "stinger-llegada-2"
+  ],
+  "captionSfx": "hit",
+  "captionVolume": 0.4,
+  "whipSfx": "swing",
+  "whipVolume": 0.35,
+  "hitVolume": 0.65
+ },
+ "letterbox": [
+  {
+   "from": 24.89,
+   "to": 37.36,
+   "size": 90
+  }
+ ],
+ "beats": [
+  {
+   "clip": "v4-atardecer",
+   "in": 1.0,
+   "enter": "flash",
+   "zoom": [
+    1.0,
+    1.1
+   ],
+   "vo": "w1",
+   "voAt": 0.25,
+   "words": [
+    "CAE LA NOCHE"
+   ],
+   "wordsAt": [
+    0.1
+   ],
+   "dur": 2.252,
+   "wordsDur": 4.528
+  },
+  {
+   "clip": "v4-noche-ashfen",
+   "in": 1.2,
+   "enter": "flash",
+   "zoom": [
+    1.05,
+    1.15
+   ],
+   "dur": 1.138
+  },
+  {
+   "clip": "leo-verdelume",
+   "in": 3.2,
+   "enter": "flash",
+   "zoom": [
+    1.22,
+    1.3
+   ],
+   "dur": 1.138
+  },
+  {
+   "clip": "leo-selva-noche",
+   "in": 0.6,
+   "enter": "flash",
+   "zoom": [
+    1.22,
+    1.3
+   ],
+   "dur": 1.114
+  },
+  {
+   "clip": "v4-herrero",
+   "in": 0.6,
+   "enter": "flash",
+   "zoom": [
+    1.0,
+    1.08
+   ],
+   "dur": 1.138
+  },
+  {
+   "clip": "leo-reten",
+   "in": 3.9,
+   "enter": "flash",
+   "zoom": [
+    1.22,
+    1.3
+   ],
+   "vo": "w2",
+   "voAt": 0.1,
+   "words": [
+    "LA CORONA",
+    "TE VIGILA"
+   ],
+   "wordsAt": [
+    0.08,
+    0.7
+   ],
+   "stamp": {
+    "text": "BUSCADO",
+    "at": 1.55
+   },
+   "dur": 2.275
+  },
+  {
+   "clip": "v4-escudo",
+   "in": 0.2,
+   "enter": "flash",
+   "zoom": [
+    1.1,
+    1.2
+   ],
+   "dur": 1.138
+  },
+  {
+   "clip": "v4-matones",
+   "in": 2.0,
+   "enter": "flash",
+   "zoom": [
+    1.1,
+    1.2
+   ],
+   "caption": "EL GREMIO",
+   "kicker": "COBRA LA DEUDA",
+   "dur": 1.138
+  },
+  {
+   "type": "split",
+   "enter": "flash",
+   "skew": 40,
+   "vo": "w3",
+   "voAt": 0.1,
+   "panels": [
+    {
+     "clip": "leo-contratos",
+     "in": 0.4,
+     "label": "CONTRATOS"
+    },
+    {
+     "clip": "v4-grafica",
+     "in": 2.0,
+     "label": "EL MERCADO"
+    }
+   ],
+   "ticker": [
+    {
+     "stone": "amber",
+     "name": "Ámbar",
+     "price": 20,
+     "up": true
+    },
+    {
+     "stone": "rune",
+     "name": "Rúnico",
+     "price": 51,
+     "up": true
+    },
+    {
+     "stone": "rain",
+     "name": "Lluvia",
+     "price": 22,
+     "up": false
+    },
+    {
+     "stone": "sun",
+     "name": "Solar",
+     "price": 24,
+     "up": false
+    },
+    {
+     "stone": "frost",
+     "name": "Escarcha",
+     "price": 61,
+     "up": true
+    }
+   ],
+   "dur": 2.252
+  },
+  {
+   "clip": "leo-valkeep",
+   "in": 0.6,
+   "enter": "flash",
+   "zoom": [
+    1.22,
+    1.3
+   ],
+   "dur": 1.138
+  },
+  {
+   "clip": "v4-titulo-nuevo",
+   "in": 0.8,
+   "enter": "flash",
+   "zoom": [
+    1.05,
+    1.12
+   ],
+   "dur": 1.138
+  },
+  {
+   "clip": "v4-vereda",
+   "in": 1.8,
+   "enter": "flash",
+   "zoom": [
+    1.0,
+    1.1
+   ],
+   "vo": "w4",
+   "voAt": 0.1,
+   "words": [
+    "REFUGIOS",
+    "ESCONDIDOS"
+   ],
+   "wordsAt": [
+    0.08,
+    0.6
+   ],
+   "dur": 2.252
+  },
+  {
+   "clip": "leo-aurelio",
+   "in": 1.8,
+   "enter": "flash",
+   "zoom": [
+    1.22,
+    1.3
+   ],
+   "dur": 1.138
+  },
+  {
+   "clip": "leo-refugio",
+   "in": 7.0,
+   "enter": "flash",
+   "zoom": [
+    1.22,
+    1.3
+   ],
+   "dur": 1.138
+  },
+  {
+   "clip": "v4-carreta",
+   "in": 1.5,
+   "enter": "flash",
+   "zoom": [
+    1.0,
+    1.1
+   ],
+   "vo": "w5",
+   "voAt": 0.1,
+   "words": [
+    "JUEGA CON",
+    "TUS AMIGOS"
+   ],
+   "wordsAt": [
+    0.08,
+    0.6
+   ],
+   "stamp": {
+    "text": "EN LÍNEA",
+    "at": 1.5
+   },
+   "dur": 2.252
+  },
+  {
+   "type": "card",
+   "text": "¿TE ATREVES?",
+   "size": 190,
+   "enter": "flash",
+   "vo": "w6",
+   "voAt": 0.35,
+   "sfx": [
+    "armor"
+   ],
+   "dur": 2.253
+  },
+  {
+   "clip": "v4-cargado",
+   "in": 1.0,
+   "enter": "flash",
+   "zoom": [
+    1.0,
+    1.1
+   ],
+   "shake": 0.3,
+   "caption": "GOLPEA",
+   "kicker": "CON TODO",
+   "dur": 1.137
+  },
+  {
+   "clip": "leo-reten",
+   "in": 4.6,
+   "enter": "flash",
+   "zoom": [
+    1.22,
+    1.3
+   ],
+   "caption": "HUYE",
+   "kicker": "DE LA CORONA",
+   "dur": 1.138
+  },
+  {
+   "type": "split",
+   "enter": "flash",
+   "skew": 70,
+   "shake": 0.05,
+   "soundPanels": 2,
+   "panels": [
+    {
+     "clip": "v4-matones",
+     "in": 2.8,
+     "label": "MATONES"
+    },
+    {
+     "clip": "v4-escudo",
+     "in": 0.1,
+     "label": "GUARDIAS"
+    },
+    {
+     "clip": "v4-cargado",
+     "in": 1.2,
+     "label": "JABALÍES"
+    }
+   ],
+   "caption": "PELEA",
+   "dur": 2.252
+  },
+  {
+   "clip": "v4-herrero",
+   "in": 2.4,
+   "enter": "flash",
+   "zoom": [
+    1.05,
+    1.15
+   ],
+   "caption": "EQUÍPATE",
+   "kicker": "CON EL HERRERO",
+   "dur": 1.138
+  },
+  {
+   "clip": "v4-grafica",
+   "in": 3.3,
+   "enter": "flash",
+   "zoom": [
+    1.0,
+    1.08
+   ],
+   "caption": "COMERCIA",
+   "kicker": "COMPRA BARATO",
+   "dur": 1.138
+  },
+  {
+   "clip": "leo-contratos",
+   "in": 1.2,
+   "enter": "flash",
+   "zoom": [
+    1.22,
+    1.3
+   ],
+   "caption": "CUMPLE",
+   "kicker": "CONTRATOS",
+   "dur": 1.138
+  },
+  {
+   "clip": "leo-selva-noche",
+   "in": 3.3,
+   "enter": "flash",
+   "zoom": [
+    1.22,
+    1.3
+   ],
+   "caption": "VIAJA",
+   "kicker": "DE NOCHE",
+   "dur": 1.114
+  },
+  {
+   "clip": "v4-barca",
+   "in": 0.5,
+   "enter": "flash",
+   "zoom": [
+    1.0,
+    1.08
+   ],
+   "caption": "CRUZA",
+   "kicker": "EL GOLFO",
+   "dur": 1.138
+  },
+  {
+   "clip": "leo-refugio",
+   "in": 8.2,
+   "enter": "flash",
+   "zoom": [
+    1.22,
+    1.3
+   ],
+   "caption": "ESCÓNDETE",
+   "kicker": "EN TU REFUGIO",
+   "dur": 1.138
+  },
+  {
+   "clip": "v4-titulo-nuevo",
+   "in": 1.3,
+   "enter": "flash",
+   "zoom": [
+    1.05,
+    1.12
+   ],
+   "caption": "GANA FAMA",
+   "kicker": "Y TÍTULOS",
+   "dur": 1.138
+  },
+  {
+   "clip": "v4-nieve",
+   "in": 3.2,
+   "dur": 0.371,
+   "enter": "flash",
+   "flashDur": 0.3,
+   "zoom": [
+    1.2,
+    1.3
+   ]
+  },
+  {
+   "clip": "v4-noche-ashfen",
+   "in": 4.0,
+   "dur": 0.371,
+   "enter": "flash",
+   "flashDur": 0.3,
+   "zoom": [
+    1.2,
+    1.3
+   ]
+  },
+  {
+   "clip": "leo-verdelume",
+   "in": 6.0,
+   "dur": 0.372,
+   "enter": "flash",
+   "flashDur": 0.3,
+   "zoom": [
+    1.22,
+    1.3
+   ],
+   "shake": 0.05
+  },
+  {
+   "type": "title",
+   "clip": "v4-titulo",
+   "in": 0.3,
+   "dur": 6.8,
+   "vo": "w7",
+   "voAt": 1.3,
+   "slamAt": 0.35,
+   "sfx": [
+    "hit",
+    "armor"
+   ],
+   "logo": "assets/stills/logo.png",
+   "gems": [
+    "amber",
+    "rune",
+    "rain",
+    "sun",
+    "frost"
+   ],
+   "tagline": "Contrabando de piedras de hechizo",
+   "cta": "PRÓXIMAMENTE",
+   "credits": "Música y efectos originales del juego"
+  }
+ ]
+}

@@ -10,6 +10,9 @@ Editar el guion (y shots.mjs), nunca index.html. Todos los tiempos salen de aqu�
 - los sonidos que el juego hizo durante la grabación (golpes, flechas, pasos…) caen en su cuadro exacto.
 
 Tipos de corte (`beats`):
+Tomas externas (p. ej. una grabación de Leo recortada con ffmpeg): basta con assets/clips/<id>.mp4 (1920×1080,
+30 fps) y <id>.json con {"seconds": …, "events": []}.
+
 - toma:    { clip, in, dur, speed?, zoom?, enter?, caption?, kicker?, town?, words?, stamp?, counter?, ticker?, shake?, sfx? }
 - tarjeta: { type: "card", dur, text, kicker?, gems?, sfx? }     texto sobre negro (letras que caen, gemas en fila)
 - partida: { type: "split", dur, panels: [{clip, in, label?}], skew?, + los mismos textos que una toma }   varias tomas a la vez
@@ -434,7 +437,12 @@ placed = set()
 lanes = []  # fin del último sonido de cada carril
 
 
+SFX_ALIAS = AUDIO.get("sfxAlias", {})  # clave del juego → archivo (p. ej. los efectos IA con variantes)
+
+
 def find_sfx(name):
+    if name in SFX_ALIAS and (HERE / SFX_ALIAS[name]).exists():
+        return SFX_ALIAS[name]
     for d in sfx_dirs:
         for ext in (".ogg", ".mp3", ".wav"):
             if (HERE / d / f"{name}{ext}").exists():
