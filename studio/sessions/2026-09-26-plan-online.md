@@ -53,3 +53,14 @@ B (el script de GPU corre solo) → A y C en paralelo con archivos repartidos �
 (solo y en línea con dos navegadores) → reconstruir `dist` y reiniciar SOLO el servidor de Stones
 (`node server/index.mjs` en :5190; el túnel `morgan-trio-prostate-responses.trycloudflare.com` sigue
 si no se reinicia cloudflared) → nota de resultado aquí y memoria.
+
+## Encargo extra (26-sep, ~14:05)
+
+Leo: "con el último video en descargas, córtalo y haz un nuevo trailer con todo lo nuevo" (/trailer-juego).
+Video fuente: `~/Downloads/2026-09-26 14-00-27.mp4` (188 s, grabación de Leo jugando; no tocarlo).
+Salida esperada: `~/Downloads/stones-trailer-v4.mp4`, guion en `trailer/guion-v4.json`.
+
+Estado al lanzar: C (refugios) terminado sin commit; A (en línea) y B (audio IA) trabajando.
+Servidor para el celular: copia estable en `/tmp/stones-live` (HEAD 4f41e1a) en :5190; túnel
+https://net-historic-acute-brown.trycloudflare.com (los reinicios de la compu lo tumban y cambia).
+Al terminar A y B: commit por bloque, reconstruir desde el worktree real y servir eso en :5190.
