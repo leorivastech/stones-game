@@ -64,3 +64,30 @@ Estado al lanzar: C (refugios) terminado sin commit; A (en línea) y B (audio IA
 Servidor para el celular: copia estable en `/tmp/stones-live` (HEAD 4f41e1a) en :5190; túnel
 https://net-historic-acute-brown.trycloudflare.com (los reinicios de la compu lo tumban y cambia).
 Al terminar A y B: commit por bloque, reconstruir desde el worktree real y servir eso en :5190.
+
+## Resultado (26-sep, tarde)
+
+Todo el plan quedó hecho y commiteado en `online`:
+- `072c3d3` **A en línea**: un enlace con Solo/En línea en el título (pide nombre, avisa si no hay
+  servidor), todo lo nuevo compartido (extras de noche, matones, "?" del guardia, golpes, carreta,
+  aldeanos deterministas), una sola hora (día de 240 s, el servidor manda), avance guardado en el
+  servidor por nombre (`world.json` → `players[nombre].save`), reconexión sola, pestaña JUGADORES.
+  Dormir y K.O. en línea no mueven el reloj compartido. 55 comprobaciones con 2 y 3 navegadores.
+- `072c3d3` **C refugios**: 7 en total (4 nuevos: sótano de las ruinas R1, cueva del manantial R2,
+  choza del manglar R3, grieta del cañón R5), sin letrero, veredas ocultas, pistas por rumor.
+  Hoja para Leo: `studio/refugios.md`.
+- `f3349ef` **B audio 100 % IA**: 70 clips más (121 min de GPU; modo `--poca-vram` porque el bot
+  de actas ocupa 3.9 GB). Ningún archivo viejo se carga; sólo el tecleo del diálogo sigue sintetizado.
+- `6d934e3`/`93442b2` **Trailer v4** (45 s) en `~/Downloads/stones-trailer-v4.mp4`, mandado a Leo
+  por Telegram (37 MB). Post para X listo en `~/Development/publicaciones-x/piezas/2026-09-26-trailer-stones/`.
+
+Servidor para el celular: build de `93442b2` en `/tmp/stones-live` (worktree aparte) en :5190, mundo
+en `server/data/world.json` del worktree real; túnel https://net-historic-acute-brown.trycloudflare.com
+(un reinicio de la compu lo tumba y cambia el enlace; relanzar: `cd /tmp/stones-live && PORT=5190
+WORLD_FILE=<worktree>/server/data/world.json node server/index.mjs` + `cloudflared tunnel --url
+http://127.0.0.1:5190 --http-host-header 127.0.0.1:5190`).
+
+Pendiente para Leo: oír en `escuchar.html` los efectos con CLAP bajo (ui-exito, ui-ok, ui-error,
+curar, palanca, saltar, cerrojo-2, jingles mision/deuda); ver si le gusta que los árboles tapen al
+jugador en las veredas; arbusto nevado en la entrada de la cueva del lago; grabar el trailer en
+línea con dos jugadores si lo quiere; hosting fijo (decisión suya).
