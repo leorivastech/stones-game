@@ -30,6 +30,11 @@ export const online = {
   joins: 0,
   /** id → { id, name, map, pos, talking } */
   players: new Map(),
+  /** A quién sigue la flecha (nombre; se elige en la pausa → JUGADORES). */
+  follow: null,
+  /** Cuándo se perdió la conexión y cuándo es el siguiente intento (para el aviso grande). */
+  lostAt: 0,
+  retryAt: 0,
   ws: null,
 };
 
@@ -152,7 +157,16 @@ const CORE = {
     online.players.set(m.id, { id: m.id, name: m.name, map: null, pos: null });
   },
   leave(m) { online.players.delete(m.id); },
-  where(m) { const p = online.players.get(m.id); if (p) p.map = m.map; },
+  where(m) { const p = online.players.get(m.id); if (p) { p.map = m.map; p.pos = null; } },
+  // Al entrar a un mapa, el servidor dice quién está ahí y dónde (aunque esté quieto o en un menú).
+  here(m) {
+    for (const h of m.list ?? []) {
+      const p = online.players.get(h.id) ?? { id: h.id, name: h.name };
+      p.map = m.map;
+      if (h.pos) p.pos = { ...h.pos, map: m.map };
+      online.players.set(h.id, p);
+    }
+  },
   pos(m) {
     const p = online.players.get(m.id) ?? { id: m.id, name: "?" };
     p.map = m.map;
@@ -210,6 +224,7 @@ function lost(ws) {
   clearInterval(watchdog);
   const was = online.connected;
   online.connected = false;
+  if (was) online.lostAt = Date.now();
   for (const fn of pending.values()) fn({ ok: false, offline: true });
   pending.clear();
   if (was) emit("offline", {});

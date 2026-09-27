@@ -30,6 +30,19 @@ const DEAD_MS = 8000;
 const STALE_MS = 3000;
 const world = new World(process.env.WORLD_FILE ?? join(HERE, "data/world.json"), { dayMs: DAY_MS });
 
+/**
+ * Bitácora corta de lo que pasa (entra, sale, cambia de mapa, se corta): va a la consola y a /estado.
+ * Así, si alguien dice "ya no nos veíamos", se ve si fue la conexión, el mapa o el juego.
+ */
+const events = [];
+function logEvent(text) {
+  const at = new Date();
+  const hhmmss = at.toTimeString().slice(0, 8);
+  events.unshift(`${hhmmss} ${text}`);
+  events.length = Math.min(events.length, 60);
+  console.log(`[${hhmmss}] ${text}`);
+}
+
 // ---------------------------------------------------------------------- archivos del juego
 
 const TYPES = {
@@ -43,11 +56,16 @@ const http = createServer(async (req, res) => {
     const url = new URL(req.url, "http://x");
     // Estado para revisar desde afuera: quién está, dónde, y cómo va su micrófono.
     if (url.pathname === "/estado") {
+      const now = Date.now();
       const list = [...clients.values()].filter((c) => c.name).map((c) => ({
-        name: c.name, map: c.map, audioSent: c.audioBytes ?? 0, voz: c.vstat ?? null,
+        name: c.name, id: c.id, map: c.map, pos: c.pos ? [c.pos.x, c.pos.y] : null,
+        // Hace cuánto mandó su posición (s): mucho = pestaña escondida, celular bloqueado o juego trabado.
+        posHace: c.posAt ? Math.round((now - c.posAt) / 100) / 10 : null,
+        conectadoHace: Math.round((now - c.since) / 1000), habla: Boolean(c.talking),
+        audioSent: c.audioBytes ?? 0, audioRecibido: c.audioOut ?? 0, voz: c.vstat ?? null,
       }));
       res.writeHead(200, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
-      res.end(JSON.stringify({ day: world.s.econ.day, hour: Math.round(world.hour() * 10) / 10, players: list, mandan: Object.fromEntries(authority) }, null, 1));
+      res.end(JSON.stringify({ day: world.s.econ.day, hour: Math.round(world.hour() * 10) / 10, players: list, mandan: Object.fromEntries(authority), eventos: events }, null, 1));
       return;
     }
     let file = normalize(join(DIST, decodeURIComponent(url.pathname)));
@@ -121,6 +139,7 @@ const HANDLERS = {
     const back = Boolean(old && old !== c) || Boolean(m.again);
     if (old && old !== c) { old.replaced = true; leaveMap(old); old.ws.terminate(); clients.delete(old.id); all({ t: "leave", id: old.id }); }
     c.name = name;
+    logEvent(`${name} ${back ? "volvió" : "entró"} (id ${c.id}${old && old !== c ? `, reemplaza a ${old.id}` : ""})`);
     const me = world.join(name);
     send(c, {
       t: "welcome", id: c.id, name, start: me.start, world: world.snapshot(), players: players().filter((p) => p.id !== c.id),
@@ -137,10 +156,16 @@ const HANDLERS = {
       send(c, { t: "auth", map: m.map, yes: authority.get(m.map) === c.id });
       return;
     }
+    const from = c.map;
     leaveMap(c);
     c.map = m.map;
     c.posAt = Date.now();
+    logEvent(`${c.name}: ${from ?? "—"} → ${m.map}`);
     send(c, { t: "mapState", ...world.mapState(m.map) });
+    // Quién está ya en este mapa y dónde: se ven de inmediato aunque el otro esté quieto o en un menú.
+    const here = [...clients.values()].filter((o) => o !== c && o.name && o.map === m.map)
+      .map((o) => ({ id: o.id, name: o.name, pos: o.pos ?? null }));
+    if (here.length) send(c, { t: "here", map: m.map, list: here });
     pickAuthority(m.map);
     if (authority.get(m.map) !== c.id) send(c, { t: "auth", map: m.map, yes: false });
     all({ t: "where", id: c.id, map: m.map }, c);
@@ -284,10 +309,22 @@ const HANDLERS = {
     if (text) all({ t: "chat", id: c.id, name: c.name, text });
   },
   talk(c, m) {
+    c.talking = Boolean(m.on);
     all({ t: "talk", id: c.id, on: Boolean(m.on) }, c);
   },
+  // Cómo va la voz de ese aparato (ver src/net/voice.js report()): se ve tal cual en /estado.
   vstat(c, m) {
-    c.vstat = { mic: m.mic, err: m.err, ctx: m.ctx, sent: m.sent, heard: m.heard, device: m.device, nivelUltimaVez: m.lastPeak, at: new Date().toISOString() };
+    const pick = {};
+    for (const k of ["mic", "err", "ctx", "rate", "micRate", "micOpen", "sent", "heard", "rx", "played", "dropped", "outPeak", "needTap", "session", "device", "ios", "ogg"]) {
+      const v = m[k];
+      if (v == null || typeof v === "number" || typeof v === "boolean") pick[k] = v;
+      else if (typeof v === "string") pick[k] = v.slice(0, 80);
+      else if (k === "heard" && typeof v === "object") pick[k] = Object.fromEntries(Object.entries(v).slice(0, 16).map(([a, b]) => [String(a).slice(0, 6), Number(b) || 0]));
+    }
+    // Nombres claros para leer /estado: lo que llegó, lo que sonó y lo que se tiró por audio dormido.
+    // outPeak: qué tan fuerte sonó aquí la última voz que llegó (casi 0 = llega pero no se oye).
+    const { outPeak, ...rest } = pick;
+    c.vstat = { ...rest, nivelOidoUltimaVez: outPeak ?? null, nivelUltimaVez: m.lastPeak ?? null, at: new Date().toISOString() };
   },
   rtc(c, m) {
     send(clients.get(m.to), { t: "rtc", from: c.id, data: m.data });
@@ -305,7 +342,7 @@ const HANDLERS = {
 };
 
 wss.on("connection", (ws) => {
-  const c = { ws, id: nextId++, name: null, map: null, pos: null, seen: Date.now() };
+  const c = { ws, id: nextId++, name: null, map: null, pos: null, seen: Date.now(), since: Date.now() };
   clients.set(c.id, c);
   ws.on("pong", () => { c.seen = Date.now(); });
   ws.on("message", (raw, isBinary) => {
@@ -317,7 +354,11 @@ wss.on("connection", (ws) => {
       const out = Buffer.allocUnsafe(raw.length + 2);
       out.writeUInt16BE(c.id, 0);
       raw.copy(out, 2);
-      for (const o of clients.values()) if (o !== c && o.name && o.ws.readyState === 1) o.ws.send(out, { binary: true });
+      for (const o of clients.values()) {
+        if (o === c || !o.name || o.ws.readyState !== 1) continue;
+        o.audioOut = (o.audioOut ?? 0) + raw.length;
+        o.ws.send(out, { binary: true });
+      }
       return;
     }
     let m;
@@ -325,9 +366,10 @@ wss.on("connection", (ws) => {
     if (m.t !== "hello" && !c.name) return;
     try { HANDLERS[m.t]?.(c, m); } catch (err) { console.error("error en", m.t, err); }
   });
-  ws.on("close", () => {
+  ws.on("close", (code) => {
     if (clients.get(c.id) !== c) return;
     clients.delete(c.id);
+    if (c.name) logEvent(`${c.name} se fue (${c.dead ? "sin respuesta 8 s" : `cerró, código ${code}`}) en ${c.map ?? "—"}`);
     leaveMap(c);
     if (c.name) all({ t: "leave", id: c.id, name: c.name });
   });
@@ -355,7 +397,7 @@ setInterval(() => {
   const now = Date.now();
   for (const c of clients.values()) {
     // Sin respuesta (ni mensajes ni pong) en 8 s: se cierra y los demás dejan de verlo.
-    if (now - c.seen > DEAD_MS) { c.ws.terminate(); continue; }
+    if (now - c.seen > DEAD_MS) { c.dead = true; c.ws.terminate(); continue; }
     if (c.ws.readyState === 1) c.ws.ping();
   }
   for (const [map, id] of authority) {

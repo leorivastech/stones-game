@@ -9,8 +9,11 @@ reconexión sola y lista de jugadores.
 
 ```bash
 npm run online                                   # compila y arranca en http://127.0.0.1:5190
-cloudflared tunnel --url http://127.0.0.1:5190   # enlace público para el celular o el amigo
+cloudflared tunnel --protocol http2 --url http://127.0.0.1:5190   # enlace público para el celular o el amigo
 ```
+
+`--protocol http2` (27-sep): el túnel por QUIC se cayó 1.5 min justo cuando Leo y su amigo salieron al
+campo (ver "Qué pasó el 27-sep" abajo); por TCP aguanta mejor un internet que parpadea.
 
 **Un solo enlace para todo**: `https://<enlace>/`. En el título:
 
@@ -69,7 +72,16 @@ revisa lo mínimo (que sea un objeto, tipos de oro/carga/vida, tamaño < 200 KB)
 
 ## Cómo se juega junto
 
-- **Verse**: el otro aparece caminando con su nombre encima (como fantasma: no choca).
+- **Verse**: el otro aparece caminando con su nombre encima (como fantasma: no choca). **Siempre sabes
+  dónde anda** (27-sep, Leo: "siempre tienes que poder ver a la otra persona donde sea que esté"):
+  - mismo mapa pero fuera de la pantalla: flecha azul en la orilla, apuntándole, con "Leonel2 · 38 m";
+  - otro mapa: flecha hacia la salida que lleva a donde está, con "Leonel2 → Ruta 1 (norte)" (el camino
+    más corto por las salidas). Si está en un refugio, dice "→ un refugio" y señala la puerta sólo si
+    ya la conoces (no se regala el escondite);
+  - la barra dice dónde anda cada quien ("con: Leonel2 (Ruta 1)");
+  - **Pausa → JUGADORES**: ↓ elige a alguien y A lo **sigue**: su flecha va primero y dorada;
+  - al entrar a un mapa, el servidor dice quién está ahí y dónde (se ven aunque el otro esté quieto);
+  - sin conexión, las flechas se quedan donde lo viste por última vez, con "?".
 - **Enemigos**: el primero que entra a un mapa los "manda" (su aparato los mueve); los demás ven
   lo mismo y sus golpes cuentan. Persiguen al jugador más cercano. Un guardia puede revisar a
   cualquiera; la revisión le sale al revisado. En la foto que manda (10 por segundo) también van el
@@ -88,20 +100,37 @@ revisa lo mínimo (que sea un objeto, tipos de oro/carga/vida, tamaño < 200 KB)
 - **Refugio**: el primero que pone los herrajes (o compra la tierra de Aurelio) es el dueño. En la
   puerta, el dueño elige "Invitar a Mara" o "Quitar la invitación". Sin invitación dice "Es de Leo".
 - **Voz**: mantener el botón **🎤 Mantén para hablar** (abajo a la izquierda) o la tecla **T**; en
-  celular, el botón redondo 🎤. La primera vez el navegador pide permiso del micrófono. En el mismo
-  mapa se oye más fuerte mientras más cerca; si están en lugares distintos, bajito como radio.
-  Arriba dice "hablando ▮▮▮▯▯" (las barritas se mueven si te oye), "acepta el permiso" o "sin
-  permiso". Si sueltas y no se captó sonido, el chat dice **"No se oyó nada"**.
-- **Revisar la voz desde afuera**: `…/estado` muestra quién está conectado, qué aparato, cómo va su
-  micrófono (listo, sin permiso, sin micrófono, ocupado), cuánto audio mandó y qué tan fuerte se oyó
-  la última vez (`nivelUltimaVez`: casi 0 = el micrófono no capta nada).
+  celular, el botón redondo 🎤 (en la franja izquierda; en tableta, abajo junto a la pausa). La primera
+  vez el navegador pide permiso del micrófono. En el mismo mapa se oye más fuerte mientras más cerca;
+  si están en lugares distintos, más bajo, como radio. La barra dice "hablando ▮▮▮▯▯" (lo que capta tu
+  micrófono), "🔊 Leonel2 ▮▮▮" (lo que sale por tu bocina), "abriendo micrófono…", "acepta el
+  permiso" o "sin permiso". Si sueltas y no se captó sonido, el chat dice **"No se oyó nada"**.
+- **iPhone / iPad** (27-sep): en celular, tableta y Safari el micrófono **se suelta 1.5 s después de
+  hablar** (con el micrófono abierto iOS baja todo lo demás o lo manda al auricular de arriba; por eso
+  "no se oía"). El sonido se despierta con cualquier toque (Safari sólo cuenta el de *soltar* el dedo)
+  y se pide sesión de "reproducción" para que el botón de silencio del iPhone no apague las voces. Si
+  llega voz y el audio de la página está dormido, sale en grande **"🔇 Te están hablando: toca aquí
+  para oír"** (y la barra: "toca la pantalla para oír").
+- **Sin conexión**: aviso grande en medio "Sin conexión con el servidor · reintento en N s" (antes
+  era un puntito rojo en la barra y parecía que el otro había desaparecido).
+- **Revisar la voz desde afuera**: `…/estado` muestra, por aparato: `device` (iPhone, iPad, Mac…) e
+  `ios`, `mic` (listo, sin permiso, sin micrófono, ocupado), `micOpen`, `ctx` (el audio: running /
+  suspended / interrupted), `session`, `sent` (bytes que mandó), `rx` / `played` / `dropped` (pedacitos
+  que le llegaron, que sonaron y que se tiraron porque su audio estaba dormido), `needTap`,
+  `nivelUltimaVez` (lo que captó su micrófono: casi 0 = no capta) y `nivelOidoUltimaVez` (qué tan
+  fuerte sonó en su bocina la última voz), `ogg` (si ese navegador toca .ogg: toda la música es .ogg).
+  Además `audioRecibido` (bytes que el servidor le mandó), `posHace` (hace cuánto mandó su posición)
+  y **`eventos`**: bitácora de los últimos 60 (entra, vuelve, cambia de mapa, se va y por qué). Lo
+  mismo sale en la consola del servidor con la hora.
 - **Chat**: **Enter** abre la caja (en celular 💬). Mientras escribes el juego no oye el teclado.
-- **Barra**: arriba a la izquierda, debajo de los corazones (no choca con el cartel del tutorial ni con
-  el de lugar): en línea o no, el día del mundo con su barrita, con quién estás y quién habla. Se
-  esconde con la pausa y el mercado; con un diálogo abierto, el chat sube junto a la barra.
-- **Pausa → JUGADORES** (sólo en línea): quién está conectado, en qué mapa, quién anda contigo y quién
-  habla. **Pausa → MAPA**: un cuadrito azul por jugador. **Rumores**: también cuentan lo que hacen
-  los jugadores.
+- **Barra**: arriba a la izquierda, debajo de los corazones y el oro (y del renglón de tónicos si
+  tienes): en línea o no, el día del mundo (el del servidor) con su barrita, con quién estás, dónde
+  anda y quién habla. Se esconde con la pausa y el mercado; con un diálogo abierto, el chat sube junto
+  a la barra. Lo que a veces se asoma detrás es del mundo (los letreros de salida "… · 3 h a pie").
+- **Pausa → JUGADORES** (sólo en línea): quién está conectado, en qué mapa, quién anda contigo, quién
+  habla y a quién sigues. **Pausa → MAPA**: un cuadrito azul con el nombre por jugador; se redibuja
+  solo si alguien cambia de lugar con la pausa abierta. **Rumores**: también cuentan lo que hacen los
+  jugadores.
 - **Empezar**: el primer jugador en Ashfen, el segundo en Duneshade, y así por turnos.
 
 ## Cómo está hecho
@@ -117,7 +146,8 @@ revisa lo mínimo (que sea un objeto, tipos de oro/carga/vida, tamaño < 200 KB)
   (`worldNow`), espejo del mundo, subir el avance (`pushSave`) y la prueba del servidor del título.
 - `src/net/worldnet.js`: el mapa actual en línea (fantasmas con su yegua o carreta, enemigos con mando
   y títeres, los de la noche y los matones, daño y revisiones por red, piedras tiradas, arbustos,
-  cofres/rejas/refugios en vivo, el día, reconexión).
+  cofres/rejas/refugios en vivo, el día, reconexión) y las flechas de dónde anda cada quien
+  (`updateMarks`, `firstExit`: la salida que lleva al mapa del otro).
 - `src/entities/enemies.js`: los de la noche salen de un plan con semilla del mapa (igual en todos) con
   ids `n:0`, `n:1`…; matones `t:<nombre>:<n>:<i>`.
 - `src/entities/npc.js`: en línea, el recorrido de cada aldeano sale de la hora del servidor.
@@ -125,6 +155,47 @@ revisa lo mínimo (que sea un objeto, tipos de oro/carga/vida, tamaño < 200 KB)
   servidor** (audio de 16 kHz en pedacitos por la conexión del juego; ~32 KB/s mientras alguien
   habla): si el juego se conecta, la voz llega, en cualquier red. La primera versión iba de aparato
   a aparato (WebRTC) y entre compu y celular no conectaba (23-sep, Leo: "no funciona para nada").
+
+## Qué pasó el 27-sep (Leo y su amigo, iPhone + iPad por el túnel)
+
+Reporte: "el micrófono no sirve, ninguno de los dos escuchaba" y "nos encontramos en una ciudad y cuando
+salimos al campo ya no nos veíamos".
+
+- **"Ya no nos veíamos"**: el registro del túnel (`cloudflared`) dice que la conexión con Cloudflare se
+  cayó a las 08:55:56 (hora de Leo) por "no recent network activity" (QUIC) y no volvió hasta las
+  08:57:26. En el mundo guardado, Leonel1 llegó a Ashfen a las 08:55:24 y su último guardado fue a las
+  08:55:31: justo al salir al campo, los dos se quedaron sin conexión, el juego quitó al otro y el aviso
+  era un puntito rojo. No era el mapa: con la conexión arriba, en la misma ruta se ven (probado).
+  Arreglado: aviso grande de "sin conexión", flechas siempre (también en otro mapa y sin conexión),
+  servidor que dice quién está al entrar, bitácora de eventos en `/estado`, y túnel con `--protocol http2`.
+- **"No se oía"**: no se pudo reproducir sin un iPhone real; lo más probable, en orden: (1) iOS con el
+  micrófono abierto baja el volumen de todo o lo manda al auricular (el micrófono se quedaba abierto para
+  siempre tras hablar una vez); (2) el audio de la voz sólo se despertaba con "pointerdown", que en
+  Safari con el dedo no cuenta como gesto: el audio se quedaba dormido y no sonaba ni mandaba nada;
+  (3) el estado "interrupted" de iOS no se reanudaba; (4) el botón de silencio del iPhone apaga el
+  audio web; (5) buffers de 16 kHz en Safaris viejos. Todo eso quedó cubierto (ver "iPhone / iPad"
+  arriba) y, si algo falla, ahora se ve: "toca para oír", "abriendo micrófono…", "No se oyó nada",
+  y `/estado` por aparato.
+
+## Pruebas (2026-09-27)
+
+Playwright (Chrome con micrófono falso) con un iPhone 14 acostado, un iPad y dos compus, entrando por el
+título real; servidor de prueba en 5291 (`PORT=5291 DIST=… WORLD_FILE=/tmp/stones-voz-world.json
+STONES_TEST=1`). 33 + 6 comprobaciones, todas bien y sin errores de consola: se ven en Ashfen; botón 🎤
+a la vista en iPhone y en iPad; voz iPhone → iPad, iPad → iPhone, compu → iPhone y compu → compu (llegan
+los pedacitos, suenan y el medidor de salida se mueve); el iPhone suelta el micrófono al terminar; audio
+dormido → "toca para oír" y un toque lo arregla; salen a la Ruta 1 y se ven; uno se adelanta 38 m →
+flecha con nombre y metros; uno entra a Valkeep → "Leonel1 → Valkeep (norte)" y del otro lado
+"Leonel2 → Ruta 1 (sur)"; la barra dice dónde anda; pausa → MAPA con el cuadrito, que se mueve solo;
+JUGADORES → seguir (flecha dorada); red cortada 9 s → aviso grande y flecha con "?", al volver todo
+normal; `/estado` con aparato, audio y bitácora; con tónicos la barra no tapa su renglón; chat en iPhone
+enfoca al tocar, letra de 16 px; el juego solo arranca sin nada del modo en línea. Scripts en
+`/tmp/stones-voz/` (`voz.mjs`, `extra.mjs`, `lib.mjs`, `server.sh`).
+
+**Lo que sólo se sabe con un iPhone de verdad** (Chrome no imita Safari): si el micrófono capta en
+Safari (ScriptProcessor), si la voz sale por la bocina y fuerte, si el botón de silencio la apaga, si
+Safari vuelve a pedir permiso cada vez que se abre el micrófono, cuánto tarda en abrirse, y si la
+música del juego suena (`ogg` en `/estado`).
 
 ## Pruebas (2026-09-26)
 
@@ -157,7 +228,9 @@ La voz desde el celular llegó; desde la compu no. Pendiente leer `/estado` con 
 
 - **Voz**: unas décimas de retraso (es "mantén para hablar", no llamada). Sin cancelación de eco
   entre dos aparatos en el mismo cuarto: usar audífonos o separarse.
-- **iPhone**: Safari pide el micrófono cada vez y la voz se corta si cambias de app.
+- **iPhone**: Safari pide el micrófono cada vez que se carga la página y la voz se corta si cambias de
+  app. Como el micrófono se suelta tras hablar, la primera sílaba puede cortarse mientras se abre
+  (unas décimas; la barra dice "abriendo micrófono…").
 - **Lag**: con internet lento, el que no manda ve a los enemigos brincar un poco.
 - **Sin conexión** los enemigos se mueven en tu aparato; si te tumban ahí, lo pierdes igual (se guarda).
   Lo que pase en el mapa mientras no hay conexión (piedras tiradas, cofres) no se comparte después,

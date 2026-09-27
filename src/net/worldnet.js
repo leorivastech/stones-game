@@ -13,15 +13,79 @@
  *  - Piedras y monedas tiradas, arbustos y pasto cortado, cofres, rejas y refugios: iguales para todos.
  *  - Tu yegua y tu carreta se ven detrás de tu fantasma.
  *  - Tu avance se manda al servidor cada pocos segundos (ver saveGame / pushSave).
+ *  - Siempre sabes dónde anda el otro (Leo, 27-sep: "siempre tienes que poder ver a la otra persona"):
+ *    en el mismo mapa y fuera de la pantalla, una flecha en la orilla con su nombre y a cuántos metros;
+ *    en otro mapa, una flecha hacia la salida que lleva a donde está ("Leonel2 → Ruta 1 (norte)").
+ *    Al que eliges en la pausa → JUGADORES ("seguir") se le pinta dorado y va primero.
  */
 
-import { online, onNet, send, request, playersIn, resendSave } from "./online.js";
+import { online, onNet, send, request, playersIn, resendSave, canUse } from "./online.js";
 import { voice } from "./voice.js";
-import { DEPTH } from "../config.js";
+import { DEPTH, TILE, VIEW_W, VIEW_H } from "../config.js";
 import { textWidth } from "../art/font.js";
-import { passDays, stones, coldAt, saveGame } from "../state.js";
+import { passDays, stones, coldAt, saveGame, flag } from "../state.js";
+import { MAPS } from "../maps/index.js";
 import { makeEnemy } from "../entities/enemies.js";
 import { release } from "../engine/juice.js";
+
+// ---------------------------------------------------------------------- por dónde se llega a otro mapa
+
+/** mapa → [{ to, ex }] por sus salidas (pueblos ↔ rutas; los refugios salen a su ruta). */
+let GRAPH = null;
+function graph() {
+  if (GRAPH) return GRAPH;
+  GRAPH = {};
+  for (const [id, def] of Object.entries(MAPS)) GRAPH[id] = (def.exits ?? []).filter((ex) => MAPS[ex.to]).map((ex) => ({ to: ex.to, ex }));
+  return GRAPH;
+}
+
+/** La salida de `from` que lleva (por el camino más corto) a `to`, o null. */
+export function firstExit(from, to) {
+  if (from === to) return null;
+  const g = graph();
+  const prev = new Map([[from, null]]);
+  const queue = [from];
+  while (queue.length) {
+    const cur = queue.shift();
+    if (cur === to) break;
+    for (const { to: next, ex } of g[cur] ?? []) {
+      if (prev.has(next)) continue;
+      prev.set(next, { cur, ex });
+      queue.push(next);
+    }
+  }
+  if (!prev.has(to)) return null;
+  let step = prev.get(to);
+  while (step && step.cur !== from) step = prev.get(step.cur);
+  return step?.ex ?? null;
+}
+
+/** Nombre corto del lugar (los refugios son secretos: sólo "un refugio"). */
+function placeOf(map) {
+  const def = MAPS[map];
+  if (!def) return "?";
+  return def.kind === "refuge" ? "un refugio" : def.name;
+}
+
+const DIR_WORD = { up: "norte", down: "sur", left: "oeste", right: "este" };
+
+/** Flechas en píxel (sin trazos vectoriales): hacia la derecha y en diagonal; las demás se giran. */
+const ARROW_E = ["#....", "##...", "###..", "####.", "###..", "##...", "#...."];
+const ARROW_SE = [".....#", "....##", "...###", "..####", ".#####", "######"];
+function arrowPixels(oct) {
+  const base = oct % 2 === 0 ? ARROW_E : ARROW_SE;
+  const turns = oct % 2 === 0 ? oct / 2 : (oct - 1) / 2;
+  let pts = [];
+  base.forEach((row, y) => [...row].forEach((c, x) => { if (c === "#") pts.push([x, y]); }));
+  let w = base[0].length;
+  let h = base.length;
+  for (let i = 0; i < turns; i += 1) {
+    pts = pts.map(([x, y]) => [h - 1 - y, x]);
+    [w, h] = [h, w];
+  }
+  return { pts, w, h };
+}
+const ARROWS = Array.from({ length: 8 }, (_, i) => arrowPixels(i));
 
 const POS_MS = 100;
 const SNAP_MS = 100;
@@ -54,6 +118,7 @@ export class NetWorld {
     on("thugsGone", (m) => m.map === this.map && this.onThugsGone(m.for));
     on("pos", (m) => this.onPos(m));
     on("where", (m) => { if (m.map !== this.map) this.dropGhost(m.id); });
+    on("here", (m) => { if (m.map === this.map) for (const h of m.list ?? []) if (h.pos) this.onPos({ ...h.pos, id: h.id, map: m.map }); });
     on("leave", (m) => this.dropGhost(m.id));
     on("esnap", (m) => m.map === this.map && this.applySnap(m.list));
     on("ehit", (m) => m.map === this.map && this.onRemoteHit(m));
@@ -104,6 +169,8 @@ export class NetWorld {
   destroy() {
     for (const off of this.offs) off();
     for (const id of [...this.ghosts.keys()]) this.dropGhost(id);
+    this.markGfx?.destroy();
+    for (const t of this.markTexts ?? []) t.destroy();
   }
 
   // ------------------------------------------------------------------ bucle
@@ -119,6 +186,7 @@ export class NetWorld {
     }
     for (const e of s.enemies) if (e.puppet && !e.dead) this.puppetUpdate(e, dt);
     for (const g of this.ghosts.values()) this.ghostUpdate(g, dt);
+    this.updateMarks();
     this.posTimer -= dt;
     if (this.posTimer <= 0) { this.posTimer = POS_MS; this.sendPos(busy); }
     if (this.auth) {
@@ -235,6 +303,132 @@ export class NetWorld {
     g.horse?.destroy();
     g.horseShadow?.destroy();
     this.ghosts.delete(id);
+  }
+
+  // ------------------------------------------------------------------ dónde anda cada quien (flechas)
+
+  /**
+   * Una flecha por jugador que no se ve en la pantalla: en el mismo mapa apunta a él (con metros);
+   * en otro mapa apunta a la salida que lleva hacia allá. Pegadas a la orilla, con su nombre.
+   */
+  updateMarks() {
+    const s = this.scene;
+    const cam = s.cameras.main;
+    if (!this.markGfx) {
+      this.markGfx = s.add.graphics().setScrollFactor(0).setDepth(DEPTH.fx + 200);
+      this.markTexts = [];
+    }
+    const gfx = this.markGfx;
+    gfx.clear();
+    const marks = [];
+    const view = cam.worldView;
+    const me = s.player?.sprite;
+    if (!me?.active || !view.width) { for (const t of this.markTexts) t.setVisible(false); return; }
+    for (const p of online.players.values()) {
+      if (!p.name || p.id === online.id || !p.map) continue;
+      const followed = online.follow === p.name;
+      const stale = !online.connected;
+      if (p.map === this.map) {
+        const g = this.ghosts.get(p.id);
+        const x = g ? g.sprite.x : p.pos?.x;
+        const y = g ? g.sprite.y - 12 : (p.pos?.y ?? 0) - 12;
+        if (x == null) continue;
+        const sx = x - view.x;
+        const sy = y - view.y;
+        // A la vista (con su nombre encima): no hace falta flecha.
+        if (g && sx > 4 && sx < VIEW_W - 4 && sy > 4 && sy < VIEW_H - 4) continue;
+        const m = Math.round(Math.hypot(x - me.x, y - me.y + 12) / TILE);
+        marks.push({ sx, sy, text: `${p.name} · ${m} m${stale ? " ?" : ""}`, followed, stale });
+        continue;
+      }
+      // En otro mapa: hacia la salida que lleva allá. Un refugio cuenta como su ruta.
+      const def = MAPS[p.map];
+      if (!def) continue;
+      const target = def.kind === "refuge" ? def.exits?.[0]?.to : p.map;
+      let pt = null;
+      let dirWord = "";
+      if (target === this.map) {
+        // Está en un refugio de esta ruta: se señala la puerta sólo si ya la conoces.
+        const door = s.def.entries?.[def.exits?.[0]?.entry];
+        if (door && (canUse(def.refuge) || flag(s.registry, `found-${def.refuge}`))) pt = { x: door.x * TILE, y: door.y * TILE };
+      } else {
+        const ex = firstExit(this.map, target);
+        if (ex) {
+          pt = { x: (ex.x + ex.w / 2) * TILE, y: (ex.y + ex.h / 2) * TILE };
+          dirWord = DIR_WORD[s.exitDir?.(ex)] ?? "";
+        }
+      }
+      const text = `${p.name} → ${placeOf(p.map)}${dirWord ? ` (${dirWord})` : ""}${stale ? " ?" : ""}`;
+      if (!pt) { marks.push({ sx: null, sy: null, text, followed, stale }); continue; }
+      marks.push({ sx: pt.x - view.x, sy: pt.y - view.y, text, followed, stale });
+    }
+    // El que sigues va primero; se muestran hasta 4.
+    marks.sort((a, b) => Number(b.followed) - Number(a.followed));
+    const shown = marks.slice(0, 4);
+    const used = [];
+    shown.forEach((mk, i) => {
+      let t = this.markTexts[i];
+      if (!t) { t = s.add.bitmapText(0, 0, "font-o", "").setScrollFactor(0).setDepth(DEPTH.fx + 201); this.markTexts[i] = t; }
+      if (t.text !== mk.text) t.setText(mk.text);
+      t.setFont(mk.followed ? "font-gold" : "font-o").setVisible(true).setAlpha(mk.stale ? 0.55 : 1);
+      const w = textWidth(mk.text);
+      const L = 12;
+      const R = VIEW_W - 12;
+      const T = 50;
+      const B = VIEW_H - 18;
+      let ax;
+      let ay;
+      let oct = null;
+      if (mk.sx == null) {
+        // Sin dirección (refugio que no conoces, o sin camino): sólo el nombre arriba al centro.
+        ax = Math.round(VIEW_W / 2);
+        ay = T;
+      } else {
+        const cx = VIEW_W / 2;
+        const cy = (T + B) / 2;
+        const dx = mk.sx - cx;
+        const dy = mk.sy - cy;
+        const inside = mk.sx > L && mk.sx < R && mk.sy > T && mk.sy < B;
+        if (inside) {
+          // La salida está a la vista: la flecha junto a ella, apuntándole.
+          const d = Math.hypot(dx, dy) || 1;
+          ax = mk.sx - (dx / d) * 12;
+          ay = mk.sy - (dy / d) * 12;
+        } else {
+          const k = Math.min(dx ? (dx > 0 ? R - cx : L - cx) / dx : Infinity, dy ? (dy > 0 ? B - cy : T - cy) / dy : Infinity);
+          ax = cx + dx * k;
+          ay = cy + dy * k;
+        }
+        oct = ((Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) % 8) + 8) % 8;
+      }
+      // Que no se encimen: la siguiente baja un renglón.
+      let ly = Math.round(ay - 4);
+      while (used.some((u) => Math.abs(u - ly) < 11)) ly += 11;
+      used.push(ly);
+      ay += ly - Math.round(ay - 4);
+      ax = Math.round(ax);
+      ay = Math.round(ay);
+      if (oct != null) {
+        const a = ARROWS[oct];
+        const color = mk.followed ? 0xe6b736 : 0x7891da;
+        // Al doble (cada punto, 2×2 píxeles): se ve bien en el celular.
+        const ox = ax - a.w;
+        const oy = ay - a.h;
+        gfx.fillStyle(0x1b1422, mk.stale ? 0.5 : 1);
+        for (const [x, y] of a.pts) gfx.fillRect(ox + x * 2 - 1, oy + y * 2 - 1, 4, 4);
+        gfx.fillStyle(color, mk.stale ? 0.5 : 1);
+        for (const [x, y] of a.pts) gfx.fillRect(ox + x * 2, oy + y * 2, 2, 2);
+      }
+      // El nombre, hacia adentro de la pantalla.
+      let lx;
+      if (oct == null) lx = ax - Math.round(w / 2);
+      else if (ax >= R - 2) lx = ax - 12 - w;
+      else if (ax <= L + 2) lx = ax + 12;
+      else lx = ax - Math.round(w / 2);
+      const ty = oct == null ? ly : ay >= B - 2 ? ay - 19 : ay <= T + 2 ? ay + 10 : ly;
+      t.setPosition(Math.round(Math.max(4, Math.min(VIEW_W - 4 - w, lx))), Math.round(ty));
+    });
+    for (let i = shown.length; i < this.markTexts.length; i += 1) this.markTexts[i].setVisible(false);
   }
 
   /** El blanco (para los enemigos) del jugador `id` si anda en este mapa. */

@@ -1787,12 +1787,16 @@ export class UIScene extends Phaser.Scene {
       if (extra) txt(VIEW_W - 26 - textWidth(extra), y, extra, "font-gold");
     };
     row(60, `${online.name ?? "Tú"} (tú)`, where(me), 0xe6b736, online.connected ? null : "sin conexión");
+    const p = this.pauseState;
     others.slice(0, 9).forEach((pl, i) => {
       const same = pl.map && pl.map === me;
-      row(76 + i * 14, pl.name, where(pl.map), 0x7891da, pl.talking ? "habla" : same ? "aquí" : null);
+      const followed = online.follow === pl.name;
+      row(76 + i * 14, pl.name, where(pl.map), followed ? 0xe6b736 : 0x7891da, pl.talking ? "habla" : followed ? "siguiendo" : same ? "aquí" : null);
+      if (p?.opt === i) txt(14, 76 + i * 14, "▶", "font-gold");
     });
     if (others.length > 9) txt(36, 76 + 9 * 14, `y ${others.length - 9} más`, "font-dim");
     if (!others.length) txt(36, 80, "Nadie más por ahora. Pásale el enlace a alguien.", "font-dim");
+    else txt(24, 192, p?.opt >= 0 ? `↑↓ elegir · ${keyName("confirm")} seguir con la flecha (o dejar de seguir)` : "↓ para elegir a quién seguir: su flecha va primero y dorada.", "font-dim");
     txt(24, 204, "En el MAPA, un cuadrito azul por jugador. Voz: tecla T · chat: Enter.", "font-dim");
     txt(24, 216, "Tu avance se guarda en el servidor con tu nombre: sigue desde cualquier aparato.", "font-dim");
   }
@@ -1946,6 +1950,15 @@ export class UIScene extends Phaser.Scene {
     const p = this.pauseState;
     // OPCIONES: con el cursor en una opción, ←→ ajustan en vez de cambiar de pestaña.
     if (p.index === 6 && this.updatePauseOptions(p)) return;
+    // JUGADORES: elegir a quién sigue la flecha.
+    if (p.tabs[p.index] === "JUGADORES" && this.updatePausePlayers(p)) return;
+    // En línea, el MAPA y JUGADORES se redibujan si alguien cambió de lugar (cada segundo se revisa).
+    if (online.on && (p.index === 0 || p.tabs[p.index] === "JUGADORES") && this.time.now - (p.netCheck ?? 0) > 1000) {
+      p.netCheck = this.time.now;
+      const sig = [...online.players.values()].map((pl) => `${pl.id}:${pl.name}:${pl.map}:${pl.talking ? 1 : 0}`).join("|") + online.connected;
+      if (p.netSig != null && p.netSig !== sig) this.drawPause();
+      p.netSig = sig;
+    }
     if (p.skip && tutorialStep(this.registry) >= 0 && (this.controls.pressed("confirm") || this.controls.pressed("interact"))) {
       if (!p.skipArmed) {
         p.skipArmed = true;
@@ -1959,8 +1972,8 @@ export class UIScene extends Phaser.Scene {
         tone(this, "confirm");
       }
     }
-    if (this.controls.pressed("right")) { p.index = (p.index + 1) % p.tabs.length; tone(this, "select"); this.drawPause(); }
-    if (this.controls.pressed("left")) { p.index = (p.index + p.tabs.length - 1) % p.tabs.length; tone(this, "select"); this.drawPause(); }
+    if (this.controls.pressed("right")) { p.index = (p.index + 1) % p.tabs.length; p.opt = -1; tone(this, "select"); this.drawPause(); }
+    if (this.controls.pressed("left")) { p.index = (p.index + p.tabs.length - 1) % p.tabs.length; p.opt = -1; tone(this, "select"); this.drawPause(); }
     if (this.controls.pressed("pause") || this.controls.pressed("cancel")) {
       tone(this, "select");
       this.tweens.killTweensOf(p.veil);
@@ -1970,6 +1983,24 @@ export class UIScene extends Phaser.Scene {
       this.mode = null;
       p.resolve();
     }
+  }
+
+  /** Teclas de la pestaña JUGADORES (↑↓ elegir, confirmar = seguir). Devuelve true si usó la tecla. */
+  updatePausePlayers(p) {
+    const others = [...online.players.values()].filter((pl) => pl.name && pl.id !== online.id).slice(0, 9);
+    if (!others.length) { p.opt = -1; return false; }
+    if (this.controls.pressed("down") && p.opt < others.length - 1) { p.opt += 1; tone(this, "select"); this.drawPause(); return true; }
+    if (this.controls.pressed("up") && p.opt >= 0) { p.opt -= 1; tone(this, "select"); this.drawPause(); return true; }
+    if (p.opt < 0) return false;
+    if (this.controls.pressed("confirm") || this.controls.pressed("interact")) {
+      const pl = others[Math.min(p.opt, others.length - 1)];
+      online.follow = online.follow === pl.name ? null : pl.name;
+      tone(this, "confirm");
+      this.drawPause();
+      return true;
+    }
+    if (this.controls.pressed("cancel")) { p.opt = -1; tone(this, "select"); this.drawPause(); return true; }
+    return false;
   }
 
   /** Teclas de la pestaña OPCIONES. Devuelve true si ya usó la tecla de este cuadro. */
