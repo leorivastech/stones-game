@@ -91,3 +91,12 @@ Pendiente para Leo: oír en `escuchar.html` los efectos con CLAP bajo (ui-exito,
 curar, palanca, saltar, cerrojo-2, jingles mision/deuda); ver si le gusta que los árboles tapen al
 jugador en las veredas; arbusto nevado en la entrada de la cueva del lago; grabar el trailer en
 línea con dos jugadores si lo quiere; hosting fijo (decisión suya).
+
+## 27-sep: arreglos tras jugar en iPhone/iPad (Leo y un amigo)
+
+- `d76ca99` pantalla: sin zoom por gestos ni al escribir, página fija, llena la pantalla (iPhone 81-82 %, iPad 75-81 %).
+- `fbb35ef` en línea: voz para iOS (audio se despierta con el toque, suelta el micrófono, suena en silencio,
+  "toca para oír"), flechas al otro jugador (mismo mapa u otro), aviso grande sin conexión, `/estado` con diagnóstico.
+- Causa de "no nos veíamos": se cayó la conexión QUIC del túnel justo al salir al campo. Túnel ahora con
+  `--protocol http2`: https://bytes-healing-uploaded-look.trycloudflare.com (servidor: build de fbb35ef en /tmp/stones-live).
+- Falta confirmar en iPhone real: voz, que el `.ogg` suene en iOS (ver `ogg` en `/estado`; si sale false, convertir audio a m4a).
