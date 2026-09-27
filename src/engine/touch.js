@@ -52,7 +52,10 @@ function wantsTouch(params) {
 const CSS = `
 @font-face { font-family: "Pixel"; src: url("/assets/fonts/pixelify-sans.woff2") format("woff2"); font-weight: 400 700; }
 html.touch, html.touch body { touch-action: none; overscroll-behavior: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-#touch { position: fixed; inset: 0; z-index: 10; pointer-events: none; font-family: "Pixel", monospace; }
+#touch { position: fixed; inset: 0; z-index: 10; pointer-events: none; font-family: "Pixel", monospace; touch-action: none;
+  /* Corrimiento por la muesca / isla y la barra de inicio (0 en la compu). */
+  --sr: max(0px, calc(env(safe-area-inset-right, 0px) - 12px)); --sb: env(safe-area-inset-bottom, 0px); }
+#touch * { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 #touch .zone { position: absolute; left: 0; top: 0; bottom: 0; width: 48%; pointer-events: auto; }
 #touch .base { position: absolute; width: ${STICK_R * 2}px; height: ${STICK_R * 2}px; margin: -${STICK_R}px 0 0 -${STICK_R}px; border-radius: 50%;
   background: ${P.ink}66; border: 3px solid ${P.c4}55; box-sizing: border-box; left: ${SIDE / 2}px; bottom: 54px; top: auto; }
@@ -66,19 +69,30 @@ html.touch, html.touch body { touch-action: none; overscroll-behavior: none; -we
 #touch .btn i { font-style: normal; font-size: 11px; margin-top: 2px; color: ${P.y4}; }
 #touch .btn.down { background: ${P.y1}dd; border-color: ${P.y4}; transform: scale(0.94); }
 /* Los cuatro juntos en la franja derecha, como en un control: A grande, B abajo, C arriba, T tónico. */
-#touch .btn-a { width: 68px; height: 68px; right: 6px; bottom: 66px; border-color: ${P.y3}aa; }
+#touch .btn-a { width: 68px; height: 68px; right: calc(6px + var(--sr)); bottom: calc(66px + var(--sb)); border-color: ${P.y3}aa; }
 #touch .btn-a b { font-size: 30px; }
-#touch .btn-b { width: 54px; height: 54px; right: 47px; bottom: 17px; }
-#touch .btn-c { width: 54px; height: 54px; right: 47px; bottom: 135px; }
-#touch .btn-t { width: 44px; height: 44px; right: 12px; bottom: 192px; }
+#touch .btn-b { width: 54px; height: 54px; right: calc(47px + var(--sr)); bottom: calc(17px + var(--sb)); }
+#touch .btn-c { width: 54px; height: 54px; right: calc(47px + var(--sr)); bottom: calc(135px + var(--sb)); }
+#touch .btn-t { width: 44px; height: 44px; right: calc(12px + var(--sr)); bottom: calc(192px + var(--sb)); }
 #touch .btn-b b, #touch .btn-c b { font-size: 22px; }
 #touch .btn-t b { font-size: 18px; }
-#touch .btn-p { width: 44px; height: 44px; right: 14px; top: 12px; border-radius: 10px; }
+#touch .btn-p { width: 44px; height: 44px; right: calc(14px + env(safe-area-inset-right, 0px) / 2); top: calc(12px + env(safe-area-inset-top, 0px)); border-radius: 10px; }
+/* Tableta (juego arriba a lo ancho, controles en la franja de abajo): la pausa va al centro de la franja. */
+html.touch-bottom #touch .btn-p { top: auto; right: auto; left: calc(50% - 22px); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+/* Franja baja (tableta acostada): los cuatro botones en fila, T C B A, y la palanca pegada abajo. */
+html.touch-row #touch .btn-a { right: calc(16px + var(--sr)); bottom: calc(20px + var(--sb)); }
+html.touch-row #touch .btn-b { right: calc(96px + var(--sr)); bottom: calc(27px + var(--sb)); }
+html.touch-row #touch .btn-c { right: calc(162px + var(--sr)); bottom: calc(27px + var(--sb)); }
+html.touch-row #touch .btn-t { right: calc(228px + var(--sr)); bottom: calc(32px + var(--sb)); }
+html.touch-row #touch .base:not(.active) { bottom: calc(10px + var(--sb)) !important; }
+/* Encima del juego (celular acostado): semitransparentes, para ver lo que hay debajo. */
+html.touch-over #touch .btn:not(.down), html.touch-over #touch .base:not(.active) { opacity: 0.6; }
 #touch .btn-p b { font-size: 18px; }
 #touch .turn { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 14px;
   background: ${P.ink}; color: ${P.c4}; font-size: 22px; text-align: center; pointer-events: auto; }
 #touch .turn span { font-size: 64px; color: ${P.y3}; }
-@media (orientation: portrait) { #touch .turn { display: flex; } }
+/* main.js la prende cuando el aparato está parado y el juego quedaría muy chico (celular). */
+html.turn #touch .turn { display: flex; }
 `;
 
 /** Arma los controles si el aparato es táctil. Si no, espera: el primer toque también los prende. */
@@ -110,9 +124,61 @@ function build() {
 }
 
 function fullscreen() {
+  if (!isFullscreen()) toggleFullscreen();
+}
+
+/** ¿El navegador deja poner la página en pantalla completa? (En iPhone no: sólo videos.) */
+export function canFullscreen() {
   const el = document.documentElement;
-  if (document.fullscreenElement || !el.requestFullscreen) return;
-  el.requestFullscreen({ navigationUI: "hide" }).then(() => screen.orientation?.lock?.("landscape").catch(() => {})).catch(() => {});
+  return !!(el.requestFullscreen || el.webkitRequestFullscreen) && document.fullscreenEnabled !== false;
+}
+
+export function isFullscreen() {
+  return !!(document.fullscreenElement || document.webkitFullscreenElement);
+}
+
+/** Entra o sale de pantalla completa. Si el navegador no puede, no pasa nada. */
+export function toggleFullscreen() {
+  try {
+    if (isFullscreen()) {
+      const exit = document.exitFullscreen ?? document.webkitExitFullscreen;
+      Promise.resolve(exit?.call(document)).catch(() => {});
+      return;
+    }
+    const el = document.documentElement;
+    const req = el.requestFullscreen ?? el.webkitRequestFullscreen;
+    if (!req) return;
+    Promise.resolve(req.call(el, { navigationUI: "hide" }))
+      .then(() => screen.orientation?.lock?.("landscape").catch(() => {}))
+      .catch(() => {});
+  } catch { /* sin pantalla completa: se juega igual */ }
+}
+
+const isText = (t) => !!t?.closest?.("input, textarea, select, [contenteditable]");
+
+/**
+ * Que la página no se mueva ni se acerque (iPhone y iPad). Safari ignora `user-scalable=no` desde iOS 10:
+ * con dos dedos en la pantalla (palanca + botón) lo toma como pellizco, y dos toques rápidos en A como
+ * "doble toque para acercar". Se bloquean aquí; los campos de texto quedan libres para escribir.
+ */
+export function lockPage() {
+  const stop = (e) => { if (e.cancelable) e.preventDefault(); };
+  // Pellizco de Safari (eventos propios de WebKit).
+  for (const t of ["gesturestart", "gesturechange", "gestureend"]) document.addEventListener(t, stop, { passive: false });
+  document.addEventListener("dblclick", stop, { passive: false });
+  // Arrastrar o pellizcar la página: nada se desplaza (la palanca sigue: usa pointermove).
+  document.addEventListener("touchmove", (e) => {
+    if (!isText(e.target) || e.touches.length > 1) stop(e);
+  }, { passive: false });
+  // Doble toque: los controles nunca necesitan el "click" que genera el toque; en lo demás, sólo se
+  // corta el segundo toque rápido (así los botones del chat siguen funcionando).
+  let last = 0;
+  document.addEventListener("touchend", (e) => {
+    if (isText(e.target)) return;
+    const now = e.timeStamp;
+    if (e.target?.closest?.("#touch") || now - last < 380 || e.touches.length) stop(e);
+    last = now;
+  }, { passive: false });
 }
 
 function buildButton(el, actions) {

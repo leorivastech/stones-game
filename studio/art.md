@@ -11,7 +11,46 @@ queda en la historia de git (`be15c32`).
 - El juego vive en **480×270** píxeles, con cuadros (tiles) de **16 px**.
 - Se escala en **múltiplos enteros** (×2, ×3, ×4): en 1920×1080 cada píxel del juego mide 4×4.
   Si el múltiplo entero deja mucho borde en pantallas chicas (<×3), estira un poco.
+  Eso es sólo en la compu. En celular y tableta manda **llenar la pantalla**: siempre el zoom más
+  grande que quepa, fraccional (los píxeles pueden quedar un poco desiguales; Leo lo prefirió así).
 - `pixelArt: true` + `roundPixels`: sin suavizado, sin medios píxeles.
+
+## Pantalla en celular y tableta (2026-09-27)
+
+Todo en `src/main.js` (`plan()` y `fit()`), controles en `src/engine/touch.js`, CSS en `index.html`.
+
+- **Dónde va el juego**: siempre lo más grande que quepa en la zona segura (muesca, isla, barra de inicio,
+  `env(safe-area-inset-*)`). Los controles van según lo que sobre:
+  - **Franja de abajo** (`html.touch-bottom`, tableta): juego arriba a lo ancho completo. Si la franja es
+    baja (<250 px, tableta acostada) los botones van en fila T C B A (`html.touch-row`); si es alta
+    (tableta parada) van en su racimo de siempre. La pausa, el 🎤 y el 💬 van al centro de la franja.
+    Mínimo 112 px de franja; con menos, van encima.
+  - **Franjas a los lados** (`side`): sólo si sobran 100 px por lado (pantallas muy alargadas).
+  - **Encima del juego** (`html.touch-over`, celular acostado): el juego llena el alto y la palanca y los
+    botones van en las esquinas de abajo, semitransparentes (60 %), corridos fuera de la muesca.
+- **Se recalcula** en `resize`, `orientationchange`, `visualViewport` (barra de Safari), pantalla completa
+  y al cerrar el teclado (vuelve arriba con `scrollTo(0,0)`). El tamaño se mide con `visualViewport`,
+  no con `innerWidth` (en iOS cambia si la página quedó acercada).
+- **Aviso de girar** (`html.turn`): celular parado. Una tableta parada sí juega (juego arriba).
+- **Que Safari no acerque la página** (iOS ignora `user-scalable=no`): `touch-action: none` en todo,
+  `gesturestart/change/end` y `dblclick` con `preventDefault`, `touchmove` bloqueado fuera de campos de
+  texto y `touchend` cortado en los controles y en el segundo toque rápido (`lockPage()` en touch.js).
+  Los campos de texto van a **16 px** mínimo (con menos, iOS acerca al escribir).
+- **Pantalla completa**: opción en el título (compu, Android, iPad). En iPhone Safari no existe y no sale;
+  agregarlo a la pantalla de inicio lo abre sin barras (`apple-mobile-web-app-capable`).
+
+| Aparato (visible en Safari) | Cómo queda | Pantalla usada |
+|---|---|---|
+| iPhone 14 acostado (750×340) | alto completo, controles encima | 81 % |
+| iPhone 844×390 / 932×430 | alto completo, controles encima | 82 % |
+| iPhone parado | aviso de girar | — |
+| iPad 1024×768 / gen 7 (1080×810) | ancho completo, botones en fila abajo | 75 % |
+| iPad 1180×820 / Pro 11 (1194×834) | ancho completo, botones en fila abajo | 81 % |
+| iPad 1366×1024 | ancho completo, racimo abajo | 75 % |
+| iPad parado | ancho completo, racimo abajo | 39–42 % |
+
+(El resto es franja negra inevitable: el juego es 16:9 y el iPad 4:3. Con la barra de Safari real la
+franja del iPad acostado puede quedar de menos de 112 px: entonces los botones van encima, como en iPhone.)
 
 ## Pipeline
 

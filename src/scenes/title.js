@@ -17,6 +17,7 @@ import { hasSave, loadGame, resetRun, eraseSave } from "../state.js";
 import { online, probeServer, modeUrl } from "../net/online.js";
 import { askName } from "../net/hud.js";
 import { centerX } from "../art/font.js";
+import { canFullscreen, isFullscreen, toggleFullscreen } from "../engine/touch.js";
 
 export class TitleScene extends Phaser.Scene {
   constructor() {
@@ -61,6 +62,15 @@ export class TitleScene extends Phaser.Scene {
     cam.ignore(top);
     ui.ignore(this.children.list.filter((c) => c !== top));
 
+    // Al entrar o salir de pantalla completa, el menú cambia el letrero de esa opción.
+    const onFull = () => this.refreshMenu?.();
+    document.addEventListener("fullscreenchange", onFull);
+    document.addEventListener("webkitfullscreenchange", onFull);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      document.removeEventListener("fullscreenchange", onFull);
+      document.removeEventListener("webkitfullscreenchange", onFull);
+    });
+
     this.controls = new Controls(this);
     this.controls.lock(10);
     startMusic(this, "title");
@@ -68,8 +78,9 @@ export class TitleScene extends Phaser.Scene {
   }
 
   /** Cambia el menú: un letrero arriba (opcional) y las opciones [{ label, act }]. */
-  setMenu(head, options, { font = "font-gold" } = {}) {
+  setMenu(head, options, { font = "font-gold", refresh = null, index = 0 } = {}) {
     const top = this.top;
+    this.refreshMenu = refresh;
     for (const r of this.rows) r.destroy();
     this.cursor?.destroy();
     this.cursor = null;
@@ -88,8 +99,17 @@ export class TitleScene extends Phaser.Scene {
       top.add(this.cursor);
     }
     this.cameras.cameras[0].ignore(top);
-    this.index = 0;
+    this.index = Math.min(index, Math.max(0, options.length - 1));
     this.moveCursor(0);
+  }
+
+  /**
+   * "Pantalla completa" (compu, Android y iPad; en iPhone Safari no existe y la opción no sale).
+   * Los menús que la llevan se vuelven a pintar al cambiar, sin mover el cursor.
+   */
+  fullOption() {
+    if (!canFullscreen()) return [];
+    return [{ label: isFullscreen() ? "Salir de pantalla completa" : "Pantalla completa", act: () => toggleFullscreen() }];
   }
 
   /** Sin ?online=1: elegir cómo jugar. */
@@ -97,7 +117,8 @@ export class TitleScene extends Phaser.Scene {
     this.setMenu(null, [
       { label: "Solo", act: () => this.soloMenu() },
       { label: "En línea", act: () => this.goOnline() },
-    ]);
+      ...this.fullOption(),
+    ], { refresh: () => this.modeMenu(), index: this.refreshMenu ? this.index : 0 });
   }
 
   soloMenu() {
@@ -159,7 +180,8 @@ export class TitleScene extends Phaser.Scene {
     } else opts.push({ label: "Entrar al mundo", act: () => this.go(false) });
     opts.push({ label: "Cambiar nombre", act: () => this.rename() });
     opts.push({ label: "Jugar solo", act: () => { location.href = modeUrl(false); } });
-    this.setMenu(`En línea como ${online.name}`, opts);
+    opts.push(...this.fullOption());
+    this.setMenu(`En línea como ${online.name}`, opts, { refresh: () => this.onlineMenu(), index: this.refreshMenu ? this.index : 0 });
   }
 
   confirmReset() {
