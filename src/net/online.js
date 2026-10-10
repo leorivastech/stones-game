@@ -185,7 +185,19 @@ export function connect(reg) {
   });
 }
 
-const netUrl = () => `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/net`;
+const netUrl = () => {
+  const p = new URLSearchParams(location.search);
+  const custom = p.get("server") || import.meta.env.VITE_SERVER_URL;
+  if (custom) {
+    if (custom.startsWith("ws://") || custom.startsWith("wss://")) {
+      return custom.endsWith("/net") ? custom : `${custom.replace(/\/+$/, "")}/net`;
+    }
+    const proto = custom.startsWith("https://") ? "wss:" : (custom.startsWith("http://") ? "ws:" : (location.protocol === "https:" ? "wss:" : "ws:"));
+    const host = custom.replace(/^https?:\/\//, "").replace(/\/+$/, "");
+    return `${proto}//${host}/net`;
+  }
+  return `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/net`;
+};
 
 function open() {
   const ws = new WebSocket(netUrl());
