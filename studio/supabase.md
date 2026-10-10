@@ -59,7 +59,12 @@ sólo después de detener el servidor activo. No volver a un archivo antiguo.
 - Supabase real: dos jugadores y un cambio compartido recuperados en una fila separada de QA.
 - Servidor real local con WebSocket: dos jugadores guardados, SIGTERM, proceso nuevo y recuperación
   de ambas partidas desde Supabase, en otro WORLD_ID de QA.
-- Falta verificar el despliegue final y la recuperación después de reiniciar Render.
+- Render desplegó `f91be78` correctamente el 9 de octubre de 2026 a las 19:13 PDT; log de arranque: guardado en Supabase.
+- Prueba en el servicio público: dos jugadores sintéticos QA-Render-A/B guardaron oro 321/654 y vida 77.
+  Render confirmó «Service restarted by you» a las 19:15 PDT. Ambas partidas se recuperaron por WebSocket
+  después del reinicio. El mundo main también se exportó a un respaldo local privado con permisos 600.
+- QR público verificado en Chrome: https://stones-game-v1y1.onrender.com/. Cámara e instalación real
+  en teléfono siguen sin probar. La llave está en el entorno de Render y en .env local ignorado por Git.
 
 Límites Free: 500 MB, pausa por inactividad y cuotas de transferencia; revisar el panel de Usage.
 No se contrató ningún plan de pago.
