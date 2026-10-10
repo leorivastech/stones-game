@@ -7,7 +7,7 @@
  * Sirve el juego compilado (dist/) y, en /net, la conexión en vivo (WebSocket) por el mismo puerto:
  * así basta un túnel. La voz también pasa por aquí (audio en pedacitos), así llega en cualquier red. Guarda el mundo en server/data/world.json.
  *
- * Variables: PORT (5190), DAY_SECONDS (240: un día del mundo cada 4 minutos, igual que jugando solo), WORLD_FILE, DIST (carpeta del juego compilado).
+ * Variables: PORT (5190), HOST (0.0.0.0), DAY_SECONDS (240: un día del mundo cada 4 minutos, igual que jugando solo), WORLD_FILE, DIST (carpeta del juego compilado).
  *
  * El avance de cada jugador (oro, carga, fama, deuda, mejoras, contratos…) también se guarda aquí, por
  * nombre, dentro del mismo world.json: se sigue desde cualquier aparato.
@@ -22,6 +22,7 @@ import { World } from "./world.mjs";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 const DIST = resolve(process.env.DIST ?? join(HERE, "../dist"));
+const HOST = process.env.HOST ?? "0.0.0.0";
 const PORT = Number(process.env.PORT ?? 5190);
 const DAY_MS = Number(process.env.DAY_SECONDS ?? 240) * 1000;
 /** Sin respuesta en este tiempo, la conexión se da por muerta y el jugador desaparece para los demás. */
@@ -48,7 +49,7 @@ function logEvent(text) {
 const TYPES = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".json": "application/json",
   ".png": "image/png", ".ogg": "audio/ogg", ".mp3": "audio/mpeg", ".woff2": "font/woff2", ".svg": "image/svg+xml",
-  ".ico": "image/x-icon", ".md": "text/plain; charset=utf-8",
+  ".ico": "image/x-icon", ".md": "text/plain; charset=utf-8", ".webmanifest": "application/manifest+json",
 };
 
 const http = createServer(async (req, res) => {
@@ -362,7 +363,7 @@ wss.on("connection", (ws) => {
       return;
     }
     let m;
-    try { m = JSON.parse(raw); } catch { return; }
+    try { m = JSON.parse(raw); } catch { return; };
     if (m.t !== "hello" && !c.name) return;
     try { HANDLERS[m.t]?.(c, m); } catch (err) { console.error("error en", m.t, err); }
   });
@@ -411,6 +412,6 @@ setInterval(() => {
 setInterval(() => world.save(), 4000);
 for (const sig of ["SIGINT", "SIGTERM"]) process.on(sig, () => { world.save(); process.exit(0); });
 
-http.listen(PORT, "127.0.0.1", () => {
-  console.log(`Stones en línea: http://127.0.0.1:${PORT}/ (en el título: "En línea")  ·  un día cada ${DAY_MS / 1000} s  ·  mundo en ${world.file}`);
+http.listen(PORT, HOST, () => {
+  console.log(`Stones en línea: http://${HOST}:${PORT}/ (en el título: "En línea")  ·  un día cada ${DAY_MS / 1000} s  ·  mundo en ${world.file}`);
 });

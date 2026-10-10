@@ -176,19 +176,21 @@ globalThis.__stonesGame = game;
 globalThis.__online = online;
 globalThis.__voice = voice;
 
+// Al cerrar o esconder la página (celular que se bloquea o cambia de app),
+// el avance se guarda inmediatamente en memoria (localStorage) y, si está en línea, al servidor.
+const flush = () => {
+  if (!game.scene.isActive("world")) return;
+  saveGame(game.registry);
+  if (online.on) flushSave();
+};
+window.addEventListener("pagehide", flush);
+document.addEventListener("visibilitychange", () => { if (document.hidden) flush(); });
+
 // En línea (?online=1, lo pone el título al elegir "En línea"): nombre, conexión al servidor, chat y voz.
 if (online.on) {
   setupHud();
   setupVoice();
   askName().then(() => connect(game.registry));
-  // Al cerrar o esconder la página (celular que se bloquea), el avance sale ya al servidor.
-  const flush = () => {
-    if (!game.scene.isActive("world")) return;
-    saveGame(game.registry);
-    flushSave();
-  };
-  window.addEventListener("pagehide", flush);
-  document.addEventListener("visibilitychange", () => { if (document.hidden) flush(); });
 }
 
 // Si los botones se prenden después (primer toque en una compu con pantalla táctil), se hace lugar.

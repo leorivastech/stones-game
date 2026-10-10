@@ -551,6 +551,13 @@ export class WorldScene extends Phaser.Scene {
     for (const e of this.enemies) if (!e.dead && !e.puppet) e.update(dt);
     this.enemies = this.enemies.filter((e) => !e.dead || e.state === "down" || e.sprite.active);
     this.net?.update(dt, false);
+    if (!online.on) {
+      this.autoSaveTimer = (this.autoSaveTimer ?? 8000) - dt;
+      if (this.autoSaveTimer <= 0 && !this.leaving) {
+        this.autoSaveTimer = 8000;
+        saveGame(this.registry);
+      }
+    }
     for (const n of this.npcs) n.update(dt);
     this.updatePickups(dt);
     this.updateHorse();

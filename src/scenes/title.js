@@ -64,11 +64,14 @@ export class TitleScene extends Phaser.Scene {
 
     // Al entrar o salir de pantalla completa, el menú cambia el letrero de esa opción.
     const onFull = () => this.refreshMenu?.();
+    const onInstallable = () => this.refreshMenu?.();
     document.addEventListener("fullscreenchange", onFull);
     document.addEventListener("webkitfullscreenchange", onFull);
+    window.addEventListener("pwa-installable", onInstallable);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       document.removeEventListener("fullscreenchange", onFull);
       document.removeEventListener("webkitfullscreenchange", onFull);
+      window.removeEventListener("pwa-installable", onInstallable);
     });
 
     this.controls = new Controls(this);
@@ -91,6 +94,14 @@ export class TitleScene extends Phaser.Scene {
     const y0 = 190 + Math.max(0, 3 - options.length) * 4;
     this.rows = options.map((o, i) => {
       const t = centerX(this.add.bitmapText(VIEW_W / 2, y0 + i * 14, "font", o.label));
+      t.setInteractive({ useHandCursor: true });
+      t.on("pointerdown", () => {
+        if (this.busy) return;
+        this.index = i;
+        this.moveCursor(0);
+        tone(this, "confirm");
+        o.act();
+      });
       top.add(t);
       return t;
     });
@@ -112,11 +123,55 @@ export class TitleScene extends Phaser.Scene {
     return [{ label: isFullscreen() ? "Salir de pantalla completa" : "Pantalla completa", act: () => toggleFullscreen() }];
   }
 
+  installOption() {
+    const isStandalone = window.matchMedia?.("(display-mode: standalone)").matches || window.navigator?.standalone;
+    if (isStandalone) return [];
+    return [{
+      label: "Instalar aplicación",
+      act: () => this.handleInstall(),
+    }];
+  }
+
+  async handleInstall() {
+    if (window.__deferredPrompt) {
+      window.__deferredPrompt.prompt();
+      try {
+        const choice = await window.__deferredPrompt.userChoice;
+        if (choice && choice.outcome === "accepted") {
+          window.__deferredPrompt = null;
+          this.setMenu("¡Aplicación instalada!", [
+            { label: "Continuar", act: () => this.modeMenu() },
+          ]);
+          return;
+        }
+      } catch {
+        /* nada */
+      }
+      this.modeMenu();
+      return;
+    }
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    if (isIOS) {
+      this.setMenu("Instalar en iPhone / iPad", [
+        { label: "1. Toca Compartir (icono cuadrado con flecha)", act: () => {} },
+        { label: "2. Selecciona 'Agregar a inicio'", act: () => {} },
+        { label: "‹ Volver", act: () => this.modeMenu() },
+      ]);
+    } else {
+      this.setMenu("Instalar en tu dispositivo", [
+        { label: "Abre el menú del navegador (: o ⋮)", act: () => {} },
+        { label: "y elige 'Instalar app' o 'Agregar a inicio'", act: () => {} },
+        { label: "‹ Volver", act: () => this.modeMenu() },
+      ]);
+    }
+  }
+
   /** Sin ?online=1: elegir cómo jugar. */
   modeMenu() {
     this.setMenu(null, [
       { label: "Solo", act: () => this.soloMenu() },
       { label: "En línea", act: () => this.goOnline() },
+      ...this.installOption(),
       ...this.fullOption(),
     ], { refresh: () => this.modeMenu(), index: this.refreshMenu ? this.index : 0 });
   }
@@ -180,6 +235,7 @@ export class TitleScene extends Phaser.Scene {
     } else opts.push({ label: "Entrar al mundo", act: () => this.go(false) });
     opts.push({ label: "Cambiar nombre", act: () => this.rename() });
     opts.push({ label: "Jugar solo", act: () => { location.href = modeUrl(false); } });
+    opts.push(...this.installOption());
     opts.push(...this.fullOption());
     this.setMenu(`En línea como ${online.name}`, opts, { refresh: () => this.onlineMenu(), index: this.refreshMenu ? this.index : 0 });
   }
