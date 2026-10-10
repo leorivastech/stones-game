@@ -1,0 +1,16 @@
+#share-game { font: 16px/1.4 monospace; color: #f5e4c5; }
+#share-game button { font: inherit; color: inherit; background: #251e2b; border: 2px solid #bd9455; cursor: pointer; padding: 8px 12px; touch-action: manipulation; }
+#share-game .share-trigger { position: fixed; z-index: 40000; right: max(12px, env(safe-area-inset-right)); top: max(12px, env(safe-area-inset-top)); }
+#share-game dialog { box-sizing: border-box; width: min(420px, 94vw); max-height: 90dvh; overflow: auto; background: #120e17; color: inherit; border: 2px solid #bd9455; padding: 24px; text-align: center; touch-action: pan-y; overscroll-behavior: contain; }
+#share-game dialog::backdrop { background: #120e17d9; }
+#share-game h2 { font-size: 20px; margin: 12px 20px; }
+#share-game .share-close { position: absolute; top: 4px; right: 4px; padding: 0 8px; font-size: 24px; }
+#share-game canvas { display: block; width: 224px; max-width: 100%; height: auto; margin: 16px auto; image-rendering: pixelated; }
+#share-game .share-link { color: #ebc579; overflow-wrap: anywhere; user-select: text; touch-action: manipulation; }
+#share-game .share-local { color: #eaaa8a; }
+#share-game button:focus-visible, #share-game a:focus-visible { outline: 2px solid white; outline-offset: 3px; }
+@media (max-height: 500px) {
+  #share-game dialog { width: min(600px, 94vw); padding: 12px 24px; }
+  #share-game canvas { width: 152px; margin: 8px auto; }
+  #share-game p { margin: 8px 0; }
+}

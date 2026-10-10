@@ -250,26 +250,39 @@ function lost(ws) {
  * ¿Contesta el servidor del modo en línea? Abre una conexión de prueba y la cierra. Para el título,
  * antes de recargar la página en modo en línea.
  */
-export function probeServer(timeout = 4000) {
+export function probeServer(timeout = 4000, { retry = false } = {}) {
   return new Promise((resolve) => {
     let ws;
     let done = false;
+    let retryTimer;
     const end = (ok) => {
       if (done) return;
       done = true;
       clearTimeout(timer);
+      clearTimeout(retryTimer);
       try { ws?.close(); } catch { /* nada */ }
       resolve(ok);
     };
     const timer = setTimeout(() => end(false), timeout);
-    try {
-      ws = new WebSocket(netUrl());
-      ws.onopen = () => end(true);
-      ws.onerror = () => end(false);
-      ws.onclose = () => end(false);
-    } catch {
-      end(false);
-    }
+    const attempt = () => {
+      if (done) return;
+      const failed = () => {
+        if (done) return;
+        if (!retry) { end(false); return; }
+        ws.onopen = ws.onerror = ws.onclose = null;
+        try { ws.close(); } catch { /* ya cerrada */ }
+        retryTimer = setTimeout(attempt, 1500);
+      };
+      try {
+        ws = new WebSocket(netUrl());
+        ws.onopen = () => end(true);
+        ws.onerror = failed;
+        ws.onclose = failed;
+      } catch {
+        end(false);
+      }
+    };
+    attempt();
   });
 }
 

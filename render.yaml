@@ -3,8 +3,16 @@ services:
     name: stones-game
     env: node
     plan: free
-    buildCommand: npm install && npm run build
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: node server/index.mjs
     envVars:
       - key: NODE_ENV
         value: production
+      - key: WORLD_STORE
+        value: supabase
+      - key: WORLD_ID
+        value: main
+      - key: SUPABASE_URL
+        value: https://aljfstqzmzbjomxljsru.supabase.co
+      - key: SUPABASE_SECRET_KEY
+        sync: false

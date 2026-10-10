@@ -18,6 +18,7 @@ import { online, probeServer, modeUrl } from "../net/online.js";
 import { askName } from "../net/hud.js";
 import { centerX } from "../art/font.js";
 import { canFullscreen, isFullscreen, toggleFullscreen } from "../engine/touch.js";
+import { mountShareGame } from "../share-game.js";
 
 export class TitleScene extends Phaser.Scene {
   constructor() {
@@ -78,6 +79,11 @@ export class TitleScene extends Phaser.Scene {
     this.controls.lock(10);
     startMusic(this, "title");
     this.busy = false;
+    const removeShare = mountShareGame({
+      onOpen: () => { this.shareWasBusy = this.busy; this.busy = true; },
+      onClose: () => { this.busy = this.shareWasBusy; this.controls.lock(8); },
+    });
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, removeShare);
   }
 
   /** Cambia el menú: un letrero arriba (opcional) y las opciones [{ label, act }]. */
@@ -190,8 +196,8 @@ export class TitleScene extends Phaser.Scene {
     const name = await askName({ force: true, cancel: true });
     this.controls.lock(8);
     if (!name) { this.busy = false; this.modeMenu(); return; }
-    this.setMenu("Buscando el mundo…", [], { font: "font-dim" });
-    const ok = await probeServer(4000);
+    this.setMenu("Despertando servidor… hasta 75 s", [], { font: "font-dim" });
+    const ok = await probeServer(75000, { retry: true });
     if (ok) {
       this.setMenu(`Entrando como ${name}…`, [], { font: "font-dim" });
       location.href = modeUrl(true, name);
@@ -204,7 +210,7 @@ export class TitleScene extends Phaser.Scene {
     ], { font: "font-red" });
   }
 
-  /** Con ?online=1: esperar la bienvenida del servidor; si en 4 s no llega, avisar y ofrecer jugar solo. */
+  /** Con ?online=1: dar tiempo al arranque en frío; la conexión ya reintenta por su cuenta. */
   waitServer() {
     this.setMenu(online.name ? "Conectando al mundo…" : "Escribe tu nombre", [], { font: "font-dim" });
     let since = null;
@@ -217,7 +223,11 @@ export class TitleScene extends Phaser.Scene {
       }
       if (!online.name) return;
       since ??= this.time.now;
-      if (!warned && this.time.now - since > 4000) {
+      if (!warned && this.time.now - since > 4000 && this.time.now - since <= 75000) {
+        warned = true;
+        this.setMenu("Despertando servidor… hasta 75 s", [], { font: "font-dim" });
+      }
+      if (this.time.now - since > 75000 && !this.options.length) {
         warned = true;
         this.setMenu("El servidor no responde", [
           { label: "Seguir intentando", act: () => { tick.remove(); this.waitServer(); } },

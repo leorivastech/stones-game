@@ -19,6 +19,7 @@ import { extname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { WebSocketServer } from "ws";
 import { World } from "./world.mjs";
+import { openWorld } from "./persistence.mjs";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 const DIST = resolve(process.env.DIST ?? join(HERE, "../dist"));
@@ -29,7 +30,7 @@ const DAY_MS = Number(process.env.DAY_SECONDS ?? 240) * 1000;
 const DEAD_MS = 8000;
 /** Si el que manda un mapa deja de moverse (pestaña escondida, celular bloqueado), manda otro. */
 const STALE_MS = 3000;
-const world = new World(process.env.WORLD_FILE ?? join(HERE, "data/world.json"), { dayMs: DAY_MS });
+const world = await openWorld(process.env.WORLD_FILE ?? join(HERE, "data/world.json"), { dayMs: DAY_MS });
 
 /**
  * Bitácora corta de lo que pasa (entra, sale, cambia de mapa, se corta): va a la consola y a /estado.
@@ -180,9 +181,15 @@ const HANDLERS = {
   },
 
   // --- Avance del jugador: se guarda por nombre; al entrar vuelve en la bienvenida.
-  save(c, m) {
+  async save(c, m) {
     const ok = world.savePlayer(c.name, m.data, m.at);
-    if (m.req) send(c, { t: "res", req: m.req, ok });
+    try {
+      if (ok) await world.save();
+      if (m.req) send(c, { t: "res", req: m.req, ok });
+    } catch (err) {
+      saveError(err);
+      if (m.req) send(c, { t: "res", req: m.req, ok: false, storage: true });
+    }
   },
   resetSave(c, m) {
     world.resetPlayer(c.name);
@@ -347,6 +354,7 @@ wss.on("connection", (ws) => {
   clients.set(c.id, c);
   ws.on("pong", () => { c.seen = Date.now(); });
   ws.on("message", (raw, isBinary) => {
+    if (stopping) return;
     c.seen = Date.now();
     // Voz: pedacitos de audio del que habla; se reparten a los demás con su número adelante.
     if (isBinary) {
@@ -365,7 +373,10 @@ wss.on("connection", (ws) => {
     let m;
     try { m = JSON.parse(raw); } catch { return; };
     if (m.t !== "hello" && !c.name) return;
-    try { HANDLERS[m.t]?.(c, m); } catch (err) { console.error("error en", m.t, err); }
+    try {
+      const result = HANDLERS[m.t]?.(c, m);
+      result?.catch?.((err) => console.error("error en", m.t, err.message));
+    } catch (err) { console.error("error en", m.t, err.message); }
   });
   ws.on("close", (code) => {
     if (clients.get(c.id) !== c) return;
@@ -384,7 +395,7 @@ let lastHour = world.hour();
 // Cada segundo: medianoche (día nuevo), mediodía (vuelven los de la noche), conexiones muertas y
 // quién manda cada mapa. Cada 2 s, la hora del servidor a todos (sirve también de "sigo aquí").
 let tick = 0;
-setInterval(() => {
+const clockTimer = setInterval(() => {
   tick += 1;
   if (Date.now() - world.s.dayStartedAt >= DAY_MS) {
     const r = world.nextDay();
@@ -409,9 +420,24 @@ setInterval(() => {
 }, 1000);
 
 // Guardado del mundo cada pocos segundos (sólo si cambió).
-setInterval(() => world.save(), 4000);
-for (const sig of ["SIGINT", "SIGTERM"]) process.on(sig, () => { world.save(); process.exit(0); });
+function saveError(err) {
+  console.error("[guardado]", err.message);
+  if (err.code === "WORLD_CONFLICT") process.exit(1);
+}
+const saveTimer = setInterval(() => { world.save().catch(saveError); }, 4000);
+let stopping = false;
+for (const sig of ["SIGINT", "SIGTERM"]) process.on(sig, async () => {
+  if (stopping) return;
+  stopping = true;
+  clearInterval(clockTimer);
+  clearInterval(saveTimer);
+  http.close();
+  wss.close();
+  for (const c of clients.values()) c.ws.close();
+  try { await world.save(true); process.exit(0); }
+  catch (err) { console.error("[guardado al salir]", err.message); process.exit(1); }
+});
 
 http.listen(PORT, HOST, () => {
-  console.log(`Stones en línea: http://${HOST}:${PORT}/ (en el título: "En línea")  ·  un día cada ${DAY_MS / 1000} s  ·  mundo en ${world.file}`);
+  console.log(`Stones en línea: http://${HOST}:${PORT}/ (en el título: "En línea")  ·  un día cada ${DAY_MS / 1000} s  ·  guardado en ${world.storage ? "Supabase" : world.file}`);
 });

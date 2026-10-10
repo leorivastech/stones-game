@@ -13,7 +13,7 @@
  * arranca a las 8 de la mañana; al reiniciar el servidor sigue a la misma hora en que se guardó.
  */
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, renameSync } from "node:fs";
 import { dirname } from "node:path";
 import { freshEconomy, stepDay, quote, takeFromMarket, giveToMarket, meltAfter, mixChill, STONE, GOOD_IDS } from "../src/economy.js";
 import { rollDay, caravanNews } from "../src/director.js";
@@ -56,11 +56,14 @@ export function cleanSave(data) {
 const plural = (n, g) => `${n} ${GOODS[g].short.toLowerCase()}`;
 
 export class World {
-  constructor(file, { dayMs }) {
+  constructor(file, { dayMs, persisted, storage = null }) {
     this.file = file;
     this.dayMs = dayMs;
-    this.s = this.load() ?? World.fresh(dayMs);
+    this.s = persisted === undefined ? this.load() ?? World.fresh(dayMs) : this.restore(persisted);
+    this.storage = storage;
     this.dirty = false;
+    this.revision = 0;
+    this.saving = null;
   }
 
   static fresh(dayMs = 240000) {
@@ -86,26 +89,46 @@ export class World {
     try {
       if (!existsSync(this.file)) return null;
       const s = JSON.parse(readFileSync(this.file, "utf8"));
-      // Pueblos agregados después de guardar el mundo.
-      const fresh = freshEconomy();
-      s.econ.market = { ...fresh.market, ...s.econ.market };
-      s.econ.drift = { ...fresh.drift, ...s.econ.drift };
-      s.econ.heat = { ...fresh.heat, ...s.econ.heat };
-      s.econ.caravans ??= [];
-      // Sigue a la misma hora en que se guardó (antes el día volvía a empezar con cada reinicio).
-      const frac = Number.isFinite(s.dayFrac) ? Math.min(0.999, Math.max(0, s.dayFrac)) : FIRST_HOUR / 24;
-      return { ...World.fresh(this.dayMs), ...s, dayStartedAt: Date.now() - frac * this.dayMs };
+      return this.restore(s);
     } catch {
       return null;
     }
   }
 
-  save(force = false) {
+  restore(s) {
+    if (!isObj(s) || s.version !== 1 || !isObj(s.econ) || !isObj(s.players)) {
+      throw new Error("Guardado del mundo inválido; no se reemplazará con un mundo vacío.");
+    }
+    const fresh = freshEconomy();
+    s.econ.market = { ...fresh.market, ...s.econ.market };
+    s.econ.drift = { ...fresh.drift, ...s.econ.drift };
+    s.econ.heat = { ...fresh.heat, ...s.econ.heat };
+    s.econ.caravans ??= [];
+    const frac = Number.isFinite(s.dayFrac) ? Math.min(0.999, Math.max(0, s.dayFrac)) : FIRST_HOUR / 24;
+    return { ...World.fresh(this.dayMs), ...s, dayStartedAt: Date.now() - frac * this.dayMs };
+  }
+
+  async save(force = false) {
+    // Un guardado a la vez; una petición posterior también espera sus propios cambios.
+    if (this.saving) {
+      await this.saving;
+      return this.save(force);
+    }
     if (!this.dirty && !force) return;
-    mkdirSync(dirname(this.file), { recursive: true });
-    this.s.dayFrac = this.dayProgress();
-    writeFileSync(this.file, JSON.stringify(this.s));
-    this.dirty = false;
+    const revision = this.revision;
+    const snapshot = JSON.parse(JSON.stringify({ ...this.s, dayFrac: this.dayProgress() }));
+    const operation = async () => {
+      if (this.storage) await this.storage.save(snapshot);
+      else {
+        mkdirSync(dirname(this.file), { recursive: true });
+        writeFileSync(`${this.file}.tmp`, JSON.stringify(snapshot));
+        renameSync(`${this.file}.tmp`, this.file);
+      }
+      // No perder cambios hechos mientras Supabase estaba respondiendo.
+      if (this.revision === revision) this.dirty = false;
+    };
+    this.saving = operation();
+    try { await this.saving; } finally { this.saving = null; }
   }
 
   /** Qué tanto va del día (0-1). */
@@ -120,6 +143,7 @@ export class World {
 
   touch() {
     this.dirty = true;
+    this.revision += 1;
   }
 
   // ------------------------------------------------------------------ jugadores
